@@ -23,13 +23,22 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
-        return [
-            'name' => fake()->name(),
+        $user = [
+            'fname' => fake()->firstName(),
+            'lname' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
+
+        return array_merge(
+            $user,
+            [
+                'uname' => strtolower($user['lname']) . strtolower(substr($user['fname'],0,1)),
+                'name' => $user['fname'] . ' ' . $user['lname']
+            ]
+        );
     }
 
     /**

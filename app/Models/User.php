@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,6 +20,9 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'uname',
+        'fname',
+        'lname',
         'name',
         'email',
         'password',
@@ -44,5 +49,15 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Set username from first name and last name
+     */
+    public function setUname(): void
+    {
+        if (!empty($this->lname) && !empty($this->fname)) {
+            $this->uname = strtolower($this->lname) . substr(strtolower($this->fname),0,1);
+        }
     }
 }
