@@ -10,10 +10,28 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 use Illuminate\Support\Str;
+use Laravel\Passport\Passport;
 
 class UserTest extends TestCase
 {
     use RefreshDatabase;
+    /**
+     * To test the protected API endpoints we need to seed the
+     * first user and authenticate him.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // $this->artisan('migrate');
+        $this->artisan('db:seed', ['--class' => 'UsersTableSeeder']);
+        $user = User::first();
+        // $token = $user->createToken('TestToken')->accessToken;
+        // $this->withHeaders([
+        //     'Authorization' => "Bearer {$token}",
+        //     'Accept' => 'application/json',
+        // ]);
+        Passport::actingAs($user);
+    }
     
     /**
      * Test update users table migration
@@ -58,8 +76,9 @@ class UserTest extends TestCase
      */
     public function test_users_create(): void
     {
-        $expected = 100;
-        User::factory()->count($expected)->create();
+        $number_of_users_to_create = 100;
+        $expected = User::count() + $number_of_users_to_create;
+        User::factory()->count($number_of_users_to_create)->create();
         $this->assertEquals(
             $expected,
             User::get()->count(),
