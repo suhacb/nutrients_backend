@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Route;
     return $request->user();
 })->middleware('auth:sanctum');*/
 
-Route::prefix('users')->name('users.')->group(function () {
-    Route::post('/', [UsersController::class, 'store'])->name('create');
+Route::middleware('auth:api')->group(function () {
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::post('/', [UsersController::class, 'store'])->name('create');
+    });
 });
