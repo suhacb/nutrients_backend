@@ -64,4 +64,24 @@ class UserTest extends TestCase
             'Number of created users does not match expected value.'
         );
     }
+
+    /**
+     * Test if user can be created using the UsersController.
+     */
+    public function test_user_can_be_created_using_api()
+    {
+        $user = User::factory()->make();
+        $response = $this->post('/api/users', $user->makeVisible(['password', 'remember_token'])->toArray());
+
+        $response->assertStatus(201); // or 302 if redirect after creation
+
+        $this->assertDatabaseHas('users', [
+            'uname' => $user->uname,
+            'email' => $user->email
+        ]);
+
+        // Ensure password is hashed
+        $retreived_user = User::where('uname', $user->uname)->first();
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check($user->password, $retreived_user->password), 'Password is not hashed correctly.');
+    }
 }
