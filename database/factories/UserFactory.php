@@ -24,6 +24,7 @@ class UserFactory extends Factory
     public function definition(): array
     {
         $user = [
+            'uname' => fake()->unique()->userName(),
             'fname' => fake()->firstName(),
             'lname' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
@@ -32,13 +33,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
         ];
 
-        return array_merge(
-            $user,
-            [
-                'uname' => strtolower($user['lname']) . strtolower(substr($user['fname'],0,1)),
-                'name' => $user['fname'] . ' ' . $user['lname']
-            ]
-        );
+        return $user;
     }
 
     /**

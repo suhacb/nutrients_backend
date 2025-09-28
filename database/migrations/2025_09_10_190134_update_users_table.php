@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('uname')->after('id')->unique();
             $table->string('fname')->after('uname');
             $table->string('lname')->after('fname');
+            $table->dropColumn('name');
         });
     }
 
@@ -27,6 +28,7 @@ return new class extends Migration
             $table->dropColumn('uname');
             $table->dropColumn('fname');
             $table->dropColumn('lname');
+            $table->string('name')->after('id');
         });
     }
 };

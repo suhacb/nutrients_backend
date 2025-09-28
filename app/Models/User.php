@@ -23,7 +23,6 @@ class User extends Authenticatable
         'uname',
         'fname',
         'lname',
-        'name',
         'email',
         'password',
     ];
@@ -49,15 +48,5 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
-    }
-
-    /**
-     * Set username from first name and last name
-     */
-    public function setUname(): void
-    {
-        if (!empty($this->lname) && !empty($this->fname)) {
-            $this->uname = strtolower($this->lname) . substr(strtolower($this->fname),0,1);
-        }
     }
 }

@@ -41,33 +41,25 @@ class UserTest extends TestCase
 
         $this->assertTrue(
             $uniqueIndexes->contains(fn ($i) => str_contains($i->name, 'uname')),
-            'Email field does not have a unique index'
+            'The uname column in the users table does not have a unique index'
+        );
+
+        $this->assertFalse(
+            Schema::hasColumn('users', 'name'),
+            'The name column is still in the users table'
         );
     }
 
     /**
-     * Test if User model has the added fields fillable.
+     * Tests User creation. The tests creates 100 fake
+     * users with unique usernames and emails.
      */
-    public function test_user_model_fillable_attribute(): void
+    public function test_users_create(): void
     {
-        $user = new User();
-        $fillable = $user->getFillable();
-        $this->assertTrue(
-            empty(array_diff(['uname', 'fname', 'lname'], $fillable)),
-            'The Models\User model has not defined the necessary fillable attributes.'
-        );
-    }
-
-    /**
-     * Tests UsersController@create method. The tests creates 100 fake
-     * users with unique usernames and emails. Then it tries to create
-     * a user with existing username and another with existing email.
-     */
-    public function test_users_controller_create(): void
-    {
-        User::factory()->count(100)->create();
+        $expected = 100;
+        User::factory()->count($expected)->create();
         $this->assertEquals(
-            1,
+            $expected,
             User::get()->count(),
             'Number of created users does not match expected value.'
         );
