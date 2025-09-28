@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UserRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,9 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class UsersController extends Controller
 {
-    public function create(Request $request): JsonResponse
+    public function store(UserRequest $request): JsonResponse
     {
-        Log::info($request->all());
         User::create([
             'uname' => $request->input('uname'),
             'fname' => $request->input('fname'),

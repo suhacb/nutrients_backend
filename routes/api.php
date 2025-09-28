@@ -9,5 +9,5 @@ use Illuminate\Support\Facades\Route;
 })->middleware('auth:sanctum');*/
 
 Route::prefix('users')->name('users.')->group(function () {
-    Route::post('/', [UsersController::class, 'create'])->name('create');
+    Route::post('/', [UsersController::class, 'store'])->name('create');
 });
