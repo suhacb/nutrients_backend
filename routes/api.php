@@ -11,5 +11,6 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:api')->group(function () {
     Route::prefix('users')->name('users.')->group(function () {
         Route::post('/', [UsersController::class, 'store'])->name('create');
+        Route::put('{user}', [UsersController::class, 'update'])->name('update');
     });
 });

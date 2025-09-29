@@ -21,4 +21,11 @@ class UsersController extends Controller
         ]);
         return response()->json(['message' => 'User created successfully'], 201);
     }
+
+    public function update(UserRequest $request, User $user): JsonResponse
+    {
+        Log::info($request->all());
+        $user->update($request->validated());
+        return response()->json(['message' => 'User updated successfully', 'data' => $user], 200);
+    }
 }

@@ -200,4 +200,79 @@ class UserTest extends TestCase
         $response = $this->postJson('/api/users', $user);
         $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
     }
+
+    /**
+     * Test if user can be updated using the UsersController.
+     */
+    public function test_user_can_be_updated_using_api() {
+        // First create a user to update
+        $user = User::factory()->raw();
+        $response = $this->postJson(route('users.create'), $user);
+        $response->assertStatus(201, "Expected HTTP 201 Created, but received {$response->getStatusCode()}. User creation via API failed.");
+
+        // Fetch the created user
+        $created_user = User::where('uname', $user['uname'])->first();
+        Log::info($created_user->id);
+        $this->assertNotNull($created_user, 'User was not created successfully for update test.');
+        
+        // For the test, we will swap the first and last names
+        $response = $this->putJson(route('users.update', $created_user), [
+            'fname' => $user['lname'],
+            'lname' => $user['fname']
+        ]);
+        $response->assertStatus(200, "Expected HTTP 200 OK, but received {$response->getStatusCode()}. User update via API failed.");
+
+        // Check if the response contains the updated data
+        $response->assertJsonFragment([
+            'fname' => $user['lname'],
+            'lname' => $user['fname']
+        ], 'API response does not contain the updated user data.');
+
+        // Test to allow update when no data is passed
+        $response = $this->putJson(route('users.update', $created_user), []);
+        $response->assertStatus(200, "Expected HTTP 200 OK, but received {$response->getStatusCode()}. User update via API failed.");
+
+        // Test to deny update when uname is not a string
+        $response = $this->putJson(route('users.update', $created_user), ['uname' => 12345]);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to deny update when uname is too long
+        $response = $this->putJson(route('users.update', $created_user), ['uname' => Str::random(256)]);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to deny update when uname is not unique
+        $another_user = User::factory()->create();
+        $response = $this->putJson(route('users.update', $created_user), ['uname' => $another_user->uname]);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to allow update when uname is provided and is the same as the current one
+        $response = $this->putJson(route('users.update', $created_user), ['uname' => $created_user->uname]);
+        $response->assertStatus(200, "Expected HTTP 200 OK, but received {$response->getStatusCode()}. User update via API failed.");
+
+        // Test to deny update when fname is not a string
+        $response = $this->putJson(route('users.update', $created_user), ['fname' => 12345]);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to deny update when fname is too long
+        $response = $this->putJson(route('users.update', $created_user), ['fname' => Str::random(256)]);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to deny update when email is not a string
+        $response = $this->putJson(route('users.update', $created_user), ['email' => 12345]);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to deny update when email is too long
+        $response = $this->putJson(route('users.update', $created_user), ['email' => Str::random(256) . '@example.com']);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to deny update when email is not unique
+        $another_user = User::factory()->create();
+        $response = $this->putJson(route('users.update', $created_user), ['email' => $another_user->email]);
+        $response->assertStatus(422, "Expected HTTP 422 Unprocessable Entity due to validation errors, but received {$response->getStatusCode()}. User creation validation did not fail as expected.");
+
+        // Test to allow update when email is provided and is the same as the current one
+        $response = $this->putJson(route('users.update', $created_user), ['email' => $created_user->email]);
+        $response->assertStatus(200, "Expected HTTP 200 OK, but received {$response->getStatusCode()}. User update via API failed.");
+
+    }
 }
