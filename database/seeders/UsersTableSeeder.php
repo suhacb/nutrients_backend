@@ -13,7 +13,9 @@ class UsersTableSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
+        User::firstOrCreate([
+            'uname' => 'testuser'
+        ], [
             'fname' => 'Test',
             'lname' => 'User',
             'uname' => 'testuser',
