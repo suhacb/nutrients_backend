@@ -12,5 +12,6 @@ Route::middleware('auth:api')->group(function () {
     Route::prefix('users')->name('users.')->group(function () {
         Route::post('/', [UsersController::class, 'store'])->name('create');
         Route::put('{user}', [UsersController::class, 'update'])->name('update');
+        Route::get('{user}', [UsersController::class, 'show'])->name('show');
     });
 });

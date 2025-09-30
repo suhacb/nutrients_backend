@@ -24,7 +24,6 @@ class UserRequest extends FormRequest
     {
         // Get the controller@method string
         $action = $this->route()->getActionMethod();
-        Log::info("Action method: " . $action);
 
         // Check if a private method exists with that name
         if (method_exists($this, $action)) {

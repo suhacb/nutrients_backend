@@ -24,8 +24,12 @@ class UsersController extends Controller
 
     public function update(UserRequest $request, User $user): JsonResponse
     {
-        Log::info($request->all());
         $user->update($request->validated());
         return response()->json(['message' => 'User updated successfully', 'data' => $user], 200);
+    }
+
+    public function show(User $user): JsonResponse
+    {
+        return response()->json(['data' => $user], 200);
     }
 }

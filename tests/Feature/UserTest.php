@@ -212,7 +212,6 @@ class UserTest extends TestCase
 
         // Fetch the created user
         $created_user = User::where('uname', $user['uname'])->first();
-        Log::info($created_user->id);
         $this->assertNotNull($created_user, 'User was not created successfully for update test.');
         
         // For the test, we will swap the first and last names
@@ -273,6 +272,34 @@ class UserTest extends TestCase
         // Test to allow update when email is provided and is the same as the current one
         $response = $this->putJson(route('users.update', $created_user), ['email' => $created_user->email]);
         $response->assertStatus(200, "Expected HTTP 200 OK, but received {$response->getStatusCode()}. User update via API failed.");
+    }
 
+    /**
+     * Test if user can be shown using the UsersController.
+     */
+    public function test_user_can_be_shown_using_api() {
+        // First create a user to be shown
+        $user = User::factory()->raw();
+        $response = $this->postJson(route('users.create'), $user);
+        $response->assertStatus(201, "Expected HTTP 201 Created, but received {$response->getStatusCode()}. User creation via API failed.");
+
+        // Get ID of created user
+        $created_user = User::where('uname', $user['uname'])->first();
+        $this->assertNotNull($created_user, 'User was not created successfully for show test.');
+
+        // Test user show endpoint
+        $response = $this->getJson(route('users.show', ['user' => $created_user]));
+        $response->assertStatus(200, "Expected HTTP 200 OK, but received {$response->getStatusCode()}. User show via API failed.");
+
+        // Test user show endpoint with invalid ID
+        $response = $this->getJson(route('users.show', ['user' => $created_user->id + 1]));
+        $response->assertStatus(404, "Expected HTTP 404 Not Found for non-existing user, but received {$response->getStatusCode()}. User show via API did not fail as expected.");
+
+        // Test that the secret data of the user is not exposed
+        $response = $this->getJson(route('users.show', ['user' => $created_user]));
+        $response->assertJsonMissing([
+            'password' => $created_user->password,
+            'remember_token' => $created_user->remember_token
+        ], 'User show API response contains sensitive data that should not be exposed.');
     }
 }
