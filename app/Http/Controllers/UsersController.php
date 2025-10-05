@@ -32,4 +32,15 @@ class UsersController extends Controller
     {
         return response()->json(['data' => $user], 200);
     }
+
+    public function delete(User $user): JsonResponse
+    {
+        try {
+            $user->delete();
+            return response()->json(['message' => 'User deleted successfully'], 200);
+        } catch (\Exception $e) {
+            Log::error('Error deleting user: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to delete user'], 500);
+        }
+    }
 }

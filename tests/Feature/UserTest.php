@@ -302,4 +302,30 @@ class UserTest extends TestCase
             'remember_token' => $created_user->remember_token
         ], 'User show API response contains sensitive data that should not be exposed.');
     }
+
+    /**
+     * Test if user can be deleted using the UsersController.
+     */
+    public function test_user_can_be_deleted_using_api() {
+        // First create a user to be deleted
+        $user = User::factory()->raw();
+        $response = $this->postJson(route('users.create'), $user);
+        $response->assertStatus(201, "Expected HTTP 201 Created, but received {$response->getStatusCode()}. User creation via API failed.");
+
+        // Get ID of created user
+        $created_user = User::where('uname', $user['uname'])->first();
+        $this->assertNotNull($created_user, 'User was not created successfully for show test.');
+
+        // Test user delete endpoint
+        $response = $this->deleteJson(route('users.delete', ['user' => $created_user]));
+        $response->assertStatus(200, "Expected HTTP 200 OK, but received {$response->getStatusCode()}. User show via API failed.");
+
+        // Test user delete with invalid ID, we are using the same user again
+        $response = $this->deleteJson(route('users.delete', ['user' => $created_user]));
+        $response->assertStatus(404, "Expected HTTP 404 Not Found for non-existing user, but received {$response->getStatusCode()}. User show via API did not fail as expected.");
+
+        // Test that the user is actually deleted from the database
+        $deleted_user = User::where('uname', $user['uname'])->first();
+        $this->assertNull($deleted_user, 'User was not deleted successfully from the database.');
+    }
 }
