@@ -11,10 +11,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class LoginController extends Controller
 {
-    protected string $accessToken;
-    protected string $refreshToken;
-    protected string $applicationName;
-    protected string $applicationUrl;
+    protected string | null $accessToken;
+    protected string | null $refreshToken;
+    protected string | null $applicationName;
+    protected string | null $applicationUrl;
 
     public function __construct(protected AuthService $service) {
         $this->accessToken = request()->bearerToken() ?? null;
@@ -36,12 +36,14 @@ class LoginController extends Controller
 
         try {
             $response = $this->service->validate($this->accessToken, $this->refreshToken, $this->applicationName, $this->applicationUrl);
-
+            
             if ($response->successful()) {
-                return response()->json($response->json());
+                $responseData = $response->json();
+                if($responseData == true) { return response()->json("true"); }
+                if($responseData === false) { return response()->json("false"); }
+                return response()->json($responseData);
             }
-
-            return response()->json(false);
+            return response()->json("false");
         } catch (RequestException $e) {
             logger()->error('Token validation HTTP error', ['exception' => $e]);
             return response()->json(['error' => 'Token validation service unavailable'], 503);
@@ -57,13 +59,22 @@ class LoginController extends Controller
 
         try {
             $response = $this->service->logout($this->accessToken, $this->refreshToken, $this->applicationName, $this->applicationUrl);
-            if ($response->status() === 200) {
+            if ($response->successful()) {
                 return response()->json(['message' => 'Logged out successfully'], 200);
             }
 
-            return response()->json('error', 400);
+            return response()->json([
+                'error' => 'Logout failed',
+                'status' => $response->status(),
+                'body' => $response->json()
+            ], $response->status());
+
+        } catch (RequestException $e) {
+            logger()->error('Logout HTTP error', ['exception' => $e]);
+            return response()->json(['error' => 'Logout service unavailable'], 503);
         } catch (Exception $e) {
-            return response()->json($e->getMessage() ?? ['error' => 'Server error'], $e->getCode() ?: 400);
+            logger()->error('Logout error', ['exception' => $e]);
+            return response()->json(['error' => 'Internal server error'], 500);
         }
     }
 }
