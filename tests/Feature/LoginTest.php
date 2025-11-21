@@ -10,35 +10,16 @@ class LoginTest extends TestCase
 {
     public function test_LoginController_login_returns_redirect_url_for_valid_request()
     {
-        $payload = [
-            'client_id' => 'test-client',
-            'redirect_uri' => 'https://client.example.com/callback',
-            'state' => 'random123'
-        ];
+        $response = $this->postJson(route('auth.login'));
+        $response->assertStatus(200)->assertJsonStructure(['redirect_uri']);
+        
+        $redirectUri = $response->json('redirect_uri');
+        $parsed = parse_url($redirectUri);
+        parse_str($parsed['query'], $queryParams);
 
-        $response = $this->postJson(route('auth.login'), $payload);
-
-        $response->assertStatus(200)
-                 ->assertJsonStructure([
-                     'status',
-                     'url'
-                 ])
-                 ->assertJson(['status' => 'redirect'])
-                 ->assertJson(fn ($json) =>
-                     str_contains($json['url'], 'https://auth.example.com/login')
-                 );
-    }
-
-    /** @test */
-    public function it_fails_validation_for_missing_client_id()
-    {
-        $payload = [
-            'redirect_uri' => 'https://client.example.com/callback'
-        ];
-
-        $response = $this->postJson('/api/login-redirect', $payload);
-
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['client_id']);
+        $this->assertEquals(config('nutrients.auth.url_frontend'), $parsed['scheme'] . '://' . $parsed['host']);
+        $this->assertEquals(config('nutrients.auth.port_frontend'), $parsed['port']);
+        $this->assertEquals(config('nutrients.name'), $queryParams['appName']);
+        $this->assertEquals(config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port'), $queryParams['appUrl']);
     }
 }
