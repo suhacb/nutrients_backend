@@ -28,20 +28,18 @@ class VerifyFrontend
         // If any are missing, return 401
         if (!$accessToken || !$appName || !$appUrl || !$refreshToken) {
             return response()->json([
-                'error' => 'Unauthenticated'
+                'error' => 'Unauthorized'
             ], 401);
         }
 
         try {
             $response = $this->service->validate($accessToken, $refreshToken, $appName, $appUrl);
 
-            if ($response->successful()) {
-                $responseData = $response->json();
-                if($responseData == true) { return response()->json("true"); }
-                if($responseData === false) { return response()->json("false"); }
-                return response()->json($responseData);
+            if (!$response->successful()) {
+                return response()->json([
+                    'error' => 'Unauthorized'
+                ], 401);
             }
-            return response()->json("false");
         } catch (RequestException $e) {
             logger()->error('Token validation HTTP error', ['exception' => $e]);
             return response()->json(['error' => 'Token validation service unavailable'], 503);

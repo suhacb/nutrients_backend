@@ -109,6 +109,7 @@ class LoginControllerTest extends TestCase
         ]);
     
         $response->assertStatus(200);
+        logger()->info($response->json());
     
         $response->assertJsonStructure(['message']);
         $this->assertEquals('Logged out successfully', $response->json('message'));
