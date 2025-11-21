@@ -17,4 +17,8 @@ return [
         'url' => env('APP_URL'),
         'port' => env('APP_PORT') ?? null
     ],
+    'testuser' => [
+        'username' => env('TEST_USER_USERNAME'),
+        'password' => env('TEST_USER_PASSWORD')
+    ]
 ];
