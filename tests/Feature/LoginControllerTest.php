@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use App\Classes\User\TokenParser;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -85,6 +86,13 @@ class LoginControllerTest extends TestCase
             $data === 'true' || $data === 'false' || is_array($data),
             'Unexpected response format from validateAccessToken'
         );
+
+        $parser = new TokenParser();
+        $parsedToken = $parser->parse($token['access_token']);
+
+        $this->assertDatabaseHas('users', [
+            'external_id' => $parsedToken['sub']
+        ]);
     }
 
     /**
