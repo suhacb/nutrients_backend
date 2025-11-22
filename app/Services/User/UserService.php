@@ -10,7 +10,6 @@ class UserService {
     public function handleUserFromToken(string $token): User
     {
         $claims = $this->parser->parse($token);
-        logger()->info($claims);
         
         if (empty($claims['sub']) || empty($claims['email'] || empty($claims['preferred_username']) || empty($claims['name']))) {
             throw new \InvalidArgumentException('Invalid token claims');

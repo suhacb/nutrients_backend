@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Auth\AuthService;
 use Exception;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
+use App\Services\Auth\AuthService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\RequestException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class LoginController extends Controller
@@ -60,6 +61,7 @@ class LoginController extends Controller
         try {
             $response = $this->service->logout($this->accessToken, $this->refreshToken, $this->applicationName, $this->applicationUrl);
             if ($response->successful()) {
+                Auth::logout();
                 return response()->json(['message' => 'Logged out successfully'], 200);
             }
 

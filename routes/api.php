@@ -14,3 +14,8 @@ Route::prefix('auth')->name('auth.')->group(function () {
     Route::get('validate-access-token', [LoginController::class, 'validateAccessToken'])->name('validate-access-token');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout')->middleware('verify.frontend');
 });
+
+// Test route to test protected route and verify.frontend
+Route::get('test', function() {
+     return true;
+})->name('test')->middleware('verify.frontend');

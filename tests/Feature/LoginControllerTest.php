@@ -117,6 +117,7 @@ class LoginControllerTest extends TestCase
     
         $response->assertJsonStructure(['message']);
         $this->assertEquals('Logged out successfully', $response->json('message'));
+        $this->assertNull(Auth::user());
     }
 
     /**
@@ -138,7 +139,7 @@ class LoginControllerTest extends TestCase
             'X-Application-Name' => $this->appName,
             'X-Client-Url' => $this->appUrl,
             'X-Refresh-Token' => $refreshToken,
-        ])->post(route('auth.logout'));
+        ])->get(route('test'));
 
         $response->assertStatus(200);
 
@@ -173,9 +174,10 @@ class LoginControllerTest extends TestCase
             'X-Application-Name' => $this->appName,
             'X-Client-Url' => $this->appUrl,
             'X-Refresh-Token' => 'invalid-refresh-token',
-        ])->post(route('auth.logout'));
+        ])->post(route('test'));
 
         $this->assertTrue($response->status() >= 300);
+        $this->assertNull(Auth::user());
     }
 
     private function login() {
