@@ -66,7 +66,6 @@ class UserServiceTest extends TestCase
     public function test_it_creates_new_user_if_not_exists(): void
     {
         // Create claims of non-existing user
-        // Create new user
         $uuid = $this->faker()->uuid();
         $username = $this->faker()->userName();
         $name = $this->faker()->name();

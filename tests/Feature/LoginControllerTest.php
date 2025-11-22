@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Http;
 
 class LoginControllerTest extends TestCase
 {
+    use RefreshDatabase;
+    
     protected string $accessToken;
     protected string $refreshToken;
     protected string $appName;
