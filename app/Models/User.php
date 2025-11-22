@@ -22,7 +22,9 @@ class User extends Authenticatable implements OAuthenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'uname',
+        'external_id',
+        'name',
+        'username',
         'fname',
         'lname',
         'email',
