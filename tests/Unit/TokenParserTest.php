@@ -30,8 +30,7 @@ class TokenParserTest extends TestCase
         $this->assertEquals($claims, $result);
     }
 
-    /** @test */
-    public function it_throws_exception_for_malformed_token(): void
+    public function test_it_throws_exception_for_malformed_token(): void
     {
         $this->expectException(\InvalidArgumentException::class);
 
