@@ -19,7 +19,8 @@ class ImportNutrientsCommandTest extends TestCase
 
         // Run the command
         Artisan::call('app:import-nutrients', [
-            'file' => $file
+            'file' => $file,
+            '--parser' => 'USDA'
         ]);
 
         // Check command output (optional)

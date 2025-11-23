@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Nutrient;
+use App\Parsers\ParserContract;
 use Illuminate\Console\Command;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use App\Parsers\USDA\UsdaNutrientsParser;
 
 class ImportNutrients extends Command
 {
@@ -14,7 +14,7 @@ class ImportNutrients extends Command
      *
      * @var string
      */
-    protected $signature = 'app:import-nutrients {file}';
+    protected $signature = 'app:import-nutrients {file} {--parser=USDA}';
 
     /**
      * The console command description.
@@ -29,24 +29,41 @@ class ImportNutrients extends Command
     public function handle()
     {
         $filePath = $this->argument('file');
+        $parserOption = $this->option('parser');
         $foods = $this->readDataFromFile($filePath);
+
+        $parser = $this->resolveParser($parserOption);
+        if (!$parser instanceof ParserContract) {
+            $this->error("Invalid parser specified: {$parserOption}");
+            return 1;
+        }
         
         if (is_int($foods)) {
             return $foods;
-        } elseif ($foods instanceof Collection) {
-            $this->info("File $filePath read successfully.");
-        } else {
-            $this->info("Unexpected type: " . gettype($foods));
-            return 0;
         }
 
-        $nutrients = $this->extractFoodNutrients($foods);
+        $nutrients = $parser->parse($foods);
         $this->import($nutrients);
         $this->info("Import completed: $filePath.");
         return 0;
     }
 
-    private function readDataFromFile(string $filePath): Collection | int
+    private function resolveParser(string $parserOption): ?ParserContract
+    {
+        $parsers = [
+            'USDA' => UsdaNutrientsParser::class,
+            // Future parsers can be added here:
+            // 'OtherParser' => OtherParser::class,
+        ];
+
+        if (!isset($parsers[$parserOption])) {
+            return null;
+        }
+
+        return app($parsers[$parserOption]);
+    }
+
+    private function readDataFromFile(string $filePath): array | int
     {
         if (!file_exists($filePath)) {
             $this->error("File not found: {$filePath}");
@@ -56,50 +73,16 @@ class ImportNutrients extends Command
         $jsonContent = file_get_contents($filePath);
         $data = json_decode($jsonContent, true);
         unset($jsonContent);
-        $extractedNutrients = collect();
         if ($data === null || !isset($data['FoundationFoods'])) {
             $this->error("Invalid JSON or missing 'FoundationFoods' key");
             return 1;
         }
-        $foods = collect($data['FoundationFoods']);
-        unset($data);
         
-        return $foods;
-    }
-
-    private function extractFoodNutrients(Collection $foods): Collection
-    {
-        $extractedNutrients = collect();
-        $foods->each(function($item, $key) use ($extractedNutrients) {
-            $food = collect($item);
-            $nutrients = collect($food->get('foodNutrients'));
-        
-            $nutrients->each(function($item, $key) use ($extractedNutrients) {
-                $extractedNutrients->push([
-                    'source' => 'USDA FoodData Central',
-                    'external_id' => !empty($item['nutrient']['number']) ? $item['nutrient']['number'] : null,
-                    'name' => $item['nutrient']['name'],
-                    'description' => null,
-                    'derivation_code' => !empty($item['nutrient']['derivation_code']) ? $item['nutrient']['derivation_code'] : null,
-                    'derivation_description' => !empty($item['nutrient']['derivation_description']) ? $item['nutrient']['derivation_description'] : null,
-                ]);
-
-            });
-        });
-        return $extractedNutrients->unique()->sortBy('external_id', SORT_NATURAL)->values();
+        return $data;
     }
 
     private function import(Collection $nutrients): void
     {
-        $nutrients->each(function($item) {
-            Nutrient::create([
-                'source' => $item['source'],
-                'external_id' => $item['external_id'],
-                'name' => $item['name'],
-                'description' => $item['description'],
-                'derivation_code' => $item['derivation_code'],
-                'derivation_description' => $item['derivation_description'],
-            ]);
-        });
+        $nutrients->each(fn($item) => $item->save());
     }
 }
