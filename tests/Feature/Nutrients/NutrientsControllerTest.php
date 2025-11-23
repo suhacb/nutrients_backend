@@ -33,14 +33,33 @@ class NutrientsControllerTest extends TestCase
 
     public function test_index_returns_nutrients(): void
     {
-        $count = 30;
+        $count = 90;
+        $perPage = 25;
+        $page = 4;
         Nutrient::factory()->count($count)->create();
         
-        
+        // Get first page
         $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.index'));
-
         $response->assertStatus(200);
-        $this->assertCount($count, $response->json());
+
+        $json = $response->json();
+
+        // Assert pagination meta exists
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('current_page', $json);
+        $this->assertArrayHasKey('last_page', $json);
+        $this->assertArrayHasKey('per_page', $json);
+        $this->assertArrayHasKey('total', $json);
+
+        // Assert 25 items returned on the first page
+        $this->assertCount($perPage, $json['data']);
+
+        // Assert total is correct
+        $this->assertEquals($count, $json['total']);
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.index') . '?page=' . $page);
+        $expectedItems = min($perPage, $count - $perPage * ($page - 1));
+        $this->assertCount($expectedItems, $json['data']);
     }
 
     public function test_show_returns_single_nutrient(): void
