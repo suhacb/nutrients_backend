@@ -4,9 +4,10 @@ namespace Tests\Feature\Nutrients;
 
 use Tests\TestCase;
 use App\Models\Nutrient;
+use Tests\LoginTestUser;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\LoginTestUser;
 
 class NutrientsControllerTest extends TestCase
 {
@@ -59,7 +60,7 @@ class NutrientsControllerTest extends TestCase
     {
         $payload = [
             'source' => 'USDA FoodData Central',
-            'external_id' => 101,
+            'external_id' => '101',
             'name' => 'Protein',
             'description' => 'Test nutrient',
             'derivation_code' => 'A',
@@ -76,25 +77,30 @@ class NutrientsControllerTest extends TestCase
     public function test_update_modifies_nutrient(): void
     {
         $nutrient = Nutrient::factory()->create(['name' => 'Old Name']);
-
         $payload = ['name' => 'New Name'];
-
+        
         $response = $this->withHeaders($this->makeAuthRequestHeader())->putJson(route('nutrients.update', $nutrient), $payload);
-
-        $response->assertStatus(200)->assertJson(['name' => 'New Name']);
-
+        $expectedNutrient = $nutrient;
+        $expectedNutrient->name = 'New Name';
+        
+        $response->assertStatus(200)->assertJson($expectedNutrient->toArray());
         $this->assertDatabaseHas('nutrients', ['name' => 'New Name']);
     }
 
     public function test_deletes_nutrient(): void
     {
         $nutrient = Nutrient::factory()->create();
-
         $response = $this->withHeaders($this->makeAuthRequestHeader())->deleteJson(route('nutrients.delete', $nutrient));
 
-        $response->assertStatus(200)->assertJson([]);
+        $response->assertStatus(204);
 
-        $this->assertDatabaseMissing('nutrients', ['id' => $nutrient->id]);
+        $this->assertDatabaseHas('nutrients', [
+            'id' => $nutrient->id,
+        ]);
+
+        $this->assertNotNull(
+            DB::table('nutrients')->where('id', $nutrient->id)->value('deleted_at')
+        );
     }
 
     public function test_store_requires_name_and_source(): void
@@ -103,11 +109,7 @@ class NutrientsControllerTest extends TestCase
 
         $response->assertStatus(422)->assertJsonValidationErrors([
             'source',
-            'external_id',
             'name',
-            'description',
-            'derivation_code',
-            'derivation_description',
         ]);
     }
 }

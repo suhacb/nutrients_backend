@@ -21,7 +21,7 @@ Route::prefix('nutrients')->name('nutrients.')->middleware('verify.frontend')->g
     Route::get('{nutrient}', [NutrientsController::class, 'show'])->name('show');
     Route::post('', [NutrientsController::class, 'store'])->name('store');
     Route::put('{nutrient}', [NutrientsController::class, 'update'])->name('update');
-    Route::delete('', [NutrientsController::class, 'delete'])->name('delete');
+    Route::delete('{nutrient}', [NutrientsController::class, 'delete'])->name('delete');
 });
 
 // Test route to test protected route and verify.frontend
