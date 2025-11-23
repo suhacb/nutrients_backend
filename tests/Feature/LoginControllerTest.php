@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\JsonResponse;
 
 class LoginControllerTest extends TestCase
 {
@@ -188,7 +189,7 @@ class LoginControllerTest extends TestCase
         $this->assertNull(Auth::user());
     }
 
-    private function login() {
+    private function login(): JsonResponse {
         $finalUrl = $this->authUrl . '/api/auth/login';
         $response = Http::withHeaders([
             'X-Application-Name' => $this->appName,
