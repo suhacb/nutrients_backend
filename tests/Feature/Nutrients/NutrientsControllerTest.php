@@ -1,0 +1,134 @@
+<?php
+
+namespace Tests\Feature\Nutrients;
+
+use Tests\TestCase;
+use App\Models\Nutrient;
+use Tests\LoginTestUser;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class NutrientsControllerTest extends TestCase
+{
+    use RefreshDatabase, LoginTestUser;
+
+    protected string $accessToken;
+    protected string $refreshToken;
+    protected string $appName;
+    protected string $appUrl;
+    protected string $authUrl;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->appName = config('nutrients.name');
+        $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
+        $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
+        $token = $this->login();
+        $this->accessToken = $token['access_token'] ?? null;
+        $this->refreshToken = $token['refresh_token'] ?? null;
+    }
+
+    public function test_index_returns_nutrients(): void
+    {
+        $count = 90;
+        $perPage = 25;
+        $page = 4;
+        Nutrient::factory()->count($count)->create();
+        
+        // Get first page
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.index'));
+        $response->assertStatus(200);
+
+        $json = $response->json();
+
+        // Assert pagination meta exists
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('current_page', $json);
+        $this->assertArrayHasKey('last_page', $json);
+        $this->assertArrayHasKey('per_page', $json);
+        $this->assertArrayHasKey('total', $json);
+
+        // Assert 25 items returned on the first page
+        $this->assertCount($perPage, $json['data']);
+
+        // Assert total is correct
+        $this->assertEquals($count, $json['total']);
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.index') . '?page=' . $page);
+        $expectedItems = min($perPage, $count - $perPage * ($page - 1));
+        $this->assertCount($expectedItems, $json['data']);
+    }
+
+    public function test_show_returns_single_nutrient(): void
+    {
+        $nutrient = Nutrient::factory()->create();
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.show', $nutrient));
+
+        $response->assertStatus(200)
+                 ->assertJson([
+                     'id' => $nutrient->id,
+                     'name' => $nutrient->name,
+                 ]);
+    }
+
+    public function test_store_creates_nutrient(): void
+    {
+        $payload = [
+            'source' => 'USDA FoodData Central',
+            'external_id' => '101',
+            'name' => 'Protein',
+            'description' => 'Test nutrient',
+            'derivation_code' => 'A',
+            'derivation_description' => 'Derived test',
+        ];
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('nutrients.store'), $payload);
+
+        $response->assertStatus(201)->assertJson($payload);
+
+        $this->assertDatabaseHas('nutrients', ['name' => 'Protein']);
+    }
+
+    public function test_update_modifies_nutrient(): void
+    {
+        $nutrient = Nutrient::factory()->create(['name' => 'Old Name']);
+        $payload = ['name' => 'New Name'];
+        
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->putJson(route('nutrients.update', $nutrient), $payload);
+        $expectedNutrient = $nutrient;
+        $expectedNutrient->name = 'New Name';
+        
+        $response->assertStatus(200)->assertJson($expectedNutrient->toArray());
+        $this->assertDatabaseHas('nutrients', ['name' => 'New Name']);
+    }
+
+    public function test_deletes_nutrient(): void
+    {
+        $nutrient = Nutrient::factory()->create();
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->deleteJson(route('nutrients.delete', $nutrient));
+
+        $response->assertStatus(204);
+
+        $this->assertDatabaseHas('nutrients', [
+            'id' => $nutrient->id,
+        ]);
+
+        $this->assertNotNull(
+            DB::table('nutrients')->where('id', $nutrient->id)->value('deleted_at')
+        );
+    }
+
+    public function test_store_requires_name_and_source(): void
+    {
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('nutrients.store'), []);
+
+        $response->assertStatus(422)->assertJsonValidationErrors([
+            'source',
+            'name',
+        ]);
+    }
+}
