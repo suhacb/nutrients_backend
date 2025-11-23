@@ -57,7 +57,9 @@ class NutrientsControllerTest extends TestCase
         // Assert total is correct
         $this->assertEquals($count, $json['total']);
 
+        // Assert number of items for provided page
         $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.index') . '?page=' . $page);
+        $json = $response->json();
         $expectedItems = min($perPage, $count - $perPage * ($page - 1));
         $this->assertCount($expectedItems, $json['data']);
     }

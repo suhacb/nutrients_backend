@@ -12,7 +12,7 @@ class NutrientsController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(Nutrient::get(), 200);
+        return response()->json(Nutrient::paginate(25), 200);
     }
 
     public function show(Nutrient $nutrient): JsonResponse
