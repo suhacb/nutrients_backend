@@ -7,32 +7,63 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
-
-
 class NutrientsMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected $expectedColumns = [
+        'id' => ['type' => 'bigint', 'nullable' => false],
+        'source' => ['type' => 'varchar', 'nullable' => false],
+        'external_id' => ['type' => 'bigint', 'nullable' => true],
+        'name' => ['type' => 'varchar', 'nullable' => false],
+        'description' => ['type' => 'text', 'nullable' => true],
+        'derivation_code' => ['type' => 'varchar', 'nullable' => true],
+        'derivation_description' => ['type' => 'varchar', 'nullable' => true],
+        'created_at' => ['type' => 'timestamp', 'nullable' => true],
+        'updated_at' => ['type' => 'timestamp', 'nullable' => true],
+        'deleted_at' => ['type' => 'timestamp', 'nullable' => true]
+    ];
+
     public function test_nutrients_table_has_expected_columns(): void
     {
-        $columns = DB::getSchemaBuilder()->getColumnListing('nutrients');
+        // Get MySQL columns info
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
 
-        $expectedColumns = [
-            'id',
-            'source',
-            'external_id',
-            'name',
-            'description',
-            'derivation_code',
-            'derivation_description',
-            'created_at',
-            'updated_at',
-            'deleted_at'
-        ];
-
-        foreach ($expectedColumns as $column) {
-            $this->assertContains($column, $columns, "Column {$column} does not exist in nutrients table");
+        // Convert to associative array keyed by column name
+        $columns = [];
+        foreach ($columnsInfo as $column) {
+            $columns[$column->Field] = [
+                'type' => $this->normalizeType($column->Type),
+                'nullable' => $column->Null === 'YES',
+            ];
         }
+
+        foreach ($this->expectedColumns as $column => $details) {
+            $this->assertArrayHasKey($column, $columns, "Column {$column} does not exist");
+
+            $this->assertEquals(
+                $details['type'],
+                $columns[$column]['type'],
+                "Column {$column} type mismatch (expected {$details['type']}, got {$columns[$column]['type']})"
+            );
+
+            $this->assertEquals(
+                $details['nullable'],
+                $columns[$column]['nullable'],
+                "Column {$column} nullable mismatch (expected " . ($details['nullable'] ? 'YES' : 'NO') . ")"
+            );
+        }
+    }
+
+    // Helper to normalize MySQL type (strip size, e.g., bigint(20) → bigint)
+    protected function normalizeType(string $type): string
+    {
+        $type = strtolower($type);
+        $matches = [];
+        if (preg_match('/^([a-z]+)/', $type, $matches)) {
+            return $matches[1];
+        }
+        return $type;
     }
 
     public function test_unique_constraint_works_for_source_external_id_and_name(): void
