@@ -25,21 +25,21 @@ class NutrientsControllerTest extends TestCase
         $this->appName = config('nutrients.name');
         $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
         $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
-        $response = $this->login();
         $token = $this->login();
         $this->accessToken = $token['access_token'] ?? null;
         $this->refreshToken = $token['refresh_token'] ?? null;
     }
 
-    public function test_index_returns_paginated_nutrients(): void
+    public function test_index_returns_nutrients(): void
     {
-        Nutrient::factory()->count(30)->create();
+        $count = 30;
+        Nutrient::factory()->count($count)->create();
         
         
         $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.index'));
 
         $response->assertStatus(200);
-        $this->assertCount(30, $response->json());
+        $this->assertCount($count, $response->json());
     }
 
     public function test_show_returns_single_nutrient(): void
