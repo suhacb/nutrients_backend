@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('nutrients', function (Blueprint $table) {
             $table->id();
             $table->string('source');
-            $table->unsignedBigInteger('external_id')->unique()->nullable();
+            $table->string('external_id')->unique()->nullable();
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('derivation_code')->nullable();

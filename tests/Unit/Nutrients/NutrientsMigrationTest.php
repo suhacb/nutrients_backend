@@ -14,7 +14,7 @@ class NutrientsMigrationTest extends TestCase
     protected $expectedColumns = [
         'id' => ['type' => 'bigint', 'nullable' => false],
         'source' => ['type' => 'varchar', 'nullable' => false],
-        'external_id' => ['type' => 'bigint', 'nullable' => true],
+        'external_id' => ['type' => 'varchar', 'nullable' => true],
         'name' => ['type' => 'varchar', 'nullable' => false],
         'description' => ['type' => 'text', 'nullable' => true],
         'derivation_code' => ['type' => 'varchar', 'nullable' => true],
