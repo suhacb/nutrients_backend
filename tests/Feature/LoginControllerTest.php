@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\JsonResponse;
+use Tests\LoginTestUser;
 
 class LoginControllerTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, LoginTestUser;
 
     protected string $accessToken;
     protected string $refreshToken;
@@ -27,6 +28,9 @@ class LoginControllerTest extends TestCase
         $this->appName = config('nutrients.name');
         $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
         $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
+        $token = $this->login();
+        $this->accessToken = $token['access_token'] ?? null;
+        $this->refreshToken = $token['refresh_token'] ?? null;
     }
     /**
      * Test login endpoint returns redirect URI
@@ -68,15 +72,7 @@ class LoginControllerTest extends TestCase
      */
     public function test_validate_access_token_with_token(): void
     {
-        // Obtain access token
-        $token = $this->login(); 
-
-        $response = $this->getJson(route('auth.validate-access-token'), [
-            'Authorization' => "Bearer {$token['access_token']}",
-            'X-Refresh-Token' => $token['refresh_token'],
-            'X-Application-Name' => $this->appName,
-            'X-Client-Url' => $this->appUrl,
-        ]);
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('auth.validate-access-token'));
     
         $response->assertStatus(200);
     
@@ -89,7 +85,7 @@ class LoginControllerTest extends TestCase
         );
 
         $parser = new TokenParser();
-        $parsedToken = $parser->parse($token['access_token']);
+        $parsedToken = $parser->parse($this->accessToken);
 
         $this->assertDatabaseHas('users', [
             'external_id' => $parsedToken['sub']
@@ -187,18 +183,5 @@ class LoginControllerTest extends TestCase
 
         $this->assertTrue($response->status() >= 300);
         $this->assertNull(Auth::user());
-    }
-
-    private function login(): JsonResponse {
-        $finalUrl = $this->authUrl . '/api/auth/login';
-        $response = Http::withHeaders([
-            'X-Application-Name' => $this->appName,
-            'X-Client-Url' => $this->appUrl,
-        ])->post($finalUrl, [
-            'username' => config('nutrients.testuser.username'),
-            'password' => config('nutrients.testuser.password')
-        ]);
-
-        return $response->json();
     }
 }
