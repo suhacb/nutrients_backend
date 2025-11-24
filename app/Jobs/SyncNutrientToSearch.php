@@ -3,18 +3,18 @@
 namespace App\Jobs;
 
 use App\Models\Nutrient;
-use App\Services\Search\SearchServiceContract;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use App\Services\Search\SearchServiceContract;
+use App\Services\Search\SearchServiceInterface;
 
 class SyncNutrientToSearch implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    protected Nutrient $nutrient;
+    use Dispatchable, Queueable, InteractsWithQueue, SerializesModels;    protected Nutrient $nutrient;
+    
     protected string $action;
 
     /**

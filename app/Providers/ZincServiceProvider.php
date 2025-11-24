@@ -24,8 +24,8 @@ class ZincServiceProvider extends ServiceProvider
         $this->app->singleton(SearchServiceContract::class, function ($app) {
             return new ZincSearchService([
                 'base_uri' => config('zinc.base_url'),
-                'username' => config('zinc_username'),
-                'password' => config('zinc.password')
+                'username' => config('zinc.username'),
+                'password' => config('zinc.password'),
             ]);
         });
     }

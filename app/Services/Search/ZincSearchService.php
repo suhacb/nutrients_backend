@@ -50,14 +50,8 @@ class ZincSearchService implements SearchServiceContract
 
     public function search(string $index, array $query, int $limit = 10, int $offset = 0): array
     {
-        $body = [
-            'from' => $offset,
-            'size' => $limit,
-            'query' => $query
-        ];
-
         $response = Http::withBasicAuth($this->username, $this->password)
-            ->post("{$this->baseUri}/api/{$index}/_search", $body);
+            ->post("{$this->baseUri}/api/{$index}/_search", $query);
 
         return $response->json() ?? [];
     }
