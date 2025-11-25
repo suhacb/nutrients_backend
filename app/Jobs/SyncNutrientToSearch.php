@@ -13,9 +13,10 @@ use App\Services\Search\SearchServiceInterface;
 
 class SyncNutrientToSearch implements ShouldQueue
 {
-    use Dispatchable, Queueable, InteractsWithQueue, SerializesModels;    protected Nutrient $nutrient;
+    use Dispatchable, Queueable, InteractsWithQueue, SerializesModels;
     
-    protected string $action;
+    public Nutrient $nutrient;
+    public string $action;
 
     /**
      * Create a new job instance.
