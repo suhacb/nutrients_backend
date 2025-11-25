@@ -18,7 +18,7 @@ class IngredientsMigrationTest extends TestCase
         'class' => ['type' => 'varchar', 'nullable' => true],
         'name' => ['type' => 'varchar', 'nullable' => false],
         'description' => ['type' => 'text', 'nullable' => true],
-        'default_amount' => ['type' => 'float', 'nullable' => false],
+        'default_amount' => ['type' => 'double', 'nullable' => false],
         'default_amount_unit_id' => ['type' => 'bigint', 'nullable' => false],
         'created_at' => ['type' => 'timestamp', 'nullable' => true],
         'updated_at' => ['type' => 'timestamp', 'nullable' => true],
@@ -71,6 +71,7 @@ class IngredientsMigrationTest extends TestCase
             'external_id' => 11056,
             'name' => 'Beans, snap, green, canned',
             'default_amount' => 100,
+            'default_amount_unit_id' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -90,6 +91,7 @@ class IngredientsMigrationTest extends TestCase
             'external_id' => null,
             'name' => 'Carrot',
             'default_amount' => 100,
+            'default_amount_unit_id' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
