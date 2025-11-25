@@ -11,6 +11,8 @@ class Nutrient extends Model
 {
     use SoftDeletes, HasFactory;
 
+    protected $table = 'nutrients';
+
     protected $fillable = [
         'source',
         'external_id',

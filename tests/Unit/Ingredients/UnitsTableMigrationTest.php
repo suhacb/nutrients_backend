@@ -4,6 +4,7 @@ namespace Tests\Unit\Ingredients;
 
 use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class UnitsTableMigrationTest extends TestCase
@@ -11,12 +12,12 @@ class UnitsTableMigrationTest extends TestCase
     use RefreshDatabase;
 
     protected $expectedColumns = [
-        'id'           => ['type' => 'bigint', 'nullable' => false],
-        'name'         => ['type' => 'varchar', 'nullable' => false],
+        'id' => ['type' => 'bigint', 'nullable' => false],
+        'name' => ['type' => 'varchar', 'nullable' => false],
         'abbreviation' => ['type' => 'varchar', 'nullable' => false],
-        'type'         => ['type' => 'varchar', 'nullable' => true],
-        'created_at'   => ['type' => 'timestamp', 'nullable' => true],
-        'updated_at'   => ['type' => 'timestamp', 'nullable' => true],
+        'type' => ['type' => 'varchar', 'nullable' => true],
+        'created_at' => ['type' => 'timestamp', 'nullable' => true],
+        'updated_at' => ['type' => 'timestamp', 'nullable' => true],
     ];
 
     public function test_units_table_has_expected_columns(): void

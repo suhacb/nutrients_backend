@@ -5,6 +5,7 @@ namespace Tests\Unit\Ingredients;
 use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class IngredientsMigrationTest extends TestCase
