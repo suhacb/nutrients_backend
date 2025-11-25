@@ -4,15 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\NutrientRequest;
 use App\Models\Nutrient;
+use App\Services\Search\SearchServiceContract;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class NutrientsController extends Controller
 {
+    public function __construct(private SearchServiceContract $search) {}
+
     public function index(): JsonResponse
     {
-        return response()->json(Nutrient::get(), 200);
+        return response()->json(Nutrient::paginate(25), 200);
     }
 
     public function show(Nutrient $nutrient): JsonResponse
@@ -36,5 +39,11 @@ class NutrientsController extends Controller
     {
         $nutrient->delete();
         return response()->noContent();
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        $response = $this->search->search('nutrients', $request->all());
+        return response()->json($response);
     }
 }

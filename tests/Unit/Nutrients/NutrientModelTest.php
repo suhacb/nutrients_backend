@@ -3,10 +3,15 @@
 namespace Tests\Unit\Nutrients;
 
 use App\Models\Nutrient;
-use PHPUnit\Framework\TestCase;
+use App\Jobs\SyncNutrientToSearch;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class NutrientModelTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_fillable_fields(): void
     {
         $expectedFillable = [
@@ -43,5 +48,61 @@ class NutrientModelTest extends TestCase
             $model->getCasts(),
             'The $casts fields do not match the expected ones'
         );
+    }
+
+    public function test_it_dispatches_insert_job_when_nutrient_is_created(): void
+    {
+        Bus::fake();
+
+        $nutrient = Nutrient::factory()->create();
+
+        Bus::assertDispatched(SyncNutrientToSearch::class, function ($job) use ($nutrient) {
+            return $job->nutrient->is($nutrient) &&
+                   $job->action === 'insert' &&
+                   $job->queue === 'nutrients';
+        });
+    }
+
+    public function test_it_dispatches_update_job_when_nutrient_is_updated(): void
+    {
+        Bus::fake();
+
+        $nutrient = Nutrient::factory()->create();
+        $nutrient->update(['name' => 'Updated Name']);
+
+        Bus::assertDispatched(SyncNutrientToSearch::class, function ($job) use ($nutrient) {
+            return $job->nutrient->is($nutrient) &&
+                   $job->action === 'update' &&
+                   $job->queue === 'nutrients';
+        });
+    }
+
+    public function test_it_dispatches_delete_job_when_nutrient_is_deleted(): void
+    {
+        Bus::fake();
+
+        $nutrient = Nutrient::factory()->create();
+        $nutrient->delete();
+
+        Bus::assertDispatched(SyncNutrientToSearch::class, function ($job) use ($nutrient) {
+            return $job->nutrient->is($nutrient) &&
+                   $job->action === 'delete' &&
+                   $job->queue === 'nutrients';
+        });
+    }
+
+    public function test_it_dispatches_insert_job_when_nutrient_is_restored(): void
+    {
+        Bus::fake();
+
+        $nutrient = Nutrient::factory()->create();
+        $nutrient->delete();
+        $nutrient->restore();
+
+        Bus::assertDispatched(SyncNutrientToSearch::class, function ($job) use ($nutrient) {
+            return $job->nutrient->is($nutrient) &&
+                   $job->action === 'insert' &&
+                   $job->queue === 'nutrients';
+        });
     }
 }

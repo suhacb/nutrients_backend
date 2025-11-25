@@ -2,10 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Nutrient;
 use App\Parsers\ParserContract;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use App\Parsers\USDA\UsdaNutrientsParser;
+use App\Services\Search\SearchServiceContract;
 
 class ImportNutrients extends Command
 {
@@ -83,6 +85,13 @@ class ImportNutrients extends Command
 
     private function import(Collection $nutrients): void
     {
-        $nutrients->each(fn($item) => $item->save());
+        $nutrients->each(function ($item) {
+            Nutrient::firstOrCreate([
+                'source' => $item['source'],
+                'name' => $item['name'],
+            ],
+            $item->toArray()
+            );
+        });
     }
 }

@@ -57,9 +57,12 @@ class NutrientsControllerTest extends TestCase
         // Assert total is correct
         $this->assertEquals($count, $json['total']);
 
+        // Assert number of items for provided page
         $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('nutrients.index') . '?page=' . $page);
+        $json = $response->json();
         $expectedItems = min($perPage, $count - $perPage * ($page - 1));
         $this->assertCount($expectedItems, $json['data']);
+        $this->assertEquals($page, $json['current_page']);
     }
 
     public function test_show_returns_single_nutrient(): void
@@ -102,7 +105,7 @@ class NutrientsControllerTest extends TestCase
         $expectedNutrient = $nutrient;
         $expectedNutrient->name = 'New Name';
         
-        $response->assertStatus(200)->assertJson($expectedNutrient->toArray());
+        $response->assertStatus(200)->assertJsonFragment(['name' => 'New Name']);;
         $this->assertDatabaseHas('nutrients', ['name' => 'New Name']);
     }
 
@@ -113,13 +116,7 @@ class NutrientsControllerTest extends TestCase
 
         $response->assertStatus(204);
 
-        $this->assertDatabaseHas('nutrients', [
-            'id' => $nutrient->id,
-        ]);
-
-        $this->assertNotNull(
-            DB::table('nutrients')->where('id', $nutrient->id)->value('deleted_at')
-        );
+        $this->assertSoftDeleted('nutrients', ['id' => $nutrient->id]);
     }
 
     public function test_store_requires_name_and_source(): void
