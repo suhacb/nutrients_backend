@@ -9,7 +9,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use App\Services\Search\SearchServiceContract;
-use App\Services\Search\SearchServiceInterface;
 
 class SyncNutrientToSearch implements ShouldQueue
 {
