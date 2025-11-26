@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class IngredientNutrientPivot extends Pivot
@@ -16,4 +17,19 @@ class IngredientNutrientPivot extends Pivot
         'portion_amount',
         'portion_amount_unit_id',
     ];
+
+    protected $casts = [
+        'amount' => 'float',
+        'portion_amount' => 'float'
+    ];
+
+    public function amount_unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'amount_unit_id');
+    }
+
+    public function portion_amount_unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'portion_amount_unit_id');
+    }
 }

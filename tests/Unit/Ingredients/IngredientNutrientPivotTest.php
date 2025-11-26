@@ -5,10 +5,11 @@ namespace Tests\Unit\Ingredients;
 use Tests\TestCase;
 use App\Models\IngredientNutrientPivot;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class IngredientNutrientPivotTest extends TestCase
 {
-    public function test_it_extends_pivot_class()
+    public function test_it_extends_pivot_class(): void
     {
         $pivot = new IngredientNutrientPivot();
 
@@ -19,7 +20,7 @@ class IngredientNutrientPivotTest extends TestCase
         );
     }
 
-    public function test_it_has_correct_table_and_fillable_fields()
+    public function test_it_has_correct_table_and_fillable_fields(): void
     {
         $pivot = new IngredientNutrientPivot();
 
@@ -32,5 +33,33 @@ class IngredientNutrientPivotTest extends TestCase
             'portion_amount',
             'portion_amount_unit_id',
         ], $pivot->getFillable());
+    }
+
+    public function test_it_has_correct_casts(): void
+    {
+        $pivot = new IngredientNutrientPivot();
+
+        $this->assertEquals([
+            'amount' => 'float',
+            'portion_amount' => 'float'
+        ], $pivot->getCasts());
+    }
+
+    public function test_it_belongs_to_amount_unit(): void
+    {
+        $pivot = new IngredientNutrientPivot();
+        $relation = $pivot->amount_unit();
+
+        $this->assertInstanceOf(BelongsTo::class, $relation);
+        $this->assertEquals('amount_unit_id', $relation->getForeignKeyName());
+    }
+
+    public function test_it_belongs_to_portion_amount_unit(): void
+    {
+        $pivot = new IngredientNutrientPivot();
+        $relation = $pivot->portion_amount_unit();
+
+        $this->assertInstanceOf(BelongsTo::class, $relation);
+        $this->assertEquals('portion_amount_unit_id', $relation->getForeignKeyName());
     }
 }
