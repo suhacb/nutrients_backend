@@ -66,15 +66,15 @@ class IngredientNutrientPivotTest extends TestCase
 
     public function test_pivot_can_access_units()
     {
-        $amount_unit = Unit::factory()->create(['name' => 'Gram', 'abbreviation' => 'g']);
-        $portion_unit = Unit::factory()->create(['name' => 'Milligram', 'abbreviation' => 'mg']);
+        $amount_unit = Unit::factory()->create(['id' => 1, 'name' => 'Gram', 'abbreviation' => 'g']);
+        $portion_unit = Unit::factory()->create(['id' => 2, 'name' => 'Milligram', 'abbreviation' => 'mg']);
 
         $pivot = IngredientNutrientPivot::factory()->create([
             'amount_unit_id' => $amount_unit->id,
             'portion_amount_unit_id' => $portion_unit->id,
         ]);
 
-        $this->assertEquals('Gram', $pivot->amountUnit->name);
-        $this->assertEquals('Milligram', $pivot->portionAmountUnit->name);
+        $this->assertEquals('Gram', $pivot->amount_unit->name);
+        $this->assertEquals('Milligram', $pivot->portion_amount_unit->name);
     }
 }

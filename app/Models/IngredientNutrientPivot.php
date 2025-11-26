@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class IngredientNutrientPivot extends Pivot
 {
+    use HasFactory;
+    
     protected $table = 'ingredient_nutrient';
 
     protected $fillable = [
