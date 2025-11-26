@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\IngredientNutrientPivot;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Unit;
 
 class IngredientNutrientPivotTest extends TestCase
 {
@@ -61,5 +62,19 @@ class IngredientNutrientPivotTest extends TestCase
 
         $this->assertInstanceOf(BelongsTo::class, $relation);
         $this->assertEquals('portion_amount_unit_id', $relation->getForeignKeyName());
+    }
+
+    public function test_pivot_can_access_units()
+    {
+        $amount_unit = Unit::factory()->create(['name' => 'Gram', 'abbreviation' => 'g']);
+        $portion_unit = Unit::factory()->create(['name' => 'Milligram', 'abbreviation' => 'mg']);
+
+        $pivot = IngredientNutrientPivot::factory()->create([
+            'amount_unit_id' => $amount_unit->id,
+            'portion_amount_unit_id' => $portion_unit->id,
+        ]);
+
+        $this->assertEquals('Gram', $pivot->amountUnit->name);
+        $this->assertEquals('Milligram', $pivot->portionAmountUnit->name);
     }
 }
