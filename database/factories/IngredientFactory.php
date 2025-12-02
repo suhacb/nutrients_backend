@@ -30,7 +30,7 @@ class IngredientFactory extends Factory
                 } while ($exists);
                 return strval($number);
             },
-            'source' => 'USDA FoodData Central',
+            'source' => $source,
             'class' => 'final',
             'name' => $this->faker->words(2, true),
             'description' => $this->faker->paragraphs($this->faker->numberBetween(1, 4), true),

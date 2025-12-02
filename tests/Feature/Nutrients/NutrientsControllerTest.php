@@ -13,22 +13,22 @@ class NutrientsControllerTest extends TestCase
 {
     use RefreshDatabase, LoginTestUser;
 
-    protected string $accessToken;
-    protected string $refreshToken;
-    protected string $appName;
-    protected string $appUrl;
-    protected string $authUrl;
+    // protected string $accessToken;
+    // protected string $refreshToken;
+    // protected string $appName;
+    // protected string $appUrl;
+    // protected string $authUrl;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->appName = config('nutrients.name');
-        $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
-        $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
-        $token = $this->login();
-        $this->accessToken = $token['access_token'] ?? null;
-        $this->refreshToken = $token['refresh_token'] ?? null;
+        // $this->appName = config('nutrients.name');
+        // $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
+        // $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
+        $this->login();
+        // $this->accessToken = $token['access_token'] ?? null;
+        // $this->refreshToken = $token['refresh_token'] ?? null;
     }
 
     public function test_index_returns_nutrients(): void
@@ -127,5 +127,11 @@ class NutrientsControllerTest extends TestCase
             'source',
             'name',
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->logout();
+        parent::tearDown();
     }
 }

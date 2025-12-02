@@ -6,8 +6,18 @@ use Illuminate\Support\Facades\Http;
 
 trait LoginTestUser
 {
+    protected string $accessToken;
+    protected string $refreshToken;
+    protected string $appName;
+    protected string $appUrl;
+    protected string $authUrl;
+
     private function login(): array
     {
+        $this->appName = config('nutrients.name');
+        $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
+        $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
+
         $finalUrl = $this->authUrl . '/api/auth/login';
 
         $response = Http::withHeaders([
@@ -17,6 +27,10 @@ trait LoginTestUser
             'username' => config('nutrients.testuser.username'),
             'password' => config('nutrients.testuser.password')
         ]);
+        $token = $response->json();
+
+        $this->accessToken = $token['access_token'] ?? null;
+        $this->refreshToken = $token['refresh_token'] ?? null;
         
         return $response->json();
     }
@@ -29,5 +43,14 @@ trait LoginTestUser
             'X-Application-Name' => $this->appName,
             'X-Client-Url' => $this->appUrl,
         ];
+    }
+
+    private function logout(): array
+    {
+        $finalUrl = $this->authUrl . '/api/auth/logout';
+
+        $response = Http::withHeaders($this->makeAuthRequestHeader())->post($finalUrl, []);
+        
+        return $response->json();
     }
 }

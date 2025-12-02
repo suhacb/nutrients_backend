@@ -36,7 +36,6 @@ class ZincSearchServiceTest extends TestCase
         ]);
 
         $result = $this->service->insert($this->index, ['foo' => 'bar']);
-        logger()->info($result);
 
         $this->assertTrue($result);
 
@@ -57,7 +56,6 @@ class ZincSearchServiceTest extends TestCase
         $result = $this->service->update($this->index, $id, ['foo' => 'baz']);
 
         $this->assertTrue($result);
-        logger()->info($result);
 
         Http::assertSent(function ($request) use ($id) {
             return $request->url() === $this->baseUri . "/api/$this->index/_doc/$id"
@@ -74,7 +72,6 @@ class ZincSearchServiceTest extends TestCase
         ]);
 
         $result = $this->service->delete($this->index, $id);
-        logger()->info($result);
 
         $this->assertTrue($result);
 
@@ -91,7 +88,6 @@ class ZincSearchServiceTest extends TestCase
         ]);
 
         $result = $this->service->search($this->index, ['query' => 'test']);
-        logger()->info($result);
 
         $this->assertEquals(['hits' => ['foo' => 'bar']], $result);
 

@@ -52,12 +52,9 @@ class UnitFactory extends Factory
         $unit = Arr::random($this->units);
 
         return [
-            'id' => fake()->numberBetween(1, 1000),
             'name' => $unit['name'],
             'abbreviation' => $unit['abbreviation'],
             'type' => $unit['type'],
-            'created_at' => now(),
-            'updated_at' => now()
         ];
     }
 }
