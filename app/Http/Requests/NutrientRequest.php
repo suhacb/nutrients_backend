@@ -3,9 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\Nutrient;
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\DynamicRequest;
 
-class NutrientRequest extends FormRequest
+class NutrientRequest extends DynamicRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -15,26 +15,7 @@ class NutrientRequest extends FormRequest
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        // Get the controller@method string
-        $action = $this->route()->getActionMethod();
-
-        // Check if a private method exists with that name
-        if (method_exists($this, $action)) {
-            return $this->{$action}();
-        }
-
-        // Fallback if no method found
-        return [];
-    }
-
-    private function store(): array
+    protected function rulesForStore(): array
     {
         return [
             'source' => ['required', 'string', 'max:255'],
@@ -59,7 +40,7 @@ class NutrientRequest extends FormRequest
         ];
     }
 
-    private function update(): array
+    protected function rulesForUpdate(): array
     {
         return [
             'source' => ['sometimes', 'string', 'max:255'],
@@ -84,7 +65,7 @@ class NutrientRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
+    protected function messagesForStore(): array
     {
         return [
             'source.required' => 'The source field is required.',
@@ -95,6 +76,28 @@ class NutrientRequest extends FormRequest
             'external_id.max' => 'The external ID may not be greater than 255 characters.',
 
             'name.required' => 'The nutrient name is required.',
+            'name.string' => 'The nutrient name must be a string.',
+            'name.max' => 'The nutrient name may not be greater than 255 characters.',
+
+            'description.string' => 'The description must be a string.',
+
+            'derivation_code.string' => 'The derivation code must be a string.',
+            'derivation_code.max' => 'The derivation code may not be greater than 255 characters.',
+
+            'derivation_description.string' => 'The derivation description must be a string.',
+            'derivation_description.max' => 'The derivation description may not be greater than 255 characters.',
+        ];
+    }
+
+    protected function messagesForUpdate(): array
+    {
+        return [
+            'source.string' => 'The source must be a string.',
+            'source.max' => 'The source may not be greater than 255 characters.',
+
+            'external_id.string' => 'The external ID must be a string.',
+            'external_id.max' => 'The external ID may not be greater than 255 characters.',
+
             'name.string' => 'The nutrient name must be a string.',
             'name.max' => 'The nutrient name may not be greater than 255 characters.',
 
