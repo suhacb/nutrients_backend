@@ -119,4 +119,47 @@ class IngredientModelTest extends TestCase
             return $job->ingredient->is($ingredient) && $job->action === 'insert';
         });
     }
+
+    public function test_jobs_have_relationships_loaded_for_search(): void
+    {
+        Queue::fake();
+
+        $unit = Unit::firstOrCreate(['name' => 'milligram', 'type' => 'mass'], ['abbreviation' => 'mg']);
+        $defaultUnit = Unit::firstOrCreate(['name' => 'gram', 'type' => 'mass'], ['abbreviation' => 'g']);
+        
+        $ingredient = Ingredient::factory()->create([
+            'default_amount_unit_id' => $defaultUnit->id
+        ]);
+        $nutrient = Nutrient::factory()->create();
+        
+        $ingredient->nutrients()->attach($nutrient->id, [
+            'amount' => 5,
+            'amount_unit_id' => $unit->id,
+            'portion_amount' => 2,
+            'portion_amount_unit_id' => $unit->id,
+        ]);
+
+        // Trigger update to dispatch job
+        $ingredient->update(['name' => 'Updated Name']);
+
+        Queue::assertPushed(SyncIngredientToSearch::class, function ($job) use ($ingredient, $nutrient, $unit, $defaultUnit) {
+            $loadedIngredient = $job->ingredient;
+
+            // Relationships should be loaded
+            $this->assertTrue($loadedIngredient->relationLoaded('nutrients'));
+            $this->assertTrue($loadedIngredient->relationLoaded('default_amount_unit'));
+
+            $pivot = $loadedIngredient->nutrients->first()->pivot;
+            $this->assertTrue($pivot->relationLoaded('amount_unit'));
+            $this->assertTrue($pivot->relationLoaded('portion_amount_unit'));
+
+            // Optional: check IDs
+            $this->assertEquals($nutrient->id, $loadedIngredient->nutrients->first()->id);
+            $this->assertEquals($unit->id, $pivot->amount_unit->id);
+            $this->assertEquals($unit->id, $pivot->portion_amount_unit->id);
+            $this->assertEquals($defaultUnit->id, $loadedIngredient->default_amount_unit->id);
+
+            return true;
+        });
+    }
 }

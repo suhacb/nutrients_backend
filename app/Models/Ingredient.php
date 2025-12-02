@@ -27,10 +27,12 @@ class Ingredient extends Model
     protected static function booted()
     {
         static::created(function (Ingredient $ingredient) {
+            $ingredient->loadForSearch();
             SyncIngredientToSearch::dispatch($ingredient, 'insert')->onQueue('ingredients');
         });
 
         static::updated(function (Ingredient $ingredient) {
+            $ingredient->loadForSearch();
             SyncIngredientToSearch::dispatch($ingredient, 'update')->onQueue('ingredients');
         });
 
@@ -39,10 +41,12 @@ class Ingredient extends Model
         });
 
         static::deleted(function (Ingredient $ingredient) {
+            $ingredient->loadForSearch();
             SyncIngredientToSearch::dispatch($ingredient, 'delete')->onQueue('ingredients');
         });
 
         static::restored(function (Ingredient $ingredient) {
+            $ingredient->loadForSearch();
             SyncIngredientToSearch::dispatch($ingredient, 'insert')->onQueue('ingredients');
         });
     }
@@ -55,8 +59,28 @@ class Ingredient extends Model
             ->withTimestamps();
     }
 
-    public function defaultAmountUnit(): BelongsTo
+    public function default_amount_unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class, 'default_amount_unit_id');
     }
+
+    /**
+     * Load relationships needed for ZincSearch payload.
+     */
+    public function loadForSearch(): self
+    {
+        // Preload default_amount_unit and nutrients
+        $this->load([
+            'default_amount_unit',
+            'nutrients', // eager load nutrients first
+        ]);
+
+        // Then explicitly eager load pivot relationships for nutrients
+        $this->nutrients->each(function ($nutrient) {
+            $nutrient->pivot->load(['amount_unit', 'portion_amount_unit']);
+        });
+
+        return $this;
+    }
+
 }

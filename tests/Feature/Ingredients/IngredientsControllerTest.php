@@ -59,17 +59,57 @@ class IngredientsControllerTest extends TestCase
         $this->assertEquals($page, $json['current_page']);
     }
 
-    public function test_show_returns_single_ingredient(): void
+    public function test_show_returns_single_ingredient_with_relationships(): void
     {
-        $ingredient = Ingredient::factory()->create();
+        $defaultUnit = Unit::factory()->create(['name' => 'gram', 'abbreviation' => 'g', 'type' => 'mass']);
+        $amountUnit = Unit::factory()->create(['name' => 'milligram', 'abbreviation' => 'mg', 'type' => 'mass']);
 
-        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('ingredients.show', $ingredient));
+        $ingredient = Ingredient::factory()->create([
+            'default_amount_unit_id' => $defaultUnit->id,
+            'name' => 'Test Ingredient',
+        ]);
+
+        $nutrient = \App\Models\Nutrient::factory()->create(['name' => 'Protein']);
+
+        $ingredient->nutrients()->attach($nutrient->id, [
+            'amount' => 5,
+            'amount_unit_id' => $amountUnit->id,
+            'portion_amount' => 2,
+            'portion_amount_unit_id' => $amountUnit->id,
+        ]);
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient));
 
         $response->assertStatus(200)
             ->assertJson([
                 'id' => $ingredient->id,
                 'name' => $ingredient->name,
+                'default_amount_unit' => [
+                    'id' => $defaultUnit->id,
+                    'name' => $defaultUnit->name,
+                ],
+                'nutrients' => [
+                    [
+                        'id' => $nutrient->id,
+                        'name' => $nutrient->name,
+                        'pivot' => [
+                            'amount' => 5,
+                            'amount_unit_id' => $amountUnit->id,
+                            'portion_amount' => 2,
+                            'portion_amount_unit_id' => $amountUnit->id,
+                        ],
+                    ]
+                ]
             ]);
+
+        $json = $response->json();
+
+        // Additional assertions to ensure relationships are loaded
+        $this->assertArrayHasKey('default_amount_unit', $json);
+        $this->assertArrayHasKey('nutrients', $json);
+        $this->assertCount(1, $json['nutrients']);
+        $this->assertArrayHasKey('pivot', $json['nutrients'][0]);
     }
 
     public function test_store_creates_ingredient_and_dispatches_job(): void

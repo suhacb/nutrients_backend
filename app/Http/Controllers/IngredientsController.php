@@ -18,7 +18,7 @@ class IngredientsController extends Controller
     
     public function show(Ingredient $ingredient): Response
     {
-        return response()->json($ingredient, 200);
+        return response()->json($ingredient->loadForSearch(), 200);
     }
     
     public function store(IngredientRequest $request): Response
