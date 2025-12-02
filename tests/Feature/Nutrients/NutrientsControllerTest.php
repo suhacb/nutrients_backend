@@ -3,8 +3,10 @@
 namespace Tests\Feature\Nutrients;
 
 use Tests\TestCase;
+use App\Models\Unit;
 use App\Models\Nutrient;
 use Tests\LoginTestUser;
+use App\Models\Ingredient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,22 +15,10 @@ class NutrientsControllerTest extends TestCase
 {
     use RefreshDatabase, LoginTestUser;
 
-    // protected string $accessToken;
-    // protected string $refreshToken;
-    // protected string $appName;
-    // protected string $appUrl;
-    // protected string $authUrl;
-
     protected function setUp(): void
     {
         parent::setUp();
-
-        // $this->appName = config('nutrients.name');
-        // $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
-        // $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
         $this->login();
-        // $this->accessToken = $token['access_token'] ?? null;
-        // $this->refreshToken = $token['refresh_token'] ?? null;
     }
 
     public function test_index_returns_nutrients(): void
@@ -117,6 +107,37 @@ class NutrientsControllerTest extends TestCase
         $response->assertStatus(204);
 
         $this->assertSoftDeleted('nutrients', ['id' => $nutrient->id]);
+    }
+
+    public function test_cannot_delete_nutrient_if_attached_to_ingredient(): void
+    {
+        // Create a nutrient
+        $nutrient = Nutrient::factory()->create();
+
+        // Create a unit and ingredient
+        $unit = Unit::firstOrCreate(
+            ['name' => 'milligram', 'type' => 'mass'],
+            ['abbreviation' => 'mg']
+        );
+        $ingredient = Ingredient::factory()->create();
+
+        // Attach nutrient to ingredient
+        $ingredient->nutrients()->attach($nutrient->id, [
+            'amount' => 10,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        // Attempt to delete the nutrient via the controller
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+                        ->deleteJson(route('nutrients.delete', $nutrient));
+
+        $response->assertStatus(409)
+                ->assertJson([
+                    'message' => 'Cannot delete nutrient: it is attached to one or more ingredients.'
+                ]);
+
+        // Assert the nutrient still exists
+        $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id]);
     }
 
     public function test_store_requires_name_and_source(): void

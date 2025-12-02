@@ -18,7 +18,7 @@ class NutrientAttachedException extends Exception
      *
      * @var int
      */
-    public int $status = 422;
+    public int $status = 409;   // Signals conflict
 
     /**
      * Constructor allows optional custom message.
