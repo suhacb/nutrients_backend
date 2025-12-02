@@ -3,16 +3,18 @@
 namespace App\Models;
 
 use App\Jobs\SyncIngredientToSearch;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\IngredientNutrientPivot;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Ingredient extends Model
 {
     use HasFactory, SoftDeletes;
     
     protected $fillable = [
-        'id',
         'external_id',
         'source',
         'class',
@@ -20,9 +22,6 @@ class Ingredient extends Model
         'description',
         'default_amount',
         'default_amount_unit_id',
-        'created_at',
-        'updated_at',
-        'deleted_at'
     ];
 
     protected static function booted()
@@ -35,6 +34,10 @@ class Ingredient extends Model
             SyncIngredientToSearch::dispatch($ingredient, 'update')->onQueue('ingredients');
         });
 
+        static::deleting(function(Ingredient $ingredient) {
+            $ingredient->nutrients()->detach();
+        });
+
         static::deleted(function (Ingredient $ingredient) {
             SyncIngredientToSearch::dispatch($ingredient, 'delete')->onQueue('ingredients');
         });
@@ -42,5 +45,18 @@ class Ingredient extends Model
         static::restored(function (Ingredient $ingredient) {
             SyncIngredientToSearch::dispatch($ingredient, 'insert')->onQueue('ingredients');
         });
+    }
+
+    public function nutrients(): BelongsToMany
+    {
+        return $this->belongsToMany(Nutrient::class, 'ingredient_nutrient')
+            ->using(IngredientNutrientPivot::class)
+            ->withPivot(['amount', 'amount_unit_id', 'portion_amount', 'portion_amount_unit_id'])
+            ->withTimestamps();
+    }
+
+    public function defaultAmountUnit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'default_amount_unit_id');
     }
 }
