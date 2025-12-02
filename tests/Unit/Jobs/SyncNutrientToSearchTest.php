@@ -8,6 +8,7 @@ use App\Models\Nutrient;
 use App\Jobs\SyncNutrientToSearch;
 use App\Services\Search\SearchServiceContract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 
 class SyncNutrientToSearchTest extends TestCase
 {
@@ -18,7 +19,10 @@ class SyncNutrientToSearchTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->nutrient = Nutrient::factory()->create();
+        Bus::fake();
+        $this->nutrient = Nutrient::withoutEvents(function() {
+            return Nutrient::factory()->create();
+        });
     }
 
     /* This test will throw: ! handle calls insert on search service → This
@@ -66,7 +70,7 @@ class SyncNutrientToSearchTest extends TestCase
         $job = new SyncNutrientToSearch($this->nutrient, 'delete');
         $job->handle($mock);
     }
-
+    
     protected function tearDown(): void
     {
         Mockery::close();

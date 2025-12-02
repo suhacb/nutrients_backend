@@ -7,9 +7,12 @@ use App\Models\IngredientNutrientPivot;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Unit;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class IngredientNutrientPivotTest extends TestCase
 {
+    use RefreshDatabase;
+    
     public function test_it_extends_pivot_class(): void
     {
         $pivot = new IngredientNutrientPivot();
