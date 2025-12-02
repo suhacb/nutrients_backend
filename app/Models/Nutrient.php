@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Jobs\SyncNutrientToSearch;
 use App\Models\IngredientNutrientPivot;
 use Illuminate\Database\Eloquent\Model;
+use App\Exceptions\NutrientAttachedException;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -38,6 +39,12 @@ class Nutrient extends Model
 
         static::updated(function (Nutrient $nutrient) {
             SyncNutrientToSearch::dispatch($nutrient, 'update')->onQueue('nutrients');
+        });
+
+        static::deleting(function (Nutrient $nutrient) {
+            if ($nutrient->ingredients()->exists()) {
+                throw new NutrientAttachedException("Cannot delete nutrient: it is attached to one or more ingredients.");
+            }
         });
 
         static::deleted(function (Nutrient $nutrient) {
