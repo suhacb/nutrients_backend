@@ -81,6 +81,37 @@ class UnitsTableMigrationTest extends TestCase
         $this->assertNull($unit->type);
     }
 
+    public function test_unique_constraints_on_name_and_abbreviation(): void
+    {
+        // Insert initial unit
+        DB::table('units')->insert([
+            'name' => 'Ounce',
+            'abbreviation' => 'oz',
+            'type' => 'mass',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Attempt to insert duplicate name + type → should fail
+        $this->expectException(\Illuminate\Database\QueryException::class);
+        DB::table('units')->insert([
+            'name' => 'Ounce',
+            'abbreviation' => 'oz2', // different abbreviation
+            'type' => 'mass',         // same type
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Attempt to insert duplicate abbreviation + type → should fail
+        DB::table('units')->insert([
+            'name' => 'Ounce2',
+            'abbreviation' => 'oz',
+            'type' => 'mass',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     // Helper to normalize MySQL type (strip size, e.g., varchar(255) → varchar)
     protected function normalizeType(string $type): string
     {
