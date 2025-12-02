@@ -18,7 +18,6 @@ class IngredientFactory extends Factory
      */
     public function definition(): array
     {
-        $unit = Unit::factory()->create();
         $source = 'USDA FoodData Central';
         return [
             'external_id' => function() use ($source) {
@@ -36,7 +35,7 @@ class IngredientFactory extends Factory
             'name' => $this->faker->words(2, true),
             'description' => $this->faker->paragraphs($this->faker->numberBetween(1, 4), true),
             'default_amount' => 100,
-            'default_amount_unit_id' => $unit->id
+            'default_amount_unit_id' => $this->default_amount_unit_id ?? Unit::factory(),
         ];
     }
 }

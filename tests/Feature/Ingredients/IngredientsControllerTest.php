@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use App\Models\Unit;
 use Tests\LoginTestUser;
 use App\Models\Ingredient;
 use App\Jobs\SyncIngredientToSearch;
@@ -35,18 +36,39 @@ class IngredientsControllerTest extends TestCase
 
     public function test_index_returns_paginated_ingredients(): void
     {
-        Ingredient::factory()->count(15)->create();
+        $count = 90;
+        $perPage = 25;
+        $page = 4;
 
-        $response = $this->getJson(route('ingredients.index'));
+        $unit = Unit::factory()->create();
 
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'data',
-                'links',
-                'meta',
-            ]);
+        Ingredient::factory()->count(90)->create(['default_amount_unit_id' => $unit->id]);
+        
+        // Get first page
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('ingredients.index'));
+        $response->assertStatus(200);
 
-        $this->assertCount(15, Ingredient::all());
+        $json = $response->json();
+
+        // Assert pagination meta exists
+        $this->assertArrayHasKey('data', $json);
+        $this->assertArrayHasKey('current_page', $json);
+        $this->assertArrayHasKey('last_page', $json);
+        $this->assertArrayHasKey('per_page', $json);
+        $this->assertArrayHasKey('total', $json);
+
+        // Assert 25 items returned on the first page
+        $this->assertCount($perPage, $json['data']);
+
+        // Assert total is correct
+        $this->assertEquals($count, $json['total']);
+
+        // Assert number of items for provided page
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('ingredients.index') . '?page=' . $page);
+        $json = $response->json();
+        $expectedItems = min($perPage, $count - $perPage * ($page - 1));
+        $this->assertCount($expectedItems, $json['data']);
+        $this->assertEquals($page, $json['current_page']);
     }
 
     public function test_show_returns_single_ingredient(): void
