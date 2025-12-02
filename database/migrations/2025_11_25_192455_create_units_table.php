@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('abbreviation');
             $table->string('type')->nullable();
             $table->timestamps();
+
+            $table->unique(['name', 'type']);          // e.g., "ounce" + "mass" vs "ounce" + "volume"
+            $table->unique(['abbreviation', 'type']);  // e.g., "oz" + "mass" vs "oz" + "volume"
         });
     }
 
