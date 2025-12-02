@@ -166,6 +166,82 @@ class IngredientsControllerTest extends TestCase
     //     ]);
     // }
 
+    public function test_store_validation_fails_with_missing_required_fields(): void
+    {
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), []); // empty payload
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'source',
+            'name',
+            'default_amount',
+            'default_amount_unit_id',
+        ]);
+
+        $errors = $response->json('errors');
+
+        $this->assertEquals(
+            'Source is required.',
+            $errors['source'][0]
+        );
+    }
+
+    public function test_update_validation_fails_with_invalid_default_amount(): void
+    {
+        $unit = Unit::factory()->create();
+
+        $ingredient = Ingredient::factory()->create([
+            'name' => 'Carrot',
+            'default_amount_unit_id' => $unit->id,
+        ]);
+
+        $payload = [
+            'default_amount' => -50, // invalid
+        ];
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('ingredients.update', $ingredient), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['default_amount']);
+        $this->assertEquals(
+            'Default amount must be at least 0.',
+            $response->json('errors.default_amount.0')
+        );
+    }
+
+    public function test_store_validation_fails_on_duplicate_external_id_source_name(): void
+    {
+        $unit = Unit::factory()->create();
+
+        Ingredient::factory()->create([
+            'external_id' => '123',
+            'source' => 'USDA',
+            'name' => 'Carrot',
+            'default_amount_unit_id' => $unit->id,
+        ]);
+
+        $payload = [
+            'external_id' => '123',
+            'source' => 'USDA',
+            'name' => 'Carrot',
+            'default_amount' => 100,
+            'default_amount_unit_id' => $unit->id,
+        ];
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['external_id']);
+        $this->assertEquals(
+            'The combination of external ID, source, and name must be unique.',
+            $response->json('errors.external_id.0')
+        );
+    }
+
     protected function tearDown(): void
     {
         $this->logout();
