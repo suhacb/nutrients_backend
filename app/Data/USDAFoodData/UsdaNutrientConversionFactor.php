@@ -1,11 +1,11 @@
 <?php
 namespace App\Data\USDAFoodData;
 
-use App\Data\DataTransferObject;
-use App\Data\USDAFoodData\UsdaNutrientConversionFactorType;
 use Exception;
+use Illuminate\Support\Collection;
+use App\Data\USDAFoodData\UsdaNutrientConversionFactorType;
 
-class UsdaNutrientConversionFactor extends DataTransferObject
+class UsdaNutrientConversionFactor
 {
     private UsdaNutrientConversionFactorType $type;
     private ?float $proteinValue;
@@ -16,8 +16,6 @@ class UsdaNutrientConversionFactor extends DataTransferObject
 
     public function __construct(array $data)
     {
-        parent::__construct($data);
-        
         if (!isset($data['type'])) {
             throw new Exception('Missing required type for NutrientConversionFactor');
         }
@@ -47,6 +45,11 @@ class UsdaNutrientConversionFactor extends DataTransferObject
         ];
     }
 
+    public static function fromArrayCollection(array $items): Collection
+    {
+        return collect($items)->map(fn($item) => static::fromArray($item));
+    }
+    
     public static function fromArray(array $data): static
     {
         return new static($data);
