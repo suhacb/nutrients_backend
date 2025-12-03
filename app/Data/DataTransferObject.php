@@ -21,7 +21,7 @@ abstract class DataTransferObject implements DataTransferObjectContract
     /**
      * Base constructor.
      */
-    final public function __construct(array $data)
+    public function __construct(array $data)
     {
         $this->raw = $data;
         $this->validate();

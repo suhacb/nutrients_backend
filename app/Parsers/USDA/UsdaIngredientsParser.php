@@ -32,7 +32,6 @@ class UsdaIngredientsParser implements ParserContract
             } else {
                 $defaultAmountUnitId = Unit::where(['abbreviation' => 'g'])->first()->value('id');
             }
-            logger($defaultAmountUnitId);
 
             $extractedIngredients->push([
                 'external_id' => $sourceIngredient['ndbNumber'],
@@ -119,7 +118,7 @@ class UsdaIngredientsParser implements ParserContract
  *    - source isHistoricalReference ignore
  *    - source ndbNumber maps to external ID but check if it's unique
  *    - source dataType ignore
- *    - source foodCategory maps to categories
+ *    - source foodCategory maps to nutrient->categories
  *    - source fdcid ignore
  *    - source foodPortions ignore
  *    - source publicationDate ignore

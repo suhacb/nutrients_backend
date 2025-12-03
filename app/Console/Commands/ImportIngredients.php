@@ -2,10 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Data\USDAFoodData\UsdaIngredientData;
 use App\Models\Ingredient;
 use App\Parsers\ParserContract;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use App\Data\USDAFoodData\UsdaNutrientData;
 use App\Parsers\USDA\UsdaIngredientsParser;
 
 class ImportIngredients extends Command
@@ -31,21 +33,30 @@ class ImportIngredients extends Command
     {
         $filePath = $this->argument('file');
         $parserOption = $this->option('parser');
-        $foods = $this->readDataFromFile($filePath);
-
-        $parser = $this->resolveParser($parserOption);
-        if (!$parser instanceof ParserContract) {
-            $this->error("Invalid parser specified: {$parserOption}");
-            return 1;
-        }
+        $foods = $this->readDataFromFile($filePath)['FoundationFoods'];
         
-        if (is_int($foods)) {
-            return $foods;
+        // Check if nutrients can be converted using DTO
+        foreach ($foods as $sourceIngredient) {
+            $ingredient = new UsdaIngredientData($sourceIngredient);
+            $this->info(json_encode($ingredient->toArray()));
+            $this->info('');
+            break;
         }
 
-        $ingredients = $parser->parse($foods);
-        $this->import($ingredients);
-        $this->info("Import completed: $filePath.");
+
+        // $parser = $this->resolveParser($parserOption);
+        // if (!$parser instanceof ParserContract) {
+        //     $this->error("Invalid parser specified: {$parserOption}");
+        //     return 1;
+        // }
+        // 
+        // if (is_int($foods)) {
+        //     return $foods;
+        // }
+// 
+        // $ingredients = $parser->parse($foods);
+        // $this->import($ingredients);
+        // $this->info("Import completed: $filePath.");
         return 0;
     }
 
