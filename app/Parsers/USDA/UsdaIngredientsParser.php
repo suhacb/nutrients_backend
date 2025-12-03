@@ -26,6 +26,14 @@ class UsdaIngredientsParser implements ParserContract
         
         $sourceIngredients = collect($this->data['FoundationFoods']);
         $sourceIngredients->each(function($sourceIngredient, $key) use ($extractedIngredients) {
+
+            if (array_key_exists('foodPortions', $sourceIngredient) && sizeof($sourceIngredient['foodPortions']) > 0) {
+                $defaultAmountUnitId = $sourceIngredient['foodPortions'][0]['measureUnit'];
+            } else {
+                $defaultAmountUnitId = Unit::where(['abbreviation' => 'g'])->first()->value('id');
+            }
+            logger($defaultAmountUnitId);
+
             $extractedIngredients->push([
                 'external_id' => $sourceIngredient['ndbNumber'],
                 'source' => 'USDA FoodData Central',
@@ -33,7 +41,7 @@ class UsdaIngredientsParser implements ParserContract
                 'name' => $sourceIngredient['description'],
                 'description' => null,
                 'default_amount' => 1,
-                'default_amount_unit' => $sourceIngredient['foodPortions'][0]['measureUnit']['abbreviation'],
+                'default_amount_unit' => $defaultAmountUnitId,
                 'nutrients' => $sourceIngredient['foodNutrients']
             ]);
         });
