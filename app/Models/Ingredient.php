@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\IngredientCategory;
 use App\Jobs\SyncIngredientToSearch;
 use App\Models\IngredientNutrientPivot;
 use App\Models\IngredientNutritionFact;
@@ -69,6 +70,11 @@ class Ingredient extends Model
     public function nutrition_facts(): HasMany
     {
         return $this->hasMany(IngredientNutritionFact::class, 'ingredient_id');
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(IngredientCategory::class, 'ingredient_ingredient_category')->using(IngredientIngredientCategory::class);
     }
 
     /**
