@@ -105,3 +105,23 @@ class UsdaIngredientsParser implements ParserContract
         return $this->parsed;
     }
 }
+
+
+/**
+ * 1. Read the raw element
+ * 2. Mappings of raw element (top level ingredient)
+ *    - source foodClass maps to target class
+ *    - source description maps to target name
+ *    - source foodNutrients maps to Nutrient and IngredientNutrientPivot
+ *    - source scientificName ignore
+ *    - source foodAttributes ignore
+ *    - source nutrientConversionFactors maps to UsdaNutrientConversionFactor and is used to calculate nutrition facts for energy
+ *    - source isHistoricalReference ignore
+ *    - source ndbNumber maps to external ID but check if it's unique
+ *    - source dataType ignore
+ *    - source foodCategory maps to categories
+ *    - source fdcid ignore
+ *    - source foodPortions ignore
+ *    - source publicationDate ignore
+ *    - source inputFoods ignore
+ */
