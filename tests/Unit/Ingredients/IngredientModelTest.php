@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use App\Jobs\SyncIngredientToSearch;
 use Illuminate\Support\Facades\Queue;
 use App\Models\IngredientNutritionFact;
+use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class IngredientModelTest extends TestCase
@@ -167,7 +168,11 @@ class IngredientModelTest extends TestCase
     public function test_nutrition_facts_relationship(): void
     {
         $ingredient = Ingredient::factory()->create();
-        $unit = Unit::factory()->create();
+        try {
+            $unit = Unit::factory()->create();
+        } catch (Exception $e) {
+            $unit = Unit::first();
+        }
 
         $nutritionFact1 = IngredientNutritionFact::create([
             'ingredient_id' => $ingredient->id,

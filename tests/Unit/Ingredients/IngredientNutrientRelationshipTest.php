@@ -53,7 +53,7 @@ class IngredientNutrientRelationshipTest extends TestCase
         $this->assertEquals($mg->id, $ingredient->nutrients[0]->pivot->amount_unit_id);
 
         // Check default unit relation
-        $this->assertTrue($ingredient->defaultAmountUnit->is($g));
+        $this->assertTrue($ingredient->default_amount_unit->is($g));
 
         // Check pivot resolves amount_unit relation
         $pivot = IngredientNutrientPivot::first();
