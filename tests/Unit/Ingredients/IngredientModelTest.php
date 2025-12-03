@@ -9,6 +9,7 @@ use App\Models\Ingredient;
 use Illuminate\Support\Carbon;
 use App\Jobs\SyncIngredientToSearch;
 use Illuminate\Support\Facades\Queue;
+use App\Models\IngredientNutritionFact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class IngredientModelTest extends TestCase
@@ -161,5 +162,34 @@ class IngredientModelTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_nutrition_facts_relationship(): void
+    {
+        $ingredient = Ingredient::factory()->create();
+        $unit = Unit::factory()->create();
+
+        $nutritionFact1 = IngredientNutritionFact::create([
+            'ingredient_id' => $ingredient->id,
+            'category' => 'macro',
+            'name' => 'Protein',
+            'amount' => 10.0,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $nutritionFact2 = IngredientNutritionFact::create([
+            'ingredient_id' => $ingredient->id,
+            'category' => 'micro',
+            'name' => 'Vitamin A',
+            'amount' => 0.2,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $this->assertCount(2, $ingredient->nutrition_facts);
+        $this->assertTrue($ingredient->nutrition_facts->contains($nutritionFact1));
+        $this->assertTrue($ingredient->nutrition_facts->contains($nutritionFact2));
+
+        // Optional: check the relationship type
+        $this->assertInstanceOf(IngredientNutritionFact::class, $ingredient->nutrition_facts->first());
     }
 }

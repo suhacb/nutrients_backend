@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Jobs\SyncIngredientToSearch;
 use App\Models\IngredientNutrientPivot;
+use App\Models\IngredientNutritionFact;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -64,15 +66,21 @@ class Ingredient extends Model
         return $this->belongsTo(Unit::class, 'default_amount_unit_id');
     }
 
+    public function nutrition_facts(): HasMany
+    {
+        return $this->hasMany(IngredientNutritionFact::class, 'ingredient_id');
+    }
+
     /**
      * Load relationships needed for ZincSearch payload.
      */
     public function loadForSearch(): self
     {
-        // Preload default_amount_unit and nutrients
+        // Preload default_amount_unit, nutrients and nutrition facts
         $this->load([
             'default_amount_unit',
-            'nutrients', // eager load nutrients first
+            'nutrients',
+            'nutrition_facts'
         ]);
 
         // Then explicitly eager load pivot relationships for nutrients
