@@ -41,7 +41,7 @@ class UsdaIngredientData extends DataTransferObject
     }
 
     /**
-     * Converts USDA nutrient JSON into internal ingredient + pivot array
+     * Converts USDA ingredient JSON into internal ingredient + pivot array
      */
     public function toArray(): array
     {
@@ -67,13 +67,13 @@ class UsdaIngredientData extends DataTransferObject
             $nutrientsPivotArray[] = $nutrientsPivotArrayElement;
         }
 
-        $categoriesArray = [];
+        $ingredientCategory = new UsdaCategoriesData($this->foodCategory);
 
         return [
             'ingredient' => $ingredientArray,
             'nutrients' => $nutrientsArray,
             'nutrients_pivot' => $nutrientsPivotArray,
-            'categories' => $categoriesArray
+            'category' => $ingredientCategory->toArray()
         ];
     }
 
