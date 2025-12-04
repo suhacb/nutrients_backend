@@ -69,11 +69,16 @@ class UsdaIngredientData extends DataTransferObject
 
         $ingredientCategory = new UsdaCategoriesData($this->foodCategory);
 
+        // Nutrition facts conversion
+        $nutritionFactsData = new UsdaIngredientNutritionFactData($this->foodNutrients);
+        $nutritionFacts = $nutritionFactsData->toArray();
+
         return [
             'ingredient' => $ingredientArray,
             'nutrients' => $nutrientsArray,
             'nutrients_pivot' => $nutrientsPivotArray,
-            'category' => $ingredientCategory->toArray()
+            'category' => $ingredientCategory->toArray(),
+            'nutrition_facts' => $nutritionFacts
         ];
     }
 
