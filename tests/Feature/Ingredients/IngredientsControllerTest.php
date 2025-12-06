@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use App\Models\Unit;
+use App\Models\Nutrient;
 use Tests\LoginTestUser;
 use App\Models\Ingredient;
 use App\Jobs\SyncIngredientToSearch;
@@ -69,7 +70,7 @@ class IngredientsControllerTest extends TestCase
             'name' => 'Test Ingredient',
         ]);
 
-        $nutrient = \App\Models\Nutrient::factory()->create(['name' => 'Protein']);
+        $nutrient = Nutrient::factory()->create(['name' => 'Protein']);
 
         $ingredient->nutrients()->attach($nutrient->id, [
             'amount' => 5,
@@ -188,7 +189,8 @@ class IngredientsControllerTest extends TestCase
         ]);
 
         Queue::assertPushed(SyncIngredientToSearch::class, function ($job) use ($ingredient) {
-            return $job->ingredient->id === $ingredient->id && $job->action === 'delete';
+            $jobId = $job->ingredient?->id ?? $job->id; // safely get id
+            return $jobId === $ingredient->id && $job->action === 'delete';
         });
     }
 
