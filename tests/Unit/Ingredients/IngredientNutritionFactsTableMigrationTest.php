@@ -8,10 +8,16 @@ use App\Models\Ingredient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\MakesUnit;
 
 class IngredientNutritionFactsTableMigrationTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, MakesUnit;
+
+    public function setUp(): void
+    {
+        parent::setUp();
+    }
 
     protected $expectedColumns = [
         'id' => ['type' => 'bigint unsigned', 'nullable' => false],
@@ -56,7 +62,7 @@ class IngredientNutritionFactsTableMigrationTest extends TestCase
     public function test_unique_constraint_works_for_ingredient_category_and_name(): void
     {
         $ingredient = Ingredient::factory()->create();
-        $unit = Unit::factory()->create();
+        $unit = $this->makeUnit();
 
         // Insert first nutrient
         DB::table('ingredient_nutrition_facts')->insert([
@@ -86,7 +92,7 @@ class IngredientNutritionFactsTableMigrationTest extends TestCase
     public function test_allows_different_categories_or_names_for_same_ingredient(): void
     {
         $ingredient = Ingredient::factory()->create();
-        $unit = Unit::factory()->create();
+        $unit = $this->makeUnit();
 
         // Macro: Protein
         DB::table('ingredient_nutrition_facts')->insert([

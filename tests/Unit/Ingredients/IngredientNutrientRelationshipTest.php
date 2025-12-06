@@ -7,12 +7,14 @@ use App\Models\Unit;
 use App\Models\Nutrient;
 use App\Models\Ingredient;
 use Illuminate\Support\Facades\Queue;
+use Database\Seeders\UnitsTableSeeder;
 use App\Models\IngredientNutrientPivot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\MakesUnit;
 
 class IngredientNutrientRelationshipTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, MakesUnit;
 
     protected function setUp(): void
     {
@@ -20,12 +22,11 @@ class IngredientNutrientRelationshipTest extends TestCase
         Queue::fake(); // prevent search sync jobs from dispatching
     }
 
-    public function test_ingredient_can_have_many_nutrients_via_pivot_with_units()
+    public function test_ingredient_can_have_many_nutrients_via_pivot_with_units(): void
     {
         // Create some units
-        $mg = Unit::factory()->create(['name' => 'milligram', 'abbreviation' => 'mg']);
-        $g  = Unit::factory()->create(['name' => 'gram', 'abbreviation' => 'g']);
-
+        [$mg, $g] = $this->makeUnit(2);
+        
         // Create an ingredient and nutrients
         $ingredient = Ingredient::factory()->create([
             'default_amount' => 100,
@@ -60,9 +61,9 @@ class IngredientNutrientRelationshipTest extends TestCase
         $this->assertTrue($pivot->amount_unit->is($mg));
     }
 
-    public function test_nutrient_can_have_many_ingredients_via_pivot()
+    public function test_nutrient_can_have_many_ingredients_via_pivot(): void
     {
-        $unit = Unit::factory()->create();
+        $unit = $this->makeUnit();
         $nutrient = Nutrient::factory()->create();
         $ingredientA = Ingredient::factory()->create();
         $ingredientB = Ingredient::factory()->create();
@@ -81,9 +82,9 @@ class IngredientNutrientRelationshipTest extends TestCase
         $this->assertEquals(1.2, $nutrient->ingredients->first()->pivot->amount);
     }
 
-    public function test_deleting_ingredient_removes_pivot_records()
+    public function test_soft_deleting_ingredient_preserves_pivot_records(): void
     {
-        $unit = Unit::firstOrCreate(['name' => 'milligram', 'type' => 'mass'], ['abbreviation' => 'mg']);
+        $unit = $this->makeUnit();
         $ingredient = Ingredient::factory()->create();
         $nutrient = Nutrient::factory()->create();
 
@@ -94,8 +95,34 @@ class IngredientNutrientRelationshipTest extends TestCase
 
         $this->assertDatabaseCount('ingredient_nutrient', 1);
 
+        // Soft delete
         $ingredient->delete();
 
+        // Pivot should still exist
+        $this->assertDatabaseCount('ingredient_nutrient', 1);
+
+        // Optional: restore ingredient and check relation still intact
+        $ingredient->restore();
+        $this->assertTrue($ingredient->nutrients()->where('nutrient_id', $nutrient->id)->exists());
+    }
+
+    public function test_force_deleting_ingredient_removes_pivot_records(): void
+    {
+        $unit = $this->makeUnit();
+        $ingredient = Ingredient::factory()->create();
+        $nutrient = Nutrient::factory()->create();
+
+        $ingredient->nutrients()->attach($nutrient->id, [
+            'amount' => 5,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $this->assertDatabaseCount('ingredient_nutrient', 1);
+
+        // Force delete
+        $ingredient->forceDelete();
+
+        // Pivot should now be removed
         $this->assertDatabaseCount('ingredient_nutrient', 0);
     }
 }

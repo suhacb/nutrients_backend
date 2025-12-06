@@ -38,7 +38,7 @@ class SyncNutrientToSearchTest extends TestCase
 
         $job = new SyncNutrientToSearch($this->nutrient, 'insert');
         $job->handle($mock);
-
+        $this->assertTrue(true);
     }
 
     /* This test will throw: ! handle calls update on search service → This
@@ -54,6 +54,7 @@ class SyncNutrientToSearchTest extends TestCase
 
         $job = new SyncNutrientToSearch($this->nutrient, 'update');
         $job->handle($mock);
+        $this->assertTrue(true);
     }
 
     /* This test will throw: ! handle calls delete on search service → This
@@ -69,6 +70,7 @@ class SyncNutrientToSearchTest extends TestCase
 
         $job = new SyncNutrientToSearch($this->nutrient, 'delete');
         $job->handle($mock);
+        $this->assertTrue(true);
     }
     
     protected function tearDown(): void

@@ -10,10 +10,11 @@ use App\Jobs\SyncNutrientToSearch;
 use Illuminate\Support\Facades\Bus;
 use App\Exceptions\NutrientAttachedException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\MakesUnit;
 
 class NutrientModelTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, MakesUnit;
 
     public function test_fillable_fields(): void
     {
@@ -116,10 +117,7 @@ class NutrientModelTest extends TestCase
 
         $nutrient = Nutrient::factory()->create();
 
-        $unit = Unit::firstOrCreate(
-            ['name' => 'milligram', 'type' => 'mass'],
-            ['abbreviation' => 'mg']
-        );
+        $unit = $this->makeUnit();
 
         $ingredient = Ingredient::factory()->create();
 

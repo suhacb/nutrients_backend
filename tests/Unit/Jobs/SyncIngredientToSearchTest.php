@@ -36,6 +36,7 @@ class SyncIngredientToSearchTest extends TestCase
 
         $job = new SyncIngredientToSearch($this->ingredient, 'insert');
         $job->handle($mock);
+        $this->assertTrue(true);
     }
 
     public function test_handle_calls_update_on_search_service(): void
@@ -47,6 +48,7 @@ class SyncIngredientToSearchTest extends TestCase
 
         $job = new SyncIngredientToSearch($this->ingredient, 'update');
         $job->handle($mock);
+        $this->assertTrue(true);
     }
 
     public function test_handle_calls_delete_on_search_service(): void
@@ -58,6 +60,7 @@ class SyncIngredientToSearchTest extends TestCase
 
         $job = new SyncIngredientToSearch($this->ingredient, 'delete');
         $job->handle($mock);
+        $this->assertTrue(true);
     }
 
     protected function tearDown(): void

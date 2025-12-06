@@ -47,7 +47,7 @@ class UnitsTableSeeder extends Seeder
     public function run(): void
     {
         collect($this->units)->each(function($unit) {
-            Unit::firstOrCreate($unit);
+            Unit::firstOrCreate($unit, $unit);
         });
     }
 }

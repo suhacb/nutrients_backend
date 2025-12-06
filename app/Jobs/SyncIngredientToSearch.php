@@ -8,19 +8,28 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use App\Services\Search\SearchServiceContract;
+use stdClass;
 
 class SyncIngredientToSearch implements ShouldQueue {
     use Dispatchable, Queueable, InteractsWithQueue, SerializesModels;
     
-    public Ingredient $ingredient;
+    public int $id;
+    public ?Ingredient $ingredient;
     public string $action;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(Ingredient $ingredient, string $action)
+    public function __construct(Ingredient|stdClass $ingredient, string $action)
     {
-        $this->ingredient = $ingredient;
+        if ($ingredient instanceof Ingredient) {
+            $this->ingredient = $ingredient;
+            $this->id = $ingredient->id;
+        } else {
+            // For force deletes or dummy objects, only store the id
+            $this->ingredient = null;
+            $this->id = $ingredient->id;
+        }
         $this->action = $action;
     }
 
@@ -30,18 +39,23 @@ class SyncIngredientToSearch implements ShouldQueue {
     public function handle(SearchServiceContract $search): void
     {
         $index = 'ingredients';
-        $payload = $this->ingredient->toArray();
-        $id = $this->ingredient->id;
 
         switch ($this->action) {
             case 'insert':
-                $search->insert($index, $payload);
-                break;
             case 'update':
-                $search->update($index, $id, $payload);
+                // Try the model instance first, fallback to DB query
+                $ingredient = $this->ingredient ?? Ingredient::find($this->id);
+                if ($ingredient) {
+                    $payload = $ingredient->toArray();
+                    $this->action === 'insert'
+                        ? $search->insert($index, $payload)
+                        : $search->update($index, $this->id, $payload);
+                }
                 break;
+
             case 'delete':
-                $search->delete($index, $id);
+                // Only use the id; no need for the model
+                $search->delete($index, $this->id);
                 break;
         }
     }

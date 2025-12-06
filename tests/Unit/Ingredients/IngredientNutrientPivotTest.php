@@ -3,15 +3,16 @@
 namespace Tests\Unit\Ingredients;
 
 use Tests\TestCase;
+use App\Models\Unit;
 use App\Models\IngredientNutrientPivot;
 use Illuminate\Database\Eloquent\Relations\Pivot;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Tests\MakesUnit;
 
 class IngredientNutrientPivotTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, MakesUnit;
     
     public function test_it_extends_pivot_class(): void
     {
@@ -69,15 +70,14 @@ class IngredientNutrientPivotTest extends TestCase
 
     public function test_pivot_can_access_units()
     {
-        $amount_unit = Unit::factory()->create(['id' => 1, 'name' => 'Gram', 'abbreviation' => 'g']);
-        $portion_unit = Unit::factory()->create(['id' => 2, 'name' => 'Milligram', 'abbreviation' => 'mg']);
+        [$amount_unit, $portion_unit] = $this->makeUnit(2);
 
         $pivot = IngredientNutrientPivot::factory()->create([
             'amount_unit_id' => $amount_unit->id,
             'portion_amount_unit_id' => $portion_unit->id,
         ]);
 
-        $this->assertEquals('Gram', $pivot->amount_unit->name);
-        $this->assertEquals('Milligram', $pivot->portion_amount_unit->name);
+        $this->assertEquals($amount_unit->name, $pivot->amount_unit->name);
+        $this->assertEquals($portion_unit->name, $pivot->portion_amount_unit->name);
     }
 }

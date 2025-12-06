@@ -7,10 +7,11 @@ use App\Models\Unit;
 use App\Models\Ingredient;
 use App\Models\IngredientNutritionFact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\MakesUnit;
 
 class IngredientNutritionFactModelTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, MakesUnit;
 
     public function test_fillable_attributes(): void
     {
@@ -30,7 +31,7 @@ class IngredientNutritionFactModelTest extends TestCase
     public function test_model_can_be_created_with_fillable_attributes(): void
     {
         $ingredient = Ingredient::factory()->create();
-        $unit = Unit::factory()->create();
+        $unit = $this->makeUnit();
 
         $nutrient = IngredientNutritionFact::create([
             'ingredient_id' => $ingredient->id,
@@ -50,7 +51,7 @@ class IngredientNutritionFactModelTest extends TestCase
     public function test_amount_is_cast_to_double(): void
     {
         $ingredient = Ingredient::factory()->create();
-        $unit = Unit::factory()->create();
+        $unit = $this->makeUnit();
 
         $nutrient = IngredientNutritionFact::create([
             'ingredient_id' => $ingredient->id,
@@ -67,7 +68,7 @@ class IngredientNutritionFactModelTest extends TestCase
     public function test_relationships_to_unit_and_ingredient(): void
     {
         $ingredient = Ingredient::factory()->create();
-        $unit = Unit::factory()->create();
+        $unit = $this->makeUnit();
 
         $nutrition_fact = IngredientNutritionFact::create([
             'ingredient_id' => $ingredient->id,

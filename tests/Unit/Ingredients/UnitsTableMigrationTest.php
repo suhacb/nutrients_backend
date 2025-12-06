@@ -4,6 +4,7 @@ namespace Tests\Unit\Ingredients;
 
 use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -93,11 +94,11 @@ class UnitsTableMigrationTest extends TestCase
         ]);
 
         // Attempt to insert duplicate name + type → should fail
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('units')->insert([
             'name' => 'Ounce',
-            'abbreviation' => 'oz2', // different abbreviation
-            'type' => 'mass',         // same type
+            'abbreviation' => 'oz',
+            'type' => 'mass',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

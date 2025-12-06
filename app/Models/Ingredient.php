@@ -40,12 +40,13 @@ class Ingredient extends Model
         });
 
         static::deleting(function(Ingredient $ingredient) {
-            $ingredient->nutrients()->detach();
+            if ($ingredient->isForceDeleting()) {
+                $ingredient->nutrients()->detach();
+            }
         });
 
         static::deleted(function (Ingredient $ingredient) {
-            $ingredient->loadForSearch();
-            SyncIngredientToSearch::dispatch($ingredient, 'delete')->onQueue('ingredients');
+            SyncIngredientToSearch::dispatch((object)['id' => $ingredient->id], 'delete')->onQueue('ingredients');
         });
 
         static::restored(function (Ingredient $ingredient) {
