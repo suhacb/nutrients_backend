@@ -74,50 +74,53 @@ class ImportIngredients extends Command
 
     public function importFromUsdaArray(array $data)
     {
+        $transactionable = !app()->environment('testing');
         try {
-            DB::transaction(function () use ($data) {
-                $category = IngredientCategory::firstOrCreate([
-                    'name' => $data['category']['name'],
-                ]);
-                logger()->info("Category processed: {$category->name}");
-
-                $ingredientData = $data['ingredient'];
-
-                $ingredient = Ingredient::firstOrCreate(
-                    ['name' => $ingredientData['name']],
-                    [
-                        'source' => $ingredientData['source'],
-                        'external_id' => $ingredientData['external_id'],
-                        'description' => $ingredientData['description'],
-                        'class' => $ingredientData['class'],
-                        'default_amount' => $ingredientData['default_amount'],
-                        'default_amount_unit_id' => $ingredientData['default_amount_unit_id'],
-                    ]
-                );
-                logger()->info("Ingredient processed: {$ingredient->name}");
-
-                if (!$ingredient->categories()->where('ingredient_category_id', $category->id)->exists()) {
-                    $ingredient->categories()->attach($category->id);
-                    logger()->info("Category {$category->name} attached to ingredient {$ingredient->name}");
-                }
-
-                if ($ingredient->wasRecentlyCreated) {
-                    $this->attachNutrients($ingredient, $data);
-                    logger()->info("Nutrients attached for ingredient {$ingredient->name}");
-                }
-
-                if ($ingredient->wasRecentlyCreated) {
-                    $this->createNutritionFacts($ingredient, $data['nutrition_facts']);
-                    logger()->info("Nutrition facts attached for ingredient {$ingredient->name}");
-                }
-
-                logger()->info("Ingredient transaction complete: {$ingredient->name}");
-            });
+            if ($transactionable) {
+                DB::transaction(function() use ($data) {
+                    $this->import($data);
+                });
+            } else {
+                $this->import($data);
+            }
         } catch (\Throwable $e) {
             logger()->error("Transaction rolled back for ingredient {$data['ingredient']['name']}: {$e->getMessage()}", [
                 'trace' => $e->getTraceAsString(),
             ]);
             throw $e; // rethrow to propagate error to handle() or stop import
+        }
+    }
+
+    private function import(array $data): void
+    {
+        $category = IngredientCategory::firstOrCreate([
+            'name' => $data['category']['name'],
+        ]);
+
+        $ingredientData = $data['ingredient'];
+
+        $ingredient = Ingredient::firstOrCreate(
+            ['name' => $ingredientData['name']],
+            [
+                'source' => $ingredientData['source'],
+                'external_id' => $ingredientData['external_id'],
+                'description' => $ingredientData['description'],
+                'class' => $ingredientData['class'],
+                'default_amount' => $ingredientData['default_amount'],
+                'default_amount_unit_id' => $ingredientData['default_amount_unit_id'],
+            ]
+        );
+
+        if (!$ingredient->categories()->where('ingredient_category_id', $category->id)->exists()) {
+            $ingredient->categories()->attach($category->id);
+        }
+
+        if ($ingredient->wasRecentlyCreated) {
+            $this->attachNutrients($ingredient, $data);
+        }
+
+        if ($ingredient->wasRecentlyCreated) {
+            $this->createNutritionFacts($ingredient, $data['nutrition_facts']);
         }
     }
 

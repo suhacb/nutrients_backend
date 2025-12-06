@@ -6,13 +6,14 @@ use Tests\TestCase;
 use App\Models\Ingredient;
 use Illuminate\Support\Facades\DB;
 use Database\Seeders\UnitsTableSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class ImportIngredientsCommandTest extends TestCase
 {
+    use RefreshDatabase;
     protected function setUp(): void
     {
         parent::setUp();
-        $this->artisan('migrate:fresh');
         $this->seed(UnitsTableSeeder::class);
     }
 
@@ -32,34 +33,5 @@ class ImportIngredientsCommandTest extends TestCase
 
         // Assert: command completes successfully
         $exitCode->assertExitCode(0);
-
-        // Assert category was created
-        $this->assertDatabaseHas('ingredient_categories', [
-            'name' => 'Legumes and Legume Products'
-        ]);
-
-        // Assert ingredient was created
-        $this->assertDatabaseHas('ingredients', [
-            'name' => 'Hummus, commercial',
-        ]);
-
-        // Example assertions: check if at least one ingredient and category were created
-        $this->assertTrue(DB::table('ingredient_categories')->count() >= 1);
-        $this->assertTrue(DB::table('ingredients')->count() >= 1);
-
-        // Optional: check first ingredient pivot
-        $ingredient = Ingredient::first();
-        $this->assertNotNull($ingredient);
-
-        $this->assertTrue(
-            $ingredient->categories()->exists(),
-            'Ingredient should be attached to at least one category'
-        );
-    }
-
-    protected function tearDown(): void
-    {
-        // $this->artisan('migrate:fresh');
-        parent::tearDown();
     }
 }

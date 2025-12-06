@@ -10,10 +10,11 @@ use App\Models\Ingredient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\MakesUnit;
 
 class NutrientsControllerTest extends TestCase
 {
-    use RefreshDatabase, LoginTestUser;
+    use RefreshDatabase, LoginTestUser, MakesUnit;
 
     protected function setUp(): void
     {
@@ -115,10 +116,7 @@ class NutrientsControllerTest extends TestCase
         $nutrient = Nutrient::factory()->create();
 
         // Create a unit and ingredient
-        $unit = Unit::firstOrCreate(
-            ['name' => 'milligram', 'type' => 'mass'],
-            ['abbreviation' => 'mg']
-        );
+        $unit = $this->makeUnit();
         $ingredient = Ingredient::factory()->create();
 
         // Attach nutrient to ingredient
