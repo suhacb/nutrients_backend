@@ -168,6 +168,10 @@ class UsdaIngredientNutritionFactData extends DataTransferObject
     protected function resolveUnitId(string $unitName): ?int
     {
         $unit = Unit::where(['abbreviation' => $unitName])->first();
+        if (!$unit) {
+            logger()->error("Unit {$unitName} not found in database!");
+            throw new \Exception("Unit {$unitName} not found!");
+        }
         return $unit->id ?? null;
     }
     

@@ -52,7 +52,7 @@ class UsdaIngredientData extends DataTransferObject
             'description' => null,
             'class' => $this->foodClass,
             'default_amount' => 100,
-            'default_amount_id' => Unit::where(['abbreviation' => 'g'])->first()->id,
+            'default_amount_unit_id' => $this->getUnitId('g'),
         ];
 
         $nutrientsArray = [];
@@ -85,5 +85,16 @@ class UsdaIngredientData extends DataTransferObject
     public function toModel(): Model
     {
         return new Ingredient();
+    }
+
+    protected function getUnitId(string $abbreviation): int
+    {
+        $unit = Unit::where('abbreviation', $abbreviation)->first();
+
+        if (!$unit) {
+            logger()->error("Unit {$abbreviation} not found in database!");
+            throw new \Exception("Unit {$abbreviation} not found!");
+        }
+        return $unit->id;
     }
 }

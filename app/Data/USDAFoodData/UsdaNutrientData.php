@@ -52,7 +52,7 @@ class UsdaNutrientData extends DataTransferObject
     {
         return [
             'source' => 'USDA FoodData Central',
-            'external_id' => $this->nutrient['number'],
+            'external_id' => strval($this->nutrient['number']) ?? null,
             'name' => $this->nutrient['name'],
             'description' => null,
             'derivation_code' => $this->derivationCode,
@@ -74,13 +74,24 @@ class UsdaNutrientData extends DataTransferObject
      */
     public function toPivotArray(): array
     {
-        $unit = Unit::where('name', $this->unitName)->orWhere('abbreviation', $this->unitName)->first();
+        // $unit = Unit::where('name', $this->unitName)->orWhere('abbreviation', $this->unitName)->first();
 
         return [
-            'amount' => $this->median ?? $this->amount,
-            'amount_unit_id' => $unit?->id,
+            'amount' => $this->amount,
+            'amount_unit_id' => $this->getUnitId($this->unitName),
             'portion_amount' => null,
             'portion_amount_unit_id' => null,
         ];
+    }
+
+    protected function getUnitId(string $abbreviation): int
+    {
+        $unit = Unit::where('abbreviation', $abbreviation)->first();
+
+        if (!$unit) {
+            logger()->error("Unit {$abbreviation} not found in database!");
+            throw new \Exception("Unit {$abbreviation} not found!");
+        }
+        return $unit->id;
     }
 }

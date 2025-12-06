@@ -1,6 +1,7 @@
 <?php
 namespace App\Data\USDAFoodData;
 
+use Exception;
 use App\Models\Unit;
 use App\Data\DataTransferObject;
 use App\Models\IngredientNutrientPivot;
@@ -16,7 +17,7 @@ class UsdaIngredientNutrientPivotData extends DataTransferObject
         parent::__construct($data);
 
         $this->unitName = $this->get('nutrient.unitName');
-        $this->amount = $this->get('amount');
+        $this->amount = $this->get('amount', 0);
     }
 
     /**
@@ -37,7 +38,8 @@ class UsdaIngredientNutrientPivotData extends DataTransferObject
     {
         return [
             'amount' => $this->amount,
-            'amount_unit_id' => Unit::where(['abbreviation' => $this->unitName])->first()->id,
+            'amount_unit_id' => $this->getUnitId($this->unitName),
+            'amount_unit_id' => $this->getUnitId($this->unitName),
             'portion_amount' => null,
             'portion_amount_unit_id' => null
         ];
@@ -47,5 +49,16 @@ class UsdaIngredientNutrientPivotData extends DataTransferObject
     public function toModel(): Model
     {
         return new IngredientNutrientPivot();
+    }
+
+    protected function getUnitId(string $abbreviation): int
+    {
+        $unit = Unit::where('abbreviation', $abbreviation)->first();
+
+        if (!$unit) {
+            logger()->error("Unit {$abbreviation} not found in database!");
+            throw new Exception("Unit {$abbreviation} not found!");
+        }
+        return $unit->id;
     }
 }

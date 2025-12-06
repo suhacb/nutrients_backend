@@ -68,7 +68,7 @@ class UsdaIngredientsParser implements ParserContract
         $nutrients = collect([]);
         collect($item['nutrients'])->each(function($sourceNutrient, $key) use ($nutrients) {
             $nutrient = Nutrient::where([
-                'external_id' => $sourceNutrient['nutrient']['number'],
+                'external_id' => strval($sourceNutrient['nutrient']['number']),
                 'name' => $sourceNutrient['nutrient']['name']
             ])->firstOrFail();
             if ($nutrient) {

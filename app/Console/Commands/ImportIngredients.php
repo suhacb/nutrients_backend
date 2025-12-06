@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
-use App\Data\USDAFoodData\UsdaIngredientData;
+use Exception;
+use Throwable;
+use App\Models\Nutrient;
 use App\Models\Ingredient;
-use App\Parsers\ParserContract;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
-use App\Data\USDAFoodData\UsdaNutrientData;
-use App\Parsers\USDA\UsdaIngredientsParser;
+use App\Models\IngredientCategory;
+use Illuminate\Support\Facades\DB;
+use App\Data\USDAFoodData\UsdaIngredientData;
 
 class ImportIngredients extends Command
 {
@@ -30,49 +31,27 @@ class ImportIngredients extends Command
      * Execute the console command.
      */
     public function handle()
-    {
+    {   
         $filePath = $this->argument('file');
-        $parserOption = $this->option('parser');
-        $foods = $this->readDataFromFile($filePath)['FoundationFoods'];
-        
-        // Check if nutrients can be converted using DTO
-        foreach ($foods as $sourceIngredient) {
-            $ingredient = new UsdaIngredientData($sourceIngredient);
-            $this->info(json_encode($ingredient->toArray()));
-            $this->info('');
-            break;
+        $sourceIngredients = $this->readDataFromFile($filePath);
+
+        foreach($sourceIngredients as $index => $sourceIngredient) {
+            try {
+                $ingredient = new UsdaIngredientData($sourceIngredient);
+                $this->importFromUsdaArray($ingredient->toArray());
+            } catch (Exception $e) {
+                logger()->error("Error importing ingredient at index {$index}: {$e->getMessage()}", [
+                    'index' => $index,
+                    'sourceIngredient' => $sourceIngredient,
+                    // 'trace' => $e->getTraceAsString(),
+                ]);
+                logger()->error($e->getMessage());
+                logger()->error($e->getTraceAsString());
+                break;
+            }
         }
 
-
-        // $parser = $this->resolveParser($parserOption);
-        // if (!$parser instanceof ParserContract) {
-        //     $this->error("Invalid parser specified: {$parserOption}");
-        //     return 1;
-        // }
-        // 
-        // if (is_int($foods)) {
-        //     return $foods;
-        // }
-// 
-        // $ingredients = $parser->parse($foods);
-        // $this->import($ingredients);
-        // $this->info("Import completed: $filePath.");
         return 0;
-    }
-
-    private function resolveParser(string $parserOption): ?ParserContract
-    {
-        $parsers = [
-            'USDA' => UsdaIngredientsParser::class,
-            // Future parsers can be added here:
-            // 'OtherParser' => OtherParser::class,
-        ];
-
-        if (!isset($parsers[$parserOption])) {
-            return null;
-        }
-
-        return app($parsers[$parserOption]);
     }
 
     private function readDataFromFile(string $filePath): array | int
@@ -89,22 +68,129 @@ class ImportIngredients extends Command
             $this->error("Invalid JSON or missing 'FoundationFoods' key");
             return 1;
         }
-        
-        return $data;
+
+        return $data['FoundationFoods'];
     }
 
-    private function import(Collection $ingredients): void
+    public function importFromUsdaArray(array $data)
     {
-        $ingredients->each(function ($item) {
-            $ingredient = Ingredient::firstOrCreate([
-                'source' => $item['source'],
-                'name' => $item['name'],
-            ],
-            $item->toArray()
-            );
-            collect($item->nutrients)->each(function($nutrient) use ($ingredient) {
-                $ingredient->nutrients->attach($nutrient);
+        try {
+            DB::transaction(function () use ($data) {
+                $category = IngredientCategory::firstOrCreate([
+                    'name' => $data['category']['name'],
+                ]);
+                logger()->info("Category processed: {$category->name}");
+
+                $ingredientData = $data['ingredient'];
+
+                $ingredient = Ingredient::firstOrCreate(
+                    ['name' => $ingredientData['name']],
+                    [
+                        'source' => $ingredientData['source'],
+                        'external_id' => $ingredientData['external_id'],
+                        'description' => $ingredientData['description'],
+                        'class' => $ingredientData['class'],
+                        'default_amount' => $ingredientData['default_amount'],
+                        'default_amount_unit_id' => $ingredientData['default_amount_unit_id'],
+                    ]
+                );
+                logger()->info("Ingredient processed: {$ingredient->name}");
+
+                if (!$ingredient->categories()->where('ingredient_category_id', $category->id)->exists()) {
+                    $ingredient->categories()->attach($category->id);
+                    logger()->info("Category {$category->name} attached to ingredient {$ingredient->name}");
+                }
+
+                if ($ingredient->wasRecentlyCreated) {
+                    $this->attachNutrients($ingredient, $data);
+                    logger()->info("Nutrients attached for ingredient {$ingredient->name}");
+                }
+
+                if ($ingredient->wasRecentlyCreated) {
+                    $this->createNutritionFacts($ingredient, $data['nutrition_facts']);
+                    logger()->info("Nutrition facts attached for ingredient {$ingredient->name}");
+                }
+
+                logger()->info("Ingredient transaction complete: {$ingredient->name}");
             });
-        });
+        } catch (\Throwable $e) {
+            logger()->error("Transaction rolled back for ingredient {$data['ingredient']['name']}: {$e->getMessage()}", [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e; // rethrow to propagate error to handle() or stop import
+        }
+    }
+
+    private function attachNutrients(Ingredient $ingredient, array $data): void
+    {
+        if (empty($data['nutrients']) || empty($data['nutrients_pivot'])) return;
+
+        $nutrientsData = $data['nutrients'];
+        $nutrientsPivotData = $data['nutrients_pivot'];
+
+         foreach ($data['nutrients'] as $index => $nutrientData) {
+            try {
+                // Find or create the nutrient
+                $nutrient = Nutrient::firstOrCreate([
+                    'name' => $nutrientData['name'],
+                    'external_id' => $nutrientData['external_id']
+                ],
+                    $nutrientData
+                );
+    
+                // Attach nutrient to ingredient via pivot
+                if (! $ingredient->nutrients()->where('nutrient_id', $nutrient->id)->exists()) {
+                    $ingredient->nutrients()->attach($nutrient->id, [
+                        'amount' => $nutrientsPivotData[$index]['amount'],
+                        'amount_unit_id' => $nutrientsPivotData[$index]['amount_unit_id'] ?? null,
+                    ]);
+                }
+            } catch (Throwable $e) {
+                logger()->error("Failed to attach nutrient {$nutrientData['name']} to ingredient {$ingredient->name}: {$e->getMessage()}");
+            }
+        }
+    }
+
+    private function createNutritionFacts(Ingredient $ingredient, array $nutritionFacts): void
+    {
+        foreach ($nutritionFacts as $fact) {
+            try {
+                $ingredient->nutrition_facts()->create([
+                    'category' => $fact['category'] ?? null,
+                    'name' => $fact['name'],
+                    'amount' => $fact['amount'] ?? null,
+                    'amount_unit_id' => $fact['amount_unit_id'] ?? null,
+                ]);
+            } catch (Throwable $e) {
+                logger()->error("Failed to create nutrition fact {$fact['name']} to ingredient {$ingredient->name}: {$e->getMessage()}");
+            }
+        }
+    }
+
+    private function createMetrics(array $sourceIngredients): array
+    {
+        $metrics = [
+            'expected' => [
+                'ingredients' => 0,
+                'categories' => [], // ingredient_name => count
+                'nutrients' => [],  // ingredient_name => count
+                'nutrition_facts' => [], // ingredient_name => count
+            ],
+            'actual' => [
+                'ingredients' => 0,
+                'categories' => [], 
+                'nutrients' => [],
+                'nutrition_facts' => [],
+            ],
+        ];
+
+        foreach ($sourceIngredients as $ingredient) {
+            $name = $ingredient['ingredient']['name'];
+            $metrics['expected']['categories'][$name] = isset($ingredient['category']) ? 1 : 0;
+            $metrics['expected']['nutrients'][$name] = isset($ingredient['nutrients']) ? count($ingredient['nutrients']) : 0;
+            $metrics['expected']['nutrition_facts'][$name] = isset($ingredient['nutrition_facts']) ? count($ingredient['nutrition_facts']) : 0;
+        }
+
+        return $metrics;
     }
 }

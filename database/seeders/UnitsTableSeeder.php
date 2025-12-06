@@ -37,7 +37,8 @@ class UnitsTableSeeder extends Seeder
         ['name' => 'kilocalorie', 'abbreviation' => 'kcal', 'type' => 'energy'],
 
         // Other
-        ['name' => 'international unit', 'abbreviation' => 'IU', 'type' => 'other']
+        ['name' => 'international unit', 'abbreviation' => 'IU', 'type' => 'other'],
+        ['name' => 'specific gravity', 'abbreviation' => 'sp gr', 'type' => 'other']
     ];
 
     /**
