@@ -11,7 +11,7 @@ abstract class DataTransferObject implements DataTransferObjectContract
     /**
      * The original raw data.
      */
-    protected array $raw = [];
+    protected array | null $raw = null;
 
     /**
      * Validation errors, if any.
@@ -21,10 +21,12 @@ abstract class DataTransferObject implements DataTransferObjectContract
     /**
      * Base constructor.
      */
-    public function __construct(array $data)
+    public function __construct(array | null $data)
     {
         $this->raw = $data;
-        $this->validate();
+        if ($data) {
+            $this->validate();
+        }
     }
 
     /**
@@ -71,6 +73,9 @@ abstract class DataTransferObject implements DataTransferObjectContract
      */
     protected function get(string $key, mixed $default = null): mixed
     {
+        if (!$this->raw) {
+            return null;
+        }
         return Arr::get($this->raw, $key, $default);
     }
 

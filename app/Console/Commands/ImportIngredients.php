@@ -4,11 +4,13 @@ namespace App\Console\Commands;
 
 use Exception;
 use Throwable;
+use JsonMachine\Items;
 use App\Models\Nutrient;
 use App\Models\Ingredient;
 use Illuminate\Console\Command;
 use App\Models\IngredientCategory;
 use Illuminate\Support\Facades\DB;
+use JsonMachine\JsonDecoder\ExtJsonDecoder;
 use App\Data\USDAFoodData\UsdaIngredientData;
 
 class ImportIngredients extends Command
@@ -32,8 +34,15 @@ class ImportIngredients extends Command
      */
     public function handle()
     {   
+        $this->info('Max execution time: ' . ini_get('max_execution_time'));
         $filePath = $this->argument('file');
         $sourceIngredients = $this->readDataFromFile($filePath);
+        return 0;
+        if (is_int($sourceIngredients)) {
+            $this->error('Error reading source file.');
+            return 1;
+        }
+        $this->info('Source data loaded. Found ' . count($sourceIngredients) . ' ingredients.');
 
         foreach($sourceIngredients as $index => $sourceIngredient) {
             try {
@@ -54,22 +63,31 @@ class ImportIngredients extends Command
         return 0;
     }
 
-    private function readDataFromFile(string $filePath): array | int
+    private function readDataFromFile(string $filePath): int
     {
         if (!file_exists($filePath)) {
             $this->error("File not found: {$filePath}");
             return 1;
         }
-        $this->info("Reading file: {$filePath}");
-        $jsonContent = file_get_contents($filePath);
-        $data = json_decode($jsonContent, true);
-        unset($jsonContent);
-        if ($data === null || !isset($data['FoundationFoods'])) {
-            $this->error("Invalid JSON or missing 'FoundationFoods' key");
-            return 1;
+        $this->info("Streaming JSON file: {$filePath}");
+        $items = Items::fromFile($filePath, [
+            'pointer' => '/BrandedFoods',
+            'decoder' => new ExtJsonDecoder(true)
+            ]);
+
+        $count = 0;
+        foreach ($items as $sourceIngredient) {
+            $count++;
+            $sourceIngredientArray = (array) $sourceIngredient;
+            $ingredient = new UsdaIngredientData($sourceIngredientArray);
+            $this->importFromUsdaArray($ingredient->toArray());
+            if ($count % 100 === 0) {
+                $this->info("Imported {$count} ingredients...");
+            }
         }
 
-        return $data['FoundationFoods'];
+        $this->info("Finished import. Total ingredients: {$count}");
+        return 0;
     }
 
     public function importFromUsdaArray(array $data)
@@ -93,9 +111,13 @@ class ImportIngredients extends Command
 
     private function import(array $data): void
     {
-        $category = IngredientCategory::firstOrCreate([
-            'name' => $data['category']['name'],
-        ]);
+        if ($data['category']['name']) {
+            $category = IngredientCategory::firstOrCreate([
+                'name' => $data['category']['name'],
+            ]);
+        } else {
+            $category = null;
+        }
 
         $ingredientData = $data['ingredient'];
 
@@ -111,8 +133,10 @@ class ImportIngredients extends Command
             ]
         );
 
-        if (!$ingredient->categories()->where('ingredient_category_id', $category->id)->exists()) {
-            $ingredient->categories()->attach($category->id);
+        if ($category) {
+            if (!$ingredient->categories()->where('ingredient_category_id', $category->id)->exists()) {
+                $ingredient->categories()->attach($category->id);
+            }
         }
 
         if ($ingredient->wasRecentlyCreated) {

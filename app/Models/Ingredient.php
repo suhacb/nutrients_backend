@@ -87,7 +87,8 @@ class Ingredient extends Model
         $this->load([
             'default_amount_unit',
             'nutrients',
-            'nutrition_facts'
+            'nutrition_facts',
+            'categories'
         ]);
 
         // Then explicitly eager load pivot relationships for nutrients

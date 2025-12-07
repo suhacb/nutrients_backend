@@ -9,11 +9,11 @@ class UsdaCategoriesData extends DataTransferObject
 {
     protected ?string $foodCategoryDescription;
 
-    public function __construct(array $data)
+    public function __construct(array | null $data)
     {
         parent::__construct($data);
 
-        $this->foodCategoryDescription = $this->get('description');
+        $this->foodCategoryDescription = $this->get('description', []);        
     }
 
     /**

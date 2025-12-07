@@ -8,6 +8,7 @@ use App\Models\Nutrient;
 use Tests\LoginTestUser;
 use App\Models\Ingredient;
 use App\Jobs\SyncIngredientToSearch;
+use App\Models\IngredientCategory;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -79,6 +80,9 @@ class IngredientsControllerTest extends TestCase
             'portion_amount_unit_id' => $amountUnit->id,
         ]);
 
+        $category = IngredientCategory::factory()->create();
+        $ingredient->categories()->attach($category->id);
+
         $response = $this->withHeaders($this->makeAuthRequestHeader())
             ->getJson(route('ingredients.show', $ingredient));
 
@@ -101,7 +105,11 @@ class IngredientsControllerTest extends TestCase
                             'portion_amount_unit_id' => $amountUnit->id,
                         ],
                     ]
-                ]
+                ],
+                'categories' => [
+                    'id' => $category->id,
+                    'name' => $category->name
+                ],
             ]);
 
         $json = $response->json();

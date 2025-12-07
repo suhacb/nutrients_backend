@@ -18,6 +18,7 @@ class UnitsTableSeeder extends Seeder
         ['name' => 'pound', 'abbreviation' => 'lb', 'type' => 'mass'],
         ['name' => 'ounce', 'abbreviation' => 'oz', 'type' => 'mass'],
         ['name' => 'stone', 'abbreviation' => 'st', 'type' => 'mass'],
+        ['name' => 'milligram Activity Equivalent', 'abbreviation' => 'mg_ATE', 'type' => 'mass'],
 
         // Volume units
         ['name' => 'liter', 'abbreviation' => 'L', 'type' => 'volume'],

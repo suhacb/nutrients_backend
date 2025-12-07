@@ -22,6 +22,10 @@ class IngredientNutritionFact extends Model
         'amount' => 'float'
     ];
 
+    protected $with = [
+        'unit'
+    ];
+
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class, 'amount_unit_id');
