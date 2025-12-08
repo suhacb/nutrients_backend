@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "doctrine/dbal": "^4.3",
+        "halaxa/json-machine": "^1.2",
         "laravel/framework": "^12.0",
         "laravel/passport": "^13.2",
         "laravel/sanctum": "^4.0",

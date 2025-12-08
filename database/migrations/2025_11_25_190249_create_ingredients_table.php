@@ -11,20 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('nutrients', function (Blueprint $table) {
+        Schema::create('ingredients', function (Blueprint $table) {
             $table->id();
-            $table->string('source');
             $table->string('external_id')->nullable();
+            $table->string('source');
+            $table->string('class')->nullable();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->string('derivation_code')->nullable();
-            $table->string('derivation_description')->nullable();
+            $table->float('default_amount');
+            $table->unsignedBigInteger('default_amount_unit_id');
             $table->timestamps();
             $table->softDeletes();
-            
+
             $table->unique(['source', 'external_id', 'name']);
         });
-
     }
 
     /**
@@ -32,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('nutrients');
+        Schema::dropIfExists('ingredients');
     }
 };
