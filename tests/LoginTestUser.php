@@ -31,6 +31,11 @@ trait LoginTestUser
 
         $this->accessToken = $token['access_token'] ?? null;
         $this->refreshToken = $token['refresh_token'] ?? null;
+
+        /**
+         * Immediatelly validate access token to ensure user from token
+         */
+        $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('auth.validate-access-token'));
         
         return $response->json();
     }
