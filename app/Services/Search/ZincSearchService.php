@@ -31,7 +31,7 @@ class ZincSearchService implements SearchServiceContract
         if (!$response->successful()) {
             throw new \Exception("ZincSearch unavailable");
         }
-        
+
         return $response->successful();
     }
 
@@ -59,7 +59,11 @@ class ZincSearchService implements SearchServiceContract
 
     public function search(string $index, array $query, int $limit = 10, int $offset = 0): array
     {
-        $response = Http::withBasicAuth($this->username, $this->password)->post("{$this->baseUri}/api/{$index}/_search", $query);
+        $payload = $query;
+        $payload['from'] = $offset;
+        $payload['size'] = $limit;
+
+        $response = Http::withBasicAuth($this->username, $this->password)->post("{$this->baseUri}/api/{$index}/_search", $payload);
 
         if (!$response->successful()) {
             throw new \Exception("ZincSearch unavailable");

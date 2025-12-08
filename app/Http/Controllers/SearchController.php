@@ -25,23 +25,50 @@ class SearchController extends Controller
         $index = $data['index'];
         $page = $request->page();
         $perPage = 25;
+        $userId = $request->user()->id ?? 0;
 
-        $cacheKey = $request->cacheKey();
+        // Track previous query to clear old cache
+        $lastQueryKey = "search_last_query:{$userId}:{$index}";
+        $previousQuery = Cache::get($lastQueryKey);
 
+        if ($previousQuery && $previousQuery !== $query) {
+            // Get list of cached pages for previous query
+            $previousPagesListKey = "search_pages:{$userId}:{$index}:" . md5($previousQuery);
+            $cachedPages = Cache::get($previousPagesListKey, []);
+
+            // Forget all cached pages
+            foreach ($cachedPages as $key) {
+                Cache::forget($key);
+            }
+
+            // Remove the page list itself
+            Cache::forget($previousPagesListKey);
+        }
+
+        // Update last query
+        Cache::put($lastQueryKey, $query, now()->addMinutes(30));
+
+        // Build cache key for current page
+        $cacheKey = "search:{$userId}:{$index}:" . md5($query) . ":page:$page";
+
+        // Check if this page is already cached
         if ($cached = Cache::get($cacheKey)) {
-            $results = array_slice($cached['results'], ($page - 1) * $perPage, $perPage);
             return response()->json(array_merge($cached, [
                 'page' => $page,
-                'results' => $results,
+                'results' => $cached['results'],
             ]));
         }
 
         try {
-            // Delegate the search to the service
             $offset = ($page - 1) * $perPage;
-            $zincResults = $this->searchService->search($index, [
-                'query_string' => ['query' => $query]
-            ], $perPage, $offset);
+
+            // Delegate search to the service
+            $zincResults = $this->searchService->search(
+                $index,
+                ['query_string' => ['query' => $query]],
+                $perPage,
+                $offset
+            );
 
             $total = $zincResults['total'] ?? 0;
             $hits = $zincResults['hits'] ?? [];
@@ -53,27 +80,27 @@ class SearchController extends Controller
                 'score' => $hit['_source']['score'] ?? null,
             ], $hits);
 
-            // Cache first page
-            if ($page === 1) {
-                Cache::put($cacheKey, [
-                    'query' => $query,
-                    'index' => $index,
-                    'total' => $total,
-                    'per_page' => $perPage,
-                    'results' => $results,
-                ], now()->addMinutes(30));
-            }
-
-            return response()->json([
+            // Cache this page
+            $pageData = [
                 'query' => $query,
                 'index' => $index,
-                'page' => $page,
-                'per_page' => $perPage,
                 'total' => $total,
+                'per_page' => $perPage,
                 'results' => $results,
-            ], 200);
+            ];
+            Cache::put($cacheKey, $pageData, now()->addMinutes(30));
 
-        } catch (Exception $e) {
+            // Track this page key for the current query
+            $pagesListKey = "search_pages:{$userId}:{$index}:" . md5($query);
+            $cachedPages = Cache::get($pagesListKey, []);
+            if (!in_array($cacheKey, $cachedPages)) {
+                $cachedPages[] = $cacheKey;
+                Cache::put($pagesListKey, $cachedPages, now()->addMinutes(30));
+            }
+
+            return response()->json(array_merge($pageData, ['page' => $page]), 200);
+
+        } catch (\Exception $e) {
             return response()->json(['error' => 'ZincSearch unavailable'], 502);
         }
     }
