@@ -156,7 +156,7 @@ class SearchControllerTest extends TestCase
         $response2->assertOk()->assertJson(['page' => 2]);
 
         // Both cache keys should exist
-        $userId = auth()->id();
+        $userId = Auth::user()->id;
         $page1Key = "search:{$userId}:ingredients:" . md5('apple') . ":page:1";
         $page2Key = "search:{$userId}:ingredients:" . md5('apple') . ":page:2";
 
