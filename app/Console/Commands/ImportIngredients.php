@@ -29,6 +29,12 @@ class ImportIngredients extends Command
      */
     protected $description = 'Command description';
 
+    protected $baseKeys = [
+        'FoundationFoods',
+        'SRLegacyFoods',
+        'BrandedFoods'
+    ];
+
     /**
      * Execute the console command.
      */
@@ -36,34 +42,16 @@ class ImportIngredients extends Command
     {   
         $this->info('Max execution time: ' . ini_get('max_execution_time'));
         $filePath = $this->argument('file');
-        $sourceIngredients = $this->readDataFromFile($filePath);
-        return 0;
-        if (is_int($sourceIngredients)) {
-            $this->error('Error reading source file.');
-            return 1;
-        }
-        $this->info('Source data loaded. Found ' . count($sourceIngredients) . ' ingredients.');
-
-        foreach($sourceIngredients as $index => $sourceIngredient) {
-            try {
-                $ingredient = new UsdaIngredientData($sourceIngredient);
-                $this->importFromUsdaArray($ingredient->toArray());
-            } catch (Exception $e) {
-                logger()->error("Error importing ingredient at index {$index}: {$e->getMessage()}", [
-                    'index' => $index,
-                    'sourceIngredient' => $sourceIngredient,
-                    // 'trace' => $e->getTraceAsString(),
-                ]);
-                logger()->error($e->getMessage());
-                logger()->error($e->getTraceAsString());
-                break;
-            }
+        $baseKey = $this->detectBaseKey($filePath);
+        if (!$baseKey) {
+            $this->error("Source file doesn't contain any of the allowed base keys.");
         }
 
+        $sourceIngredients = $this->readDataFromFile($filePath, $baseKey);
         return 0;
     }
 
-    private function readDataFromFile(string $filePath): int
+    private function readDataFromFile(string $filePath, string $baseKey): int
     {
         if (!file_exists($filePath)) {
             $this->error("File not found: {$filePath}");
@@ -71,7 +59,7 @@ class ImportIngredients extends Command
         }
         $this->info("Streaming JSON file: {$filePath}");
         $items = Items::fromFile($filePath, [
-            'pointer' => '/BrandedFoods',
+            'pointer' => "/{$baseKey}",
             'decoder' => new ExtJsonDecoder(true)
             ]);
 
@@ -219,5 +207,26 @@ class ImportIngredients extends Command
         }
 
         return $metrics;
+    }
+
+    private function detectBaseKey(string $filePath): ?string
+    {
+        // read the first few kilobytes (enough to get the root key)
+        $handle = fopen($filePath, 'r');
+        $chunk = fread($handle, 1024); // 1 KB
+        fclose($handle);
+
+        $handle = fopen($filePath, 'r');
+        $chunk = fread($handle, 16384); // 16 KB from start
+        fclose($handle);
+
+        // Look for one of the known root keys immediately after a JSON object start
+        foreach ($this->baseKeys as $key) {
+            if (preg_match('/"\s*' . preg_quote($key, '/') . '\s*"\s*:/', $chunk)) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 }

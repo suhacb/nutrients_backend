@@ -5,6 +5,7 @@ use App\Models\Unit;
 use App\Models\Nutrient;
 use App\Data\DataTransferObject;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class UsdaNutrientData extends DataTransferObject
 {
@@ -53,7 +54,7 @@ class UsdaNutrientData extends DataTransferObject
         return [
             'source' => 'USDA FoodData Central',
             'external_id' => strval($this->nutrient['number']) ?? null,
-            'name' => $this->nutrient['name'],
+            'name' =>Str::limit($this->nutrient['name'], 255, ''),
             'description' => null,
             'derivation_code' => $this->derivationCode,
             'derivation_description' => $this->derivationDescription,

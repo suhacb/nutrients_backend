@@ -6,6 +6,7 @@ use App\Models\Ingredient;
 use App\Data\DataTransferObject;
 use Illuminate\Database\Eloquent\Model;
 use App\Data\USDAFoodData\UsdaIngredientNutrientPivotData;
+use Illuminate\Support\Str;
 
 class UsdaIngredientData extends DataTransferObject
 {
@@ -48,7 +49,7 @@ class UsdaIngredientData extends DataTransferObject
         $ingredientArray = [
             'source' => 'USDA FoodData Central',
             'external_id' => $this->ndbNumber,
-            'name' => $this->description,
+            'name' => Str::limit($this->description, 255, ''),
             'description' => null,
             'class' => $this->foodClass,
             'default_amount' => 100,
