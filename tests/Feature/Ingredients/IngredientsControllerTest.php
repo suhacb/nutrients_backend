@@ -89,15 +89,29 @@ class IngredientsControllerTest extends TestCase
         $response->assertStatus(200)
             ->assertJson([
                 'id' => $ingredient->id,
+                'external_id' => $ingredient->external_id,
+                'source' => $ingredient->source,
+                'class' => $ingredient->class,
                 'name' => $ingredient->name,
+                'description' => $ingredient->description,
+                // no need to enforce 100.0 formatting
+                'default_amount' => $ingredient->default_amount,
+                'default_amount_unit_id' => $ingredient->default_amount_unit_id,
                 'default_amount_unit' => [
                     'id' => $defaultUnit->id,
                     'name' => $defaultUnit->name,
+                    'abbreviation' => $defaultUnit->abbreviation,
+                    'type' => $defaultUnit->type
                 ],
                 'nutrients' => [
                     [
                         'id' => $nutrient->id,
+                        'source' => $nutrient->source,
+                        'external_id' => $nutrient->external_id,
                         'name' => $nutrient->name,
+                        'description' => $nutrient->description,
+                        'derivation_code' => $nutrient->derivation_code,
+                        'derivation_description' => $nutrient->derivation_description,
                         'pivot' => [
                             'amount' => 5,
                             'amount_unit_id' => $amountUnit->id,
@@ -106,14 +120,19 @@ class IngredientsControllerTest extends TestCase
                         ],
                     ]
                 ],
+                'nutrition_facts' => [],
                 'categories' => [
-                    'id' => $category->id,
-                    'name' => $category->name
+                    [
+                        'id' => $category->id,
+                        'name' => $category->name
+                    ]
                 ],
-            ]);
-
+            ]
+        );
+        
         $json = $response->json();
-
+        $this->assertEquals(100, $json['default_amount']);
+        
         // Additional assertions to ensure relationships are loaded
         $this->assertArrayHasKey('default_amount_unit', $json);
         $this->assertArrayHasKey('nutrients', $json);
