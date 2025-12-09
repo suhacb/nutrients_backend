@@ -41,20 +41,22 @@ class IngredientModelTest extends TestCase
 
     public function test_casts(): void
     {
-        $ingredient = Ingredient::factory()->create([
-            'default_amount' => 123.45,
-        ]);
-
-        // default_amount is stored as float
-        $this->assertIsFloat($ingredient->default_amount);
-
-        // created_at / updated_at / deleted_at should be Carbon instances
-        $this->assertInstanceOf(Carbon::class, $ingredient->created_at);
-        $this->assertInstanceOf(Carbon::class, $ingredient->updated_at);
-        $this->assertNull($ingredient->deleted_at);
-
-        $ingredient->delete();
-        $this->assertInstanceOf(Carbon::class, $ingredient->deleted_at);
+        Ingredient::withoutEvents(function() {
+            $ingredient = Ingredient::factory()->create([
+                'default_amount' => 123.45,
+            ]);
+    
+            // default_amount is stored as float
+            $this->assertIsFloat($ingredient->default_amount);
+    
+            // created_at / updated_at / deleted_at should be Carbon instances
+            $this->assertInstanceOf(Carbon::class, $ingredient->created_at);
+            $this->assertInstanceOf(Carbon::class, $ingredient->updated_at);
+            $this->assertNull($ingredient->deleted_at);
+    
+            $ingredient->delete();
+            $this->assertInstanceOf(Carbon::class, $ingredient->deleted_at);
+        });
     }
 
     public function test_nutrients_relationship(): void
@@ -74,52 +76,56 @@ class IngredientModelTest extends TestCase
 
     public function test_soft_deleting_ingredient_preserves_nutrient_pivot(): void
     {
-        $unit = $this->makeUnit();
-        $ingredient = Ingredient::factory()->create();
-        $nutrient = Nutrient::factory()->create();
-
-        $ingredient->nutrients()->attach($nutrient->id, [
-            'amount' => 5,
-            'amount_unit_id' => $unit->id,
-        ]);
-
-        $this->assertDatabaseCount('ingredient_nutrient', 1);
-
-        // Soft delete the ingredient
-        $ingredient->delete();
-
-        // Pivot rows should remain
-        $this->assertDatabaseCount('ingredient_nutrient', 1);
-
-        // Nutrient itself still exists
-        $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id]);
-
-        // Optional: restore ingredient and verify pivot relationship
-        $ingredient->restore();
-        $this->assertTrue($ingredient->nutrients()->where('nutrient_id', $nutrient->id)->exists());
+        Ingredient::withoutEvents(function() {
+            $unit = $this->makeUnit();
+            $ingredient = Ingredient::factory()->create();
+            $nutrient = Nutrient::factory()->create();
+    
+            $ingredient->nutrients()->attach($nutrient->id, [
+                'amount' => 5,
+                'amount_unit_id' => $unit->id,
+            ]);
+    
+            $this->assertDatabaseCount('ingredient_nutrient', 1);
+    
+            // Soft delete the ingredient
+            $ingredient->delete();
+    
+            // Pivot rows should remain
+            $this->assertDatabaseCount('ingredient_nutrient', 1);
+    
+            // Nutrient itself still exists
+            $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id]);
+    
+            // Optional: restore ingredient and verify pivot relationship
+            $ingredient->restore();
+            $this->assertTrue($ingredient->nutrients()->where('nutrient_id', $nutrient->id)->exists());
+        });
     }
 
     public function test_force_deleting_ingredient_detaches_nutrients(): void
     {
-        $unit = $this->makeUnit();
-        $ingredient = Ingredient::factory()->create();
-        $nutrient = Nutrient::factory()->create();
-
-        $ingredient->nutrients()->attach($nutrient->id, [
-            'amount' => 5,
-            'amount_unit_id' => $unit->id,
-        ]);
-
-        $this->assertDatabaseCount('ingredient_nutrient', 1);
-
-        // Force delete the ingredient
-        $ingredient->forceDelete();
-
-        // Pivot rows should be removed
-        $this->assertDatabaseCount('ingredient_nutrient', 0);
-
-        // Nutrient itself still exists
-        $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id]);
+        Ingredient::withoutEvents(function () {
+            $unit = $this->makeUnit();
+            $ingredient = Ingredient::factory()->create();
+            $nutrient = Nutrient::factory()->create();
+    
+            $ingredient->nutrients()->attach($nutrient->id, [
+                'amount' => 5,
+                'amount_unit_id' => $unit->id,
+            ]);
+    
+            $this->assertDatabaseCount('ingredient_nutrient', 1);
+    
+            // Force delete the ingredient
+            $ingredient->forceDelete();
+    
+            // Pivot rows should be removed
+            $this->assertDatabaseCount('ingredient_nutrient', 0);
+    
+            // Nutrient itself still exists
+            $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id]);
+        });
     }
 
     public function test_model_events_dispatch_jobs(): void

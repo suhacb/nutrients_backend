@@ -45,7 +45,7 @@ class SearchController extends Controller
         // Cache per page
         $cacheKey = "search:{$userId}:{$index}:" . md5($query) . ":page:$page";
         if ($cached = Cache::get($cacheKey)) {
-            return response()->json(array_merge($cached->toArray(), ['page' => $page]));
+            return response()->json(array_merge($cached, ['page' => $page]));
         }
 
         try {

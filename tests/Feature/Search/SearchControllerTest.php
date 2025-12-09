@@ -205,6 +205,44 @@ class SearchControllerTest extends TestCase
         $this->assertFalse(Cache::has($page2Key));
     }
 
+    public function test_it_handles_multiple_keywords_and_case_insensitive_search(): void
+    {
+        $this->mock(SearchServiceContract::class, function ($mock) {
+            $mock->shouldReceive('search')
+                ->with('ingredients', 'Protein Bar', 25, 1)
+                ->once()
+                ->andReturn(
+                    new SearchServiceResponse(
+                        query: 'Protein Bar',
+                        index: 'ingredients',
+                        total: 2,
+                        perPage: 25,
+                        results: [
+                            ['id' => 1, 'name' => 'Protein Bar Chocolate', 'description' => null, 'score' => 1.0],
+                            ['id' => 2, 'name' => 'Protein bar vanilla', 'description' => null, 'score' => 0.9],
+                        ]
+                    )
+                );
+        });
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('search'), ['query' => 'Protein Bar', 'index' => 'ingredients', 'page' => 1]);
+
+        $response->assertOk()->assertJsonCount(2, 'results');
+    }
+
+    public function test_it_returns_correct_from_to_metadata(): void
+    {
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 2]);
+
+        $response->assertOk()->assertJson([
+            'from' => 26,
+            'to' => 50,
+            'current_page' => 2,
+        ]);
+    }
+
     protected function tearDown(): void
     {
         $this->logout();

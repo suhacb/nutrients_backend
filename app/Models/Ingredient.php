@@ -27,6 +27,10 @@ class Ingredient extends Model
         'default_amount_unit_id',
     ];
 
+    protected $casts = [
+        'default_amount' => 'double'
+    ];
+
     protected static function booted()
     {
         static::created(function (Ingredient $ingredient) {
