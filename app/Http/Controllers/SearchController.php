@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 class SearchController extends Controller
 {
     protected SearchServiceContract $searchService;
+    protected int $perPage = 25;
 
     public function __construct(SearchServiceContract $searchService)
     {
@@ -24,73 +25,37 @@ class SearchController extends Controller
         $query = $data['query'];
         $index = $data['index'];
         $page = $request->page();
-        $perPage = 25;
         $userId = $request->user()->id ?? 0;
 
-        // Track previous query to clear old cache
+        // Handle query change and cache invalidation
         $lastQueryKey = "search_last_query:{$userId}:{$index}";
         $previousQuery = Cache::get($lastQueryKey);
 
         if ($previousQuery && $previousQuery !== $query) {
-            // Get list of cached pages for previous query
             $previousPagesListKey = "search_pages:{$userId}:{$index}:" . md5($previousQuery);
-            $cachedPages = Cache::get($previousPagesListKey, []);
-
-            // Forget all cached pages
-            foreach ($cachedPages as $key) {
+            foreach (Cache::get($previousPagesListKey, []) as $key) {
                 Cache::forget($key);
             }
-
-            // Remove the page list itself
             Cache::forget($previousPagesListKey);
         }
 
         // Update last query
         Cache::put($lastQueryKey, $query, now()->addMinutes(30));
 
-        // Build cache key for current page
+        // Cache per page
         $cacheKey = "search:{$userId}:{$index}:" . md5($query) . ":page:$page";
-
-        // Check if this page is already cached
         if ($cached = Cache::get($cacheKey)) {
-            return response()->json(array_merge($cached, [
-                'page' => $page,
-                'results' => $cached['results'],
-            ]));
+            return response()->json(array_merge($cached->toArray(), ['page' => $page]));
         }
 
         try {
-            $offset = ($page - 1) * $perPage;
-
             // Delegate search to the service
-            $zincResults = $this->searchService->search(
-                $index,
-                ['query_string' => ['query' => $query]],
-                $perPage,
-                $offset
-            );
+            $result = $this->searchService->search($index, $query, $this->perPage, $page);
 
-            $total = $zincResults['total'] ?? 0;
-            $hits = $zincResults['hits'] ?? [];
+            // Cache page
+            Cache::put($cacheKey, $result, now()->addMinutes(30));
 
-            $results = array_map(fn($hit) => [
-                'id' => $hit['_id'] ?? null,
-                'name' => $hit['_source']['name'] ?? null,
-                'description' => $hit['_source']['description'] ?? null,
-                'score' => $hit['_source']['score'] ?? null,
-            ], $hits);
-
-            // Cache this page
-            $pageData = [
-                'query' => $query,
-                'index' => $index,
-                'total' => $total,
-                'per_page' => $perPage,
-                'results' => $results,
-            ];
-            Cache::put($cacheKey, $pageData, now()->addMinutes(30));
-
-            // Track this page key for the current query
+            // Track page keys
             $pagesListKey = "search_pages:{$userId}:{$index}:" . md5($query);
             $cachedPages = Cache::get($pagesListKey, []);
             if (!in_array($cacheKey, $cachedPages)) {
@@ -98,10 +63,10 @@ class SearchController extends Controller
                 Cache::put($pagesListKey, $cachedPages, now()->addMinutes(30));
             }
 
-            return response()->json(array_merge($pageData, ['page' => $page]), 200);
+            return response()->json(array_merge($result->toArray(), ['page' => $page]), 200);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'ZincSearch unavailable'], 502);
+            return response()->json(['error' => 'Search service unavailable'], 502);
         }
     }
 }

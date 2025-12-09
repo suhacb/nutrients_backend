@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Foundation\Testing\WithFaker;
 use App\Services\Search\SearchServiceContract;
+use App\Services\Search\SearchServiceResponse;
 
 class SearchControllerTest extends TestCase
 {
@@ -92,13 +92,12 @@ class SearchControllerTest extends TestCase
         ]);
 
         $response->assertOk()
-                ->assertJsonFragment(['name' => 'Cached Item']);
+                 ->assertJsonFragment(['name' => 'Cached Item']);
     }
 
     public function test_it_returns_validation_error_for_missing_parameters(): void
     {
         $response = $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('search'), []);
-
         $response->assertStatus(422)->assertJsonValidationErrors(['query', 'index']);
     }
 
@@ -114,45 +113,80 @@ class SearchControllerTest extends TestCase
             'page' => 1,
         ]);
 
-        $response->assertStatus(502)->assertJson(['error' => 'ZincSearch unavailable']);
+        $response->assertStatus(502)
+                 ->assertJson(['error' => 'Search service unavailable']);
     }
 
     public function test_it_caches_pages_separately_and_clears_on_query_change(): void
     {
+        // Create a single mock instance that handles all three calls
         $this->mock(SearchServiceContract::class, function ($mock) {
+            // Apple page 1
             $mock->shouldReceive('search')
-                ->with('ingredients', ['query_string' => ['query' => 'apple']], 25, 0)
+                ->with('ingredients', 'apple', 25, 1)
                 ->once()
-                ->andReturn([
-                    'total' => 50,
-                    'hits' => array_map(fn($i) => [
-                        '_id' => $i,
-                        '_source' => ['name' => "Apple $i", 'description' => "Desc $i", 'score' => 1.0],
-                    ], range(1, 25))
-                ]);
+                ->andReturn(
+                    new SearchServiceResponse(
+                        query: 'apple',
+                        index: 'ingredients',
+                        total: 50,
+                        perPage: 25,
+                        results: array_map(fn($i) => [
+                            'id' => $i,
+                            'name' => "Apple $i",
+                            'description' => "Desc $i",
+                            'score' => 1.0,
+                        ], range(1, 25))
+                    )
+                );
 
+            // Apple page 2
             $mock->shouldReceive('search')
-                ->with('ingredients', ['query_string' => ['query' => 'apple']], 25, 25)
+                ->with('ingredients', 'apple', 25, 2)
                 ->once()
-                ->andReturn([
-                    'total' => 50,
-                    'hits' => array_map(fn($i) => [
-                        '_id' => $i,
-                        '_source' => ['name' => "Apple $i", 'description' => "Desc $i", 'score' => 1.0],
-                    ], range(26, 50))
-                ]);
+                ->andReturn(
+                    new SearchServiceResponse(
+                        query: 'apple',
+                        index: 'ingredients',
+                        total: 50,
+                        perPage: 25,
+                        results: array_map(fn($i) => [
+                            'id' => $i,
+                            'name' => "Apple $i",
+                            'description' => "Desc $i",
+                            'score' => 1.0,
+                        ], range(26, 50))
+                    )
+                );
+
+            // Banana (new query)
+            $mock->shouldReceive('search')
+                ->with('ingredients', 'banana', 25, 1)
+                ->once()
+                ->andReturn(
+                    new SearchServiceResponse(
+                        query: 'banana',
+                        index: 'ingredients',
+                        total: 20,
+                        perPage: 25,
+                        results: array_map(fn($i) => [
+                            'id' => $i,
+                            'name' => "Banana $i",
+                            'description' => "Desc $i",
+                            'score' => 0.9,
+                        ], range(1, 20))
+                    )
+                );
         });
 
         // Page 1
         $response1 = $this->withHeaders($this->makeAuthRequestHeader())
             ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 1]);
-
         $response1->assertOk()->assertJson(['page' => 1]);
 
         // Page 2
         $response2 = $this->withHeaders($this->makeAuthRequestHeader())
             ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 2]);
-
         $response2->assertOk()->assertJson(['page' => 2]);
 
         // Both cache keys should exist
@@ -170,7 +204,6 @@ class SearchControllerTest extends TestCase
         $this->assertFalse(Cache::has($page1Key));
         $this->assertFalse(Cache::has($page2Key));
     }
-
 
     protected function tearDown(): void
     {
