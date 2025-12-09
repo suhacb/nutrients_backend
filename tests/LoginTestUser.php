@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\Http;
 
 trait LoginTestUser
 {
-    protected string $accessToken;
-    protected string $refreshToken;
+    protected string | null $accessToken;
+    protected string | null $refreshToken;
     protected string $appName;
     protected string $appUrl;
     protected string $authUrl;
@@ -55,7 +55,8 @@ trait LoginTestUser
         $finalUrl = $this->authUrl . '/api/auth/logout';
 
         $response = Http::withHeaders($this->makeAuthRequestHeader())->post($finalUrl, []);
-        
+        $this->accessToken = null;
+        $this->refreshToken = null;
         return $response->json();
     }
 }

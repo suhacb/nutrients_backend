@@ -16,8 +16,6 @@ class LoginControllerTest extends TestCase
 {
     use RefreshDatabase, LoginTestUser;
 
-    protected string $accessToken;
-    protected string $refreshToken;
     protected string $appName;
     protected string $appUrl;
     protected string $authUrl;
@@ -28,9 +26,6 @@ class LoginControllerTest extends TestCase
         $this->appName = config('nutrients.name');
         $this->appUrl = config('nutrients.frontend.url') . ':' . config('nutrients.frontend.port');
         $this->authUrl = config('nutrients.auth.url_backend') . ':' . config('nutrients.auth.port_backend');
-        $token = $this->login();
-        $this->accessToken = $token['access_token'] ?? null;
-        $this->refreshToken = $token['refresh_token'] ?? null;
     }
     /**
      * Test login endpoint returns redirect URI
@@ -61,10 +56,7 @@ class LoginControllerTest extends TestCase
     {
         $response = $this->getJson($this->authUrl . '/api/auth/validate-access-token');
     
-        $response->assertStatus(401)
-                 ->assertJson([
-                     'error' => 'Unauthorized'
-                 ]);
+        $response->assertStatus(401)->assertJson(['error' => 'Unauthorized']);
     }
 
     /**
@@ -72,6 +64,7 @@ class LoginControllerTest extends TestCase
      */
     public function test_validate_access_token_with_token(): void
     {
+        $this->login();
         $response = $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('auth.validate-access-token'));
     
         $response->assertStatus(200);
@@ -110,13 +103,8 @@ class LoginControllerTest extends TestCase
      */
     public function test_logout_with_token(): void
     {
-        $token = $this->login();
-        $response = $this->postJson(route('auth.logout'), [], [
-            'Authorization' => "Bearer {$token['access_token']}",
-            'X-Refresh-Token' => $token['refresh_token'],
-            'X-Application-Name' => $this->appName,
-            'X-Client-Url' => $this->appUrl,
-        ]);
+        $this->login();
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('auth.logout'), []);
     
         $response->assertStatus(200);
     
@@ -131,26 +119,18 @@ class LoginControllerTest extends TestCase
     public function test_it_calls_protected_route_and_logs_in_user_from_keycloak_token(): void
     {
         // Obtain real access token from Keycloak
-        $token = $this->login();
+        $this->login();
 
-        $accessToken = $token['access_token'];
-        $refreshToken = $token['refresh_token'];
-
-        $this->assertNotEmpty($accessToken, 'Access token should be present');
+        $this->assertNotEmpty($this->accessToken, 'Access token should be present');
 
         // Call protected route with required headers
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $accessToken,
-            'X-Application-Name' => $this->appName,
-            'X-Client-Url' => $this->appUrl,
-            'X-Refresh-Token' => $refreshToken,
-        ])->get(route('test'));
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->get(route('test'));
 
         $response->assertStatus(200);
 
         // Assert user is created and logged in
         $parser = new TokenParser();
-        $claims = $parser->parse($accessToken);
+        $claims = $parser->parse($this->accessToken);
 
         $this->assertDatabaseHas('users', [
             'external_id' => $claims['sub'],
