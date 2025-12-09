@@ -23,11 +23,20 @@ class SearchServiceResponse {
      */
     public function toArray(): array
     {
+        $lastPage = (int) ceil($this->total / $this->perPage);
+        $currentPage = max(1, (int) request()->get('page', 1));
+
         return [
             'query' => $this->query,
             'index' => $this->index,
-            'total' => $this->total,
-            'per_page' => $this->perPage,
+            'total' => (int) $this->total,
+            'per_page' => (int) $this->perPage,
+            'current_page' => $currentPage,
+            'last_page' => $lastPage,
+            'from' => ($this->total > 0) ? (($currentPage - 1) * $this->perPage + 1) : null,
+            'to' => ($this->total > 0)
+                ? min($currentPage * $this->perPage, $this->total)
+                : null,
             'results' => $this->results,
         ];
     }

@@ -80,7 +80,7 @@ class ZincSearchService implements SearchServiceContract
                 'fields' => ["name^3", "description"],
             ],
             'from' => $offset,
-            'size' => $limit,
+            'max_results' => $limit,
         ];
 
         $response = Http::withBasicAuth($this->username, $this->password)
