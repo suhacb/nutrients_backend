@@ -4,13 +4,14 @@ namespace Tests\Feature\Nutrients;
 
 use Tests\TestCase;
 use App\Models\Unit;
+use Tests\MakesUnit;
 use App\Models\Nutrient;
 use Tests\LoginTestUser;
 use App\Models\Ingredient;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\MakesUnit;
 
 class NutrientsControllerTest extends TestCase
 {
@@ -20,6 +21,7 @@ class NutrientsControllerTest extends TestCase
     {
         parent::setUp();
         $this->login();
+        Queue::fake();
     }
 
     public function test_index_returns_nutrients(): void
@@ -126,13 +128,11 @@ class NutrientsControllerTest extends TestCase
         ]);
 
         // Attempt to delete the nutrient via the controller
-        $response = $this->withHeaders($this->makeAuthRequestHeader())
-                        ->deleteJson(route('nutrients.delete', $nutrient));
+        $response = $this->withHeaders($this->makeAuthRequestHeader())->deleteJson(route('nutrients.delete', $nutrient));
 
-        $response->assertStatus(409)
-                ->assertJson([
-                    'message' => 'Cannot delete nutrient: it is attached to one or more ingredients.'
-                ]);
+        $response->assertStatus(409)->assertJson([
+            'message' => 'Cannot delete nutrient: it is attached to one or more ingredients.'
+        ]);
 
         // Assert the nutrient still exists
         $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id]);

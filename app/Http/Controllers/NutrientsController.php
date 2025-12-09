@@ -3,16 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Nutrient;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\NutrientRequest;
 use App\Exceptions\NutrientAttachedException;
-use App\Services\Search\SearchServiceContract;
 
 class NutrientsController extends Controller
 {
-    public function __construct(private SearchServiceContract $search) {}
-
     public function index(): JsonResponse
     {
         return response()->json(Nutrient::paginate(25), 200);
@@ -50,11 +46,5 @@ class NutrientsController extends Controller
                 'message' => $e->getMessage()
             ], $e->status ?? 409);
         }
-    }
-
-    public function search(Request $request): JsonResponse
-    {
-        $response = $this->search->search('nutrients', $request->all());
-        return response()->json($response);
     }
 }

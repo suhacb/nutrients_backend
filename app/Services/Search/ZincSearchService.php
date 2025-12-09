@@ -30,7 +30,7 @@ class ZincSearchService implements SearchServiceContract
         $response = Http::withBasicAuth($this->username, $this->password)->post("{$this->baseUri}/api/{$index}/_doc", $document);
         
         if (!$response->successful()) {
-            throw new \Exception("Search service unavailable");
+            throw new Exception("Search service unavailable");
         }
 
         return $response->successful();
@@ -41,7 +41,7 @@ class ZincSearchService implements SearchServiceContract
         $response = Http::withBasicAuth($this->username, $this->password)->put("{$this->baseUri}/api/{$index}/_doc/{$id}", $document);
         
         if (!$response->successful()) {
-            throw new \Exception("Search service unavailable");
+            throw new Exception("Search service unavailable");
         }
 
         return $response->successful();
@@ -52,7 +52,7 @@ class ZincSearchService implements SearchServiceContract
         $response = Http::withBasicAuth($this->username, $this->password)->delete("{$this->baseUri}/api/{$index}/_doc/{$id}");
         
         if (!$response->successful()) {
-            throw new \Exception("Search service unavailable");
+            throw new Exception("Search service unavailable");
         }
 
         return $response->successful();

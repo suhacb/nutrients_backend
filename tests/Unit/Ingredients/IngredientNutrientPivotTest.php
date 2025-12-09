@@ -70,7 +70,8 @@ class IngredientNutrientPivotTest extends TestCase
 
     public function test_pivot_can_access_units()
     {
-        [$amount_unit, $portion_unit] = $this->makeUnit(2);
+        $amount_unit = $this->makeUnit();
+        $portion_unit = $this->makeUnit();
 
         $pivot = IngredientNutrientPivot::factory()->create([
             'amount_unit_id' => $amount_unit->id,
