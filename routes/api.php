@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\NutrientsController;
+use App\Http\Controllers\SearchController;
 
 /**Route::get('/user', function (Request $request) {
     return $request->user();
@@ -33,6 +34,10 @@ Route::prefix('ingredients')->name('ingredients.')->middleware('verify.frontend'
     Route::put('{ingredient}', [IngredientsController::class, 'update'])->name('update');
     Route::delete('{ingredient}', [IngredientsController::class, 'delete'])->name('delete');
     Route::post('search', [IngredientsController::class, 'search'])->name('search');
+});
+
+Route::prefix('search')->name('search')->middleware('verify.frontend')->group(function() {
+    Route::post('', [SearchController::class, 'search']);
 });
 
 // Test route to test protected route and verify.frontend

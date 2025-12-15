@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\Http;
 
 trait LoginTestUser
 {
-    protected string $accessToken;
-    protected string $refreshToken;
+    protected string | null $accessToken;
+    protected string | null $refreshToken;
     protected string $appName;
     protected string $appUrl;
     protected string $authUrl;
@@ -31,6 +31,11 @@ trait LoginTestUser
 
         $this->accessToken = $token['access_token'] ?? null;
         $this->refreshToken = $token['refresh_token'] ?? null;
+
+        /**
+         * Immediatelly validate access token to ensure user from token
+         */
+        $this->withHeaders($this->makeAuthRequestHeader())->getJson(route('auth.validate-access-token'));
         
         return $response->json();
     }
@@ -50,7 +55,8 @@ trait LoginTestUser
         $finalUrl = $this->authUrl . '/api/auth/logout';
 
         $response = Http::withHeaders($this->makeAuthRequestHeader())->post($finalUrl, []);
-        
+        $this->accessToken = null;
+        $this->refreshToken = null;
         return $response->json();
     }
 }

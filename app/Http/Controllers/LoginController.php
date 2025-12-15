@@ -40,8 +40,8 @@ class LoginController extends Controller
             
             if ($response->successful()) {
                 $responseData = $response->json();
-                if($responseData == true) { return response()->json("true"); }
-                if($responseData === false) { return response()->json("false"); }
+                if($responseData == true) { return response()->json("true", 200); }
+                if($responseData === false) { return response()->json("false", 401); }
                 return response()->json($responseData);
             }
             return response()->json("false");
