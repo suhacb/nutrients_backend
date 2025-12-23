@@ -16,6 +16,9 @@ class IngredientNutritionFact extends Model
         'name',
         'amount',
         'amount_unit_id',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected $casts = [

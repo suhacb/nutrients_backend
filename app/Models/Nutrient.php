@@ -21,8 +21,9 @@ class Nutrient extends Model
         'external_id',
         'name',
         'description',
-        'derivation_code',
-        'derivation_description',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected $casts = [

@@ -10,6 +10,9 @@ class IngredientCategory extends Model
     use HasFactory;
     
     protected $fillable = [
-        'name'
+        'name',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 }

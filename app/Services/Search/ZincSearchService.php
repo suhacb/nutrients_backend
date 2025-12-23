@@ -25,9 +25,9 @@ class ZincSearchService implements SearchServiceContract
         ];
     }
 
-    public function insert(string $index, array $document): bool
+    public function insert(string $index, string|int $id, array $document): bool
     {
-        $response = Http::withBasicAuth($this->username, $this->password)->post("{$this->baseUri}/api/{$index}/_doc", $document);
+        $response = Http::withBasicAuth($this->username, $this->password)->put("{$this->baseUri}/api/{$index}/_doc/{$id}", $document);
         
         if (!$response->successful()) {
             throw new Exception("Search service unavailable");

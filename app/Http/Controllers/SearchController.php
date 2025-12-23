@@ -66,7 +66,7 @@ class SearchController extends Controller
 
             return response()->json(array_merge($result->toArray(), ['page' => $page]), 200);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['error' => 'Search service unavailable'], 502);
         }
     }

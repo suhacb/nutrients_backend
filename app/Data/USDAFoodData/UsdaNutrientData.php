@@ -1,72 +1,32 @@
 <?php
 namespace App\Data\USDAFoodData;
 
+use Exception;
 use App\Models\Unit;
 use App\Models\Nutrient;
 use App\Data\DataTransferObject;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
 class UsdaNutrientData extends DataTransferObject
 {
-    protected array $nutrient;
-    protected ?float $amount;
-    protected ?float $median;
-    protected ?string $unitName;
-    protected ?string $derivationCode;
-    protected ?string $derivationDescription;
-
-    /**
-     * Override parent constructor to hydrate properties
-     */
-    public function __construct(array $data)
-    {
-        parent::__construct($data);
-
-        $this->nutrient = $this->get('nutrient', []);
-        $this->amount = $this->get('amount');
-        $this->median = $this->get('median');
-        $this->unitName = $this->get('nutrient.unitName');
-        $this->derivationCode = $this->get('foodNutrientDerivation.code');
-        $this->derivationDescription = $this->get('foodNutrientDerivation.description');
-    }
-
-    /**
-     * Validation rules matching USDA JSON keys
-     */
-    protected function rules(): array
-    {
-        return [
-            'nutrient.id' => ['required', 'integer'],
-            'nutrient.number' => ['required', 'string'],
-            'nutrient.name' => ['required', 'string'],
-            'nutrient.unitName' => ['required', 'string'],
-            'amount' => ['nullable', 'numeric'],
-            'median' => ['nullable', 'numeric'],
-        ];
-    }
-
     /**
      * Converts USDA nutrient JSON into internal nutrient
      */
-    public function toArray(): array
+    public function toStage(array $context = []): array
     {
         return [
-            'source' => 'USDA FoodData Central',
-            'external_id' => strval($this->nutrient['number']) ?? null,
-            'name' =>Str::limit($this->nutrient['name'], 255, ''),
-            'description' => null,
-            'derivation_code' => $this->derivationCode,
-            'derivation_description' => $this->derivationDescription,
+            'external_id' => $this->raw['number'],
+            'name' => $this->raw['name'],
         ];
     }
 
-    /**
-     * Create an Eloquent Nutrient model (not persisted)
-     */
-    public function toModel(): Model
+    public function toModel(): array
     {
-        return new Nutrient($this->toArray());
+        return [
+            'source' => 'USDA FoodData Central',
+            'external_id' => strval($this->get('external_id', null)),
+            'name' => $this->get('name'),
+            'description' => null,
+        ];
     }
 
     /**
@@ -78,8 +38,8 @@ class UsdaNutrientData extends DataTransferObject
         // $unit = Unit::where('name', $this->unitName)->orWhere('abbreviation', $this->unitName)->first();
 
         return [
-            'amount' => $this->amount,
-            'amount_unit_id' => $this->getUnitId($this->unitName),
+            'amount' => $this->get('amount'),
+            'amount_unit_id' => $this->getUnitId($this->get('nutrient.unitName')),
             'portion_amount' => null,
             'portion_amount_unit_id' => null,
         ];
@@ -91,7 +51,7 @@ class UsdaNutrientData extends DataTransferObject
 
         if (!$unit) {
             logger()->error("Unit {$abbreviation} not found in database!");
-            throw new \Exception("Unit {$abbreviation} not found!");
+            throw new Exception("Unit {$abbreviation} not found!");
         }
         return $unit->id;
     }

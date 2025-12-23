@@ -19,6 +19,9 @@ class IngredientNutrientPivot extends Pivot
         'amount_unit_id',
         'portion_amount',
         'portion_amount_unit_id',
+        'created_at',
+        'updated_at',
+        'deleted_at'
     ];
 
     protected $casts = [

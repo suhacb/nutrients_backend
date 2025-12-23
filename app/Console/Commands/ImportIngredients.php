@@ -2,14 +2,17 @@
 
 namespace App\Console\Commands;
 
-use Exception;
-use Throwable;
+use Generator;
+use RuntimeException;
 use JsonMachine\Items;
 use App\Models\Nutrient;
 use App\Models\Ingredient;
 use Illuminate\Console\Command;
+use App\Jobs\SyncNutrientToSearch;
 use App\Models\IngredientCategory;
 use Illuminate\Support\Facades\DB;
+use App\Jobs\SyncIngredientToSearch;
+use Illuminate\Support\Facades\Storage;
 use JsonMachine\JsonDecoder\ExtJsonDecoder;
 use App\Data\USDAFoodData\UsdaIngredientData;
 
@@ -20,7 +23,7 @@ class ImportIngredients extends Command
      *
      * @var string
      */
-    protected $signature = 'app:import-ingredients {file} {--parser=USDA}';
+    protected $signature = 'app:import-ingredients {file} {--parser=USDA} {--batchSize=50}';
 
     /**
      * The console command description.
@@ -35,188 +38,83 @@ class ImportIngredients extends Command
         'BrandedFoods'
     ];
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
-    {   
-        $this->info('Max execution time: ' . ini_get('max_execution_time'));
-        $filePath = $this->argument('file');
-        $baseKey = $this->detectBaseKey($filePath);
-        if (!$baseKey) {
-            $this->error("Source file doesn't contain any of the allowed base keys.");
-        }
+    protected int $batchSize;
+    protected array $nutrientMap = [];
+    protected array $ingredientMap = [];
+    protected array $categoryMap = [];
+    protected $now;
+    protected $baseDto;
 
-        $sourceIngredients = $this->readDataFromFile($filePath, $baseKey);
-        return 0;
-    }
-
-    private function readDataFromFile(string $filePath, string $baseKey): int
+    public function handle(): int
     {
-        if (!file_exists($filePath)) {
+        $filePath = $this->argument('file');
+
+        if (!Storage::disk('local')->exists($filePath)) {
             $this->error("File not found: {$filePath}");
             return 1;
         }
-        $this->info("Streaming JSON file: {$filePath}");
-        $items = Items::fromFile($filePath, [
-            'pointer' => "/{$baseKey}",
-            'decoder' => new ExtJsonDecoder(true)
-            ]);
 
+        $baseKey = $this->detectBaseKey($filePath);
+        if (!$baseKey) {
+            $this->error("Source file doesn't contain any of the allowed base keys.");
+            return 1;
+        }
+
+        $this->info("Starting import from file: {$filePath}");
+        $this->info("Detected base key: {$baseKey}");
+
+        // Control the batch size
+        $this->batchSize = (int) $this->option('batchSize');
+        $batchSize = $this->batchSize;
         $count = 0;
-        foreach ($items as $sourceIngredient) {
+        $batch = [];
+        $batchIndex = 0;
+        $this->categoryMap = IngredientCategory::pluck('id', 'name')->toArray();
+        $this->nutrientMap = Nutrient::pluck('id', 'external_id')->toArray();
+        $this->now = now();
+        $this->baseDto = UsdaIngredientData::instance();
+
+        foreach ($this->streamIngredients($filePath, $baseKey) as $sourceIngredient) {
+            $dto = $this->convertToInternalStructure($sourceIngredient);
+            // $batch[] = $dto->toArray();
+            $batch[] = $dto;
+
             $count++;
-            $sourceIngredientArray = (array) $sourceIngredient;
-            $ingredient = new UsdaIngredientData($sourceIngredientArray);
-            $this->importFromUsdaArray($ingredient->toArray());
-            if ($count % 100 === 0) {
-                $this->info("Imported {$count} ingredients...");
+
+            if (count($batch) >= $batchSize) {
+                $batchIndex++;
+                $start = $count - count($batch) + 1;
+                $end = $count;
+
+                $this->info("Processing batch #{$batchIndex}: ingredients {$start}-{$end}...");
+                $this->processBatch($batch);
+                $this->info("Finished batch #{$batchIndex} ({$end} total so far)");
+
+                $batch = [];                
             }
         }
 
-        $this->info("Finished import. Total ingredients: {$count}");
+        // Process any leftover ingredients
+        if (!empty($batch)) {
+            $this->info("Processing final batch #{$batchIndex}: ingredients {$start}-{$end}...");
+            $this->processBatch($batch);
+            $this->info("Processed {$count} ingredients in total.");
+        }
+
+        $this->info("Import completed successfully.");
         return 0;
-    }
-
-    public function importFromUsdaArray(array $data)
-    {
-        $transactionable = !app()->environment('testing');
-        try {
-            if ($transactionable) {
-                DB::transaction(function() use ($data) {
-                    $this->import($data);
-                });
-            } else {
-                $this->import($data);
-            }
-        } catch (\Throwable $e) {
-            logger()->error("Transaction rolled back for ingredient {$data['ingredient']['name']}: {$e->getMessage()}", [
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw $e; // rethrow to propagate error to handle() or stop import
-        }
-    }
-
-    private function import(array $data): void
-    {
-        if ($data['category']['name']) {
-            $category = IngredientCategory::firstOrCreate([
-                'name' => $data['category']['name'],
-            ]);
-        } else {
-            $category = null;
-        }
-
-        $ingredientData = $data['ingredient'];
-
-        $ingredient = Ingredient::firstOrCreate(
-            ['name' => $ingredientData['name']],
-            [
-                'source' => $ingredientData['source'],
-                'external_id' => $ingredientData['external_id'],
-                'description' => $ingredientData['description'],
-                'class' => $ingredientData['class'],
-                'default_amount' => $ingredientData['default_amount'],
-                'default_amount_unit_id' => $ingredientData['default_amount_unit_id'],
-            ]
-        );
-
-        if ($category) {
-            if (!$ingredient->categories()->where('ingredient_category_id', $category->id)->exists()) {
-                $ingredient->categories()->attach($category->id);
-            }
-        }
-
-        if ($ingredient->wasRecentlyCreated) {
-            $this->attachNutrients($ingredient, $data);
-        }
-
-        if ($ingredient->wasRecentlyCreated) {
-            $this->createNutritionFacts($ingredient, $data['nutrition_facts']);
-        }
-    }
-
-    private function attachNutrients(Ingredient $ingredient, array $data): void
-    {
-        if (empty($data['nutrients']) || empty($data['nutrients_pivot'])) return;
-
-        $nutrientsData = $data['nutrients'];
-        $nutrientsPivotData = $data['nutrients_pivot'];
-
-         foreach ($data['nutrients'] as $index => $nutrientData) {
-            try {
-                // Find or create the nutrient
-                $nutrient = Nutrient::firstOrCreate([
-                    'name' => $nutrientData['name'],
-                    'external_id' => $nutrientData['external_id']
-                ],
-                    $nutrientData
-                );
-    
-                // Attach nutrient to ingredient via pivot
-                if (! $ingredient->nutrients()->where('nutrient_id', $nutrient->id)->exists()) {
-                    $ingredient->nutrients()->attach($nutrient->id, [
-                        'amount' => $nutrientsPivotData[$index]['amount'],
-                        'amount_unit_id' => $nutrientsPivotData[$index]['amount_unit_id'] ?? null,
-                    ]);
-                }
-            } catch (Throwable $e) {
-                logger()->error("Failed to attach nutrient {$nutrientData['name']} to ingredient {$ingredient->name}: {$e->getMessage()}");
-            }
-        }
-    }
-
-    private function createNutritionFacts(Ingredient $ingredient, array $nutritionFacts): void
-    {
-        foreach ($nutritionFacts as $fact) {
-            try {
-                $ingredient->nutrition_facts()->create([
-                    'category' => $fact['category'] ?? null,
-                    'name' => $fact['name'],
-                    'amount' => $fact['amount'] ?? null,
-                    'amount_unit_id' => $fact['amount_unit_id'] ?? null,
-                ]);
-            } catch (Throwable $e) {
-                logger()->error("Failed to create nutrition fact {$fact['name']} to ingredient {$ingredient->name}: {$e->getMessage()}");
-            }
-        }
-    }
-
-    private function createMetrics(array $sourceIngredients): array
-    {
-        $metrics = [
-            'expected' => [
-                'ingredients' => 0,
-                'categories' => [], // ingredient_name => count
-                'nutrients' => [],  // ingredient_name => count
-                'nutrition_facts' => [], // ingredient_name => count
-            ],
-            'actual' => [
-                'ingredients' => 0,
-                'categories' => [], 
-                'nutrients' => [],
-                'nutrition_facts' => [],
-            ],
-        ];
-
-        foreach ($sourceIngredients as $ingredient) {
-            $name = $ingredient['ingredient']['name'];
-            $metrics['expected']['categories'][$name] = isset($ingredient['category']) ? 1 : 0;
-            $metrics['expected']['nutrients'][$name] = isset($ingredient['nutrients']) ? count($ingredient['nutrients']) : 0;
-            $metrics['expected']['nutrition_facts'][$name] = isset($ingredient['nutrition_facts']) ? count($ingredient['nutrition_facts']) : 0;
-        }
-
-        return $metrics;
     }
 
     private function detectBaseKey(string $filePath): ?string
     {
         // read the first few kilobytes (enough to get the root key)
-        $handle = fopen($filePath, 'r');
+        $fullPath = Storage::disk('local')->path($filePath);
+
+        $handle = fopen($fullPath, 'r');
         $chunk = fread($handle, 1024); // 1 KB
         fclose($handle);
 
-        $handle = fopen($filePath, 'r');
+        $handle = fopen($fullPath, 'r');
         $chunk = fread($handle, 16384); // 16 KB from start
         fclose($handle);
 
@@ -229,4 +127,193 @@ class ImportIngredients extends Command
 
         return null;
     }
+
+    /**
+     * Stream ingredients from a JSON file using JsonMachine.
+     *
+     * @param string $filePath
+     * @param string $baseKey
+     * @return Generator
+     */
+    private function streamIngredients(string $filePath, string $baseKey): Generator
+    {
+        if (!Storage::disk('local')->exists($filePath)) {
+            throw new RuntimeException("File not found: {$filePath}");
+        }
+
+        $this->info("Streaming JSON file: {$filePath}");
+        $fullPath = Storage::disk('local')->path($filePath);
+        $items = Items::fromFile($fullPath, [
+            'pointer' => "/{$baseKey}",         // point to the correct root key in JSON
+            'decoder' => new ExtJsonDecoder(true), // decode as associative arrays
+        ]);
+
+        foreach ($items as $item) {
+            yield $item; // yield one ingredient at a time
+        }
+    }
+
+    /**
+     * Convert a raw source ingredient into the internal app structure.
+     *
+     * @param array|object $sourceIngredient
+     * @return array
+     */
+    private function convertToInternalStructure($sourceIngredient): array
+    {
+        $sourceArray = is_array($sourceIngredient) ? $sourceIngredient : (array) $sourceIngredient;
+        return $this->baseDto->load($sourceArray)->toArray();
+    }
+
+    protected function processBatch(array $batch): void
+    {
+        $now = $this->now;
+        $categories = [];
+        $ingredients = [];
+        $nutrients = [];
+        $nutrientsPivot = [];
+        $nutritionFacts = [];
+
+        // --- 1. Collect raw batch data ---
+        foreach ($batch as $dto) {
+            // Category
+            $cat = $dto['category'];
+            $categories[$cat['name']] = [
+                'name' => $cat['name'],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            // Ingredient
+            $ing = $dto['ingredient'];
+            $ingredients[$ing['external_id']] = array_merge($ing, [
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            // Nutrients
+            foreach ($dto['nutrients'] as $nutrient) {
+                $nutrients[$nutrient['external_id']] = array_merge($nutrient, [
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+
+            // Pivots — keep only external IDs for now
+            foreach ($dto['nutrients_pivot'] as $pivot) {
+                $pivot['ingredient_external_id'] = $ing['external_id'];
+                $pivot['nutrient_external_id'] = $pivot['nutrient_external_id'] ?? null; // ensure key exists
+                $nutrientsPivot[] = $pivot;
+            }
+
+            // Nutrition facts
+            foreach ($dto['nutrition_facts'] as $fact) {
+                $fact['ingredient_external_id'] = $ing['external_id'];
+                $nutritionFacts[] = $fact;
+            }
+        }
+
+        // --- 2. Upsert categories ---
+        $newCategories = array_filter($categories, fn($c) => !isset($this->categoryMap[$c['name']]));
+        if (!empty($newCategories)) {
+            IngredientCategory::upsert(array_values($newCategories), ['name'], ['updated_at']);
+            $fetchedCategories = IngredientCategory::whereIn('name', array_keys($newCategories))->get();
+            foreach ($fetchedCategories as $c) {
+                $this->categoryMap[$c->name] = $c->id;
+            }
+        }
+
+        // --- 3. Upsert nutrients ---
+        foreach(array_chunk($nutrients, 50) as $chunk) {
+            Nutrient::upsert(
+                array_values($chunk),
+                ['source', 'external_id'],
+                ['name', 'description', 'derivation_code', 'derivation_description', 'updated_at']
+            );
+    
+            $newNutrients = Nutrient::whereIn('external_id', array_keys($chunk))->get();
+            foreach ($newNutrients as $n) {
+                $this->nutrientMap[$n->external_id] = $n->id;
+                // SyncNutrientToSearch::dispatch($n, 'upsert')->onQueue('nutrients');
+            }
+        }
+
+        // --- 4. Upsert ingredients ---
+        foreach(array_chunk($ingredients, 50) as $chunk) {
+            Ingredient::upsert(
+                array_values($chunk),
+                ['source', 'external_id'],
+                ['name', 'description', 'default_amount', 'default_amount_unit_id', 'updated_at']
+            );
+
+            $newIngredients = Ingredient::whereIn('external_id', array_keys($chunk))->get();
+            foreach ($newIngredients as $i) {
+                $this->ingredientMap[$i->external_id] = $i->id;
+                // SyncIngredientToSearch::dispatch($i->loadForSearch(), 'upsert')->onQueue('ingredients');
+            }
+        }
+
+        // --- 5. Resolve pivots using external IDs and maps ---
+        $resolvedPivots = [];
+        foreach ($nutrientsPivot as $pivot) {
+            $ingredientId = $this->ingredientMap[$pivot['ingredient_external_id']] ?? null;
+            $nutrientId  = $this->nutrientMap[$pivot['nutrient_external_id']] ?? null;
+
+            if (!$ingredientId || !$nutrientId) {
+                continue;
+            }
+
+            $resolvedPivots[] = [
+                'ingredient_id' => $ingredientId,
+                'nutrient_id' => $nutrientId,
+                'amount' => $pivot['amount'],
+                'amount_unit_id' => $pivot['amount_unit_id'],
+                'portion_amount' => $pivot['portion_amount'] ?? null,
+                'portion_amount_unit_id' => $pivot['portion_amount_unit_id'] ?? null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        // --- 6. Resolve nutrition facts ---
+        $resolvedFacts = [];
+        foreach ($nutritionFacts as $fact) {
+            $ingredientId = $this->ingredientMap[$fact['ingredient_external_id']] ?? null;
+            if (!$ingredientId) {
+                continue;
+            }
+
+            $resolvedFacts[] = [
+                'ingredient_id' => $ingredientId,
+                'category' => $fact['category'],
+                'name' => $fact['name'],
+                'amount' => $fact['amount'],
+                'amount_unit_id' => $fact['amount_unit_id'],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        // --- 7. Upsert pivot and facts ---
+        if (!empty($resolvedPivots)) {
+            foreach(array_chunk($resolvedPivots, 50) as $chunk) {
+                DB::table('ingredient_nutrient')->upsert(
+                    $chunk,
+                    ['ingredient_id', 'nutrient_id', 'amount_unit_id'],
+                    ['amount', 'portion_amount', 'portion_amount_unit_id', 'updated_at']
+                );
+            }
+        }
+
+        if (!empty($resolvedFacts)) {
+            foreach(array_chunk($resolvedFacts, 50) as $chunk) {
+                DB::table('ingredient_nutrition_facts')->upsert(
+                    $resolvedFacts,
+                    ['ingredient_id', 'category', 'name'],
+                    ['amount', 'amount_unit_id', 'updated_at']
+                );
+            }
+        }
+    }
+
 }

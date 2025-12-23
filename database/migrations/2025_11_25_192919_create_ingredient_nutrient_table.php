@@ -16,15 +16,12 @@ return new class extends Migration
             $table->unsignedBigInteger('nutrient_id');
             $table->float('amount');
             $table->unsignedBigInteger('amount_unit_id');
-            $table->float('portion_amount')->nullable();
-            $table->unsignedBigInteger('portion_amount_unit_id')->nullable();
             $table->timestamps();
 
             // Foreign keys
             $table->foreign('ingredient_id')->references('id')->on('ingredients')->onDelete('cascade');
             $table->foreign('nutrient_id')->references('id')->on('nutrients')->onDelete('cascade');
             $table->foreign('amount_unit_id')->references('id')->on('units')->onDelete('restrict');
-            $table->foreign('portion_amount_unit_id')->references('id')->on('units')->onDelete('restrict');
 
             // Unique constraint to prevent duplicate pairs
             $table->unique(
