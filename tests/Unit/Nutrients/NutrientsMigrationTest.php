@@ -17,8 +17,6 @@ class NutrientsMigrationTest extends TestCase
         'external_id' => ['type' => 'varchar', 'nullable' => true],
         'name' => ['type' => 'varchar', 'nullable' => false],
         'description' => ['type' => 'text', 'nullable' => true],
-        'derivation_code' => ['type' => 'varchar', 'nullable' => true],
-        'derivation_description' => ['type' => 'varchar', 'nullable' => true],
         'created_at' => ['type' => 'timestamp', 'nullable' => true],
         'updated_at' => ['type' => 'timestamp', 'nullable' => true],
         'deleted_at' => ['type' => 'timestamp', 'nullable' => true]
