@@ -16,8 +16,6 @@ class IngredientNutrientPivotMigrationTest extends TestCase
         'nutrient_id' => ['type' => 'bigint', 'nullable' => false],
         'amount' => ['type' => 'double', 'nullable' => false],
         'amount_unit_id' => ['type' => 'bigint', 'nullable' => false],
-        'portion_amount' => ['type' => 'double', 'nullable' => true],
-        'portion_amount_unit_id' => ['type' => 'bigint', 'nullable' => true],
         'created_at' => ['type' => 'timestamp', 'nullable' => true],
         'updated_at' => ['type' => 'timestamp', 'nullable' => true],
     ];
@@ -65,7 +63,6 @@ class IngredientNutrientPivotMigrationTest extends TestCase
         $this->assertContains('ingredient_id', $columns);
         $this->assertContains('nutrient_id', $columns);
         $this->assertContains('amount_unit_id', $columns);
-        $this->assertContains('portion_amount_unit_id', $columns);
     }
 
     public function test_amount_allows_double_values(): void
