@@ -97,7 +97,7 @@ class Ingredient extends Model
 
         // Then explicitly eager load pivot relationships for nutrients
         $this->nutrients->each(function ($nutrient) {
-            $nutrient->pivot->load(['amount_unit', 'portion_amount_unit']);
+            $nutrient->pivot->load(['amount_unit']);
         });
 
         return $this;
