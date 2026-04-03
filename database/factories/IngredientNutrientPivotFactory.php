@@ -27,8 +27,6 @@ class IngredientNutrientPivotFactory extends Factory
             'nutrient_id' => $nutrient->id,
             'amount' => 100,
             'amount_unit_id' => $unit->id,
-            'portion_amount' => 100,
-            'portion_amount_unit_id' => $unit->id,
         ];
     }
 }

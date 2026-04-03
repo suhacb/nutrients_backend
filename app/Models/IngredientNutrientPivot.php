@@ -21,16 +21,10 @@ class IngredientNutrientPivot extends Pivot
 
     protected $casts = [
         'amount' => 'float',
-        'portion_amount' => 'float'
     ];
 
     public function amount_unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class, 'amount_unit_id');
-    }
-
-    public function portion_amount_unit(): BelongsTo
-    {
-        return $this->belongsTo(Unit::class, 'portion_amount_unit_id');
     }
 }
