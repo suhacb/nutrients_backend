@@ -19,7 +19,7 @@ class SyncIngredientToSearchTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Bus::fake();
+        // Bus::fake();
 
         // Create a test ingredient without triggering model events
         $this->ingredient = Ingredient::withoutEvents(function () {
@@ -29,10 +29,12 @@ class SyncIngredientToSearchTest extends TestCase
 
     public function test_handle_calls_insert_on_search_service(): void
     {
+        $id = fake()->numberBetween(1000, 10000);
+
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('insert')
             ->once()
-            ->with('ingredients', $this->ingredient->toArray());
+            ->with('ingredients', $this->ingredient->id, $this->ingredient->toArray());
 
         $job = new SyncIngredientToSearch($this->ingredient, 'insert');
         $job->handle($mock);
