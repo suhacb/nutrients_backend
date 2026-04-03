@@ -197,7 +197,6 @@ class IngredientModelTest extends TestCase
             // Optional: check IDs
             $this->assertEquals($nutrient->id, $loadedIngredient->nutrients->first()->id);
             $this->assertEquals($unit->id, $pivot->amount_unit->id);
-            $this->assertEquals($unit->id, $pivot->portion_amount_unit->id);
             $this->assertEquals($defaultUnit->id, $loadedIngredient->default_amount_unit->id);
 
             return true;

@@ -21,9 +21,6 @@ class Nutrient extends Model
         'external_id',
         'name',
         'description',
-        'created_at',
-        'updated_at',
-        'deleted_at'
     ];
 
     protected $casts = [
@@ -61,7 +58,7 @@ class Nutrient extends Model
     {
         return $this->belongsToMany(Ingredient::class, 'ingredient_nutrient')
             ->using(IngredientNutrientPivot::class)
-            ->withPivot(['amount', 'amount_unit_id', 'portion_amount', 'portion_amount_unit_id'])
+            ->withPivot(['amount', 'amount_unit_id'])
             ->withTimestamps();
     }
 }
