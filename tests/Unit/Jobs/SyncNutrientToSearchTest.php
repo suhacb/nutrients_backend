@@ -34,7 +34,7 @@ class SyncNutrientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('insert')
             ->once()
-            ->with('nutrients', $this->nutrient->toArray());
+            ->with('nutrients', $this->nutrient->id, $this->nutrient->toArray());
 
         $job = new SyncNutrientToSearch($this->nutrient, 'insert');
         $job->handle($mock);

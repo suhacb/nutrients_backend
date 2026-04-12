@@ -233,6 +233,26 @@ class SearchControllerTest extends TestCase
 
     public function test_it_returns_correct_from_to_metadata(): void
     {
+        $this->mock(SearchServiceContract::class, function ($mock) {
+            $mock->shouldReceive('search')
+                ->with('ingredients', 'apple', 25, 2)
+                ->once()
+                ->andReturn(
+                    new SearchServiceResponse(
+                        query: 'apple',
+                        index: 'ingredients',
+                        total: 50,  // enough to have a page 2
+                        perPage: 25,
+                        results: array_map(fn($i) => [
+                            'id' => $i,
+                            'name' => "Apple $i",
+                            'description' => null,
+                            'score' => 1.0,
+                        ], range(26, 50))
+                    )
+                );
+        });
+
         $response = $this->withHeaders($this->makeAuthRequestHeader())
             ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 2]);
 

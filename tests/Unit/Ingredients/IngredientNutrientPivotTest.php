@@ -35,8 +35,6 @@ class IngredientNutrientPivotTest extends TestCase
             'nutrient_id',
             'amount',
             'amount_unit_id',
-            'portion_amount',
-            'portion_amount_unit_id',
         ], $pivot->getFillable());
     }
 
@@ -46,7 +44,6 @@ class IngredientNutrientPivotTest extends TestCase
 
         $this->assertEquals([
             'amount' => 'float',
-            'portion_amount' => 'float'
         ], $pivot->getCasts());
     }
 
@@ -59,26 +56,14 @@ class IngredientNutrientPivotTest extends TestCase
         $this->assertEquals('amount_unit_id', $relation->getForeignKeyName());
     }
 
-    public function test_it_belongs_to_portion_amount_unit(): void
-    {
-        $pivot = new IngredientNutrientPivot();
-        $relation = $pivot->portion_amount_unit();
-
-        $this->assertInstanceOf(BelongsTo::class, $relation);
-        $this->assertEquals('portion_amount_unit_id', $relation->getForeignKeyName());
-    }
-
     public function test_pivot_can_access_units()
     {
         $amount_unit = $this->makeUnit();
-        $portion_unit = $this->makeUnit();
 
         $pivot = IngredientNutrientPivot::factory()->create([
             'amount_unit_id' => $amount_unit->id,
-            'portion_amount_unit_id' => $portion_unit->id,
         ]);
 
         $this->assertEquals($amount_unit->name, $pivot->amount_unit->name);
-        $this->assertEquals($portion_unit->name, $pivot->portion_amount_unit->name);
     }
 }

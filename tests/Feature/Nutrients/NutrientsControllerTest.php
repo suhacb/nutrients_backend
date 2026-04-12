@@ -78,8 +78,6 @@ class NutrientsControllerTest extends TestCase
             'external_id' => '101',
             'name' => 'Protein',
             'description' => 'Test nutrient',
-            'derivation_code' => 'A',
-            'derivation_description' => 'Derived test',
         ];
 
         $response = $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('nutrients.store'), $payload);

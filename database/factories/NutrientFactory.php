@@ -32,8 +32,6 @@ class NutrientFactory extends Factory
             },
             'name' => fake()->name(),
             'description' => fake()->paragraph(),
-            'derivation_code' => fake()->randomElement(range('A', 'Z')),
-            'derivation_description' => fake()->text(255),
         ];
     }
 }

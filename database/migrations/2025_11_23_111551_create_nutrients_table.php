@@ -17,14 +17,11 @@ return new class extends Migration
             $table->string('external_id')->nullable();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->string('derivation_code')->nullable();
-            $table->string('derivation_description')->nullable();
             $table->timestamps();
             $table->softDeletes();
             
             $table->unique(['source', 'external_id', 'name']);
         });
-
     }
 
     /**

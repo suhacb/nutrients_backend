@@ -2,7 +2,7 @@
 namespace App\Services\Search;
 
 interface SearchServiceContract {
-    public function insert(string $index, array $document): bool;
+    public function insert(string $index, string|int $id, array $document): bool;
 
     public function update(string $index, string|int $id, array $document): bool;
 

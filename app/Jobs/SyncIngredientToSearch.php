@@ -48,7 +48,7 @@ class SyncIngredientToSearch implements ShouldQueue {
                 if ($ingredient) {
                     $payload = $ingredient->toArray();
                     $this->action === 'insert'
-                        ? $search->insert($index, $payload)
+                        ? $search->insert($index, $this->id, $payload)
                         : $search->update($index, $this->id, $payload);
                 }
                 break;

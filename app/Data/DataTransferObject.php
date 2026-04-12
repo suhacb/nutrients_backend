@@ -2,90 +2,75 @@
 namespace App\Data;
 
 use Illuminate\Support\Arr;
-use Illuminate\Database\Eloquent\Model;
 use App\Data\DataTransferObjectContract;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Database\Eloquent\Model;
 
 abstract class DataTransferObject implements DataTransferObjectContract
 {
     /**
+     * Store instances per subclass.
+     */
+    protected static array $instances = [];
+
+    /**
      * The original raw data.
      */
-    protected array | null $raw = null;
+    protected ?array $raw = null;
 
     /**
-     * Validation errors, if any.
+     * Prevent direct instantiation.
      */
-    protected array $errors = [];
+    protected function __construct() {}
 
     /**
-     * Base constructor.
+     * Get the singleton instance.
      */
-    public function __construct(array | null $data)
+    public static function instance(): static
+    {
+        $class = static::class;
+
+        if (!isset(static::$instances[$class])) {
+            static::$instances[$class] = new static();
+        }
+
+        return static::$instances[$class];
+    }
+
+    /**
+     * Load raw data into the singleton for transformation.
+     */
+    public function load(array $data): static
     {
         $this->raw = $data;
-        if ($data) {
-            $this->validate();
-        }
+        return $this;
     }
 
     /**
-     * Named constructor for consistency.
+     * Get raw data.
      */
-    public static function fromArray(array $data): static
-    {
-        return new static($data);
-    }
-
-    public function getRaw(): array
+    public function getRaw(): ?array
     {
         return $this->raw;
     }
 
     /**
-     * Default validation logic — override `rules()` in subclasses.
-     */
-    public function validate(): void
-    {
-        if (!method_exists($this, 'rules')) {
-            return;
-        }
-
-        $validator = Validator::make($this->raw, $this->rules());
-
-        if ($validator->fails()) {
-            $this->errors = $validator->errors()->toArray();
-        }
-    }
-
-    public function isValid(): bool
-    {
-        return empty($this->errors);
-    }
-
-    public function errors(): array
-    {
-        return $this->errors;
-    }
-
-    /**
-     * Utility to safely fetch nested keys.
+     * Utility to safely fetch nested keys from raw data.
      */
     protected function get(string $key, mixed $default = null): mixed
     {
         if (!$this->raw) {
-            return null;
+            return $default;
         }
         return Arr::get($this->raw, $key, $default);
     }
 
     /**
-     * Must be implemented by subclass to define model-ready array.
+     * Convert loaded data to internal array structure.
      */
-    abstract public function toArray(): array;
+    abstract public function toModel(): array;
 
     /**
-     * Must be implemented by subclass to return model instance.
+     * Convert loaded data to internal array structure.
      */
-    abstract public function toModel(): Model;
+    abstract public function toStage(array $context = []): array;
 }

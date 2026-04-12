@@ -1,30 +1,24 @@
 <?php
 namespace App\Data\USDAFoodData;
 
+use Exception;
+use App\Models\Unit;
 use App\Data\DataTransferObject;
 use App\Models\IngredientNutritionFact;
-use App\Models\Unit;
 use Illuminate\Database\Eloquent\Model;
 
 class UsdaIngredientNutritionFactData extends DataTransferObject
 {
     protected ?array $sourceNutrients;
     
-    public function __construct(array $data)
-    {
-        parent::__construct($data);
-        $this->sourceNutrients = $data;
-
-    }
-
     public function toArray(): array
     {
         $nutritionFacts = [];
 
         // Normalize the source nutrient names for easier matching
         $sourceNutrientsByName = [];
-        foreach ($this->sourceNutrients as $sourceNutrient) {
-            $name = trim($sourceNutrient['nutrient']['name']);
+        foreach ($this->raw as $sourceNutrient) {
+            $name = trim($this->get('nutrient.name'));
             $sourceNutrientsByName[$name] = $sourceNutrient;
         }
 
@@ -62,21 +56,6 @@ class UsdaIngredientNutritionFactData extends DataTransferObject
             }
         }
         return $nutritionFacts;
-    }
-
-    public function toModel(): Model
-    {
-        return new IngredientNutritionFact($this->toArray());
-    }
-
-    protected function makeNutritionFact(array $data): array
-    {
-        return [
-            'category'       => $data['category'] ?? 'other',
-            'name'           => $data['name'] ?? null,
-            'amount'         => $data['amount'] ?? 0,
-            'amount_unit_id' => $data['amount_unit_id'] ?? null,
-        ];
     }
     
     protected function convertToCommonUnit(float $amount, ?string $fromUnit, ?string $targetUnit): float
@@ -170,9 +149,19 @@ class UsdaIngredientNutritionFactData extends DataTransferObject
         $unit = Unit::where(['abbreviation' => $unitName])->first();
         if (!$unit) {
             logger()->error("Unit {$unitName} not found in database!");
-            throw new \Exception("Unit {$unitName} not found!");
+            throw new Exception("Unit {$unitName} not found!");
         }
         return $unit->id ?? null;
+    }
+
+    protected function makeNutritionFact(array $data): array
+    {
+        return [
+            'category'       => $data['category'] ?? 'other',
+            'name'           => $data['name'] ?? null,
+            'amount'         => $data['amount'] ?? 0,
+            'amount_unit_id' => $data['amount_unit_id'] ?? null,
+        ];
     }
     
     protected function makeNutritionFactsMappings(): array {
@@ -384,278 +373,3 @@ class UsdaIngredientNutritionFactData extends DataTransferObject
         ];
     }
 }
-
-
-
-
-
-// Desired output:
-// [
-//     // Macronutrients
-//     [
-//         'category' => 'macronutrients',
-//         'name' => 'protein',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'macronutrients',
-//         'name' => 'carbohydrates',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'macronutrients',
-//         'name' => 'fat',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'macronutrients',
-//         'name' => 'fiber (total)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'macronutrients',
-//         'name' => 'fiber (soluble)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'macronutrients',
-//         'name' => 'fiber (insoluble)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-// 
-//     // Energy
-//     [
-//         'category' => 'energy',
-//         'name' => 'calories',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'energy',
-//         'name' => 'joules',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-// 
-//     // Vitamins (Micronutrients)
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin A',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B1 (Thiamine)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B2 (Riboflavin)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B3 (Niacin)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B5 (Pantothenic acid)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B6 (Pyridoxine)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B7 (Biotin)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B9 (Folate)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin B12 (Cobalamin)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin C (Ascorbic acid)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin D2 (Ergocalciferol)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin D3 (Cholecalciferol)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin E (Alpha-tocopherol)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin K1 (Phylloquinone)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'micronutrients',
-//         'name' => 'Vitamin K2 (Menaquinone)',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-// 
-//     // Minerals (Macrominerals)
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Calcium',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Chloride',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Magnesium',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Phosphorus',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Potassium',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Sodium',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Sulfur',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-// 
-//     // Trace minerals (Microminerals)
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Iron',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Zinc',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Copper',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Manganese',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Selenium',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Iodine',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Chromium',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Molybdenum',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Fluoride',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Cobalt',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Nickel',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Silicon',
-//         'amount' => '',
-//         'amount_unit_id',
-//     ],
-//     [
-//         'category' => 'minerals',
-//         'name' => 'Vanadium',
-//         'amount' => '',
-//         'amo
-//     ]
-// ]

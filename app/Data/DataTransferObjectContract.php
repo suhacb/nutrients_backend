@@ -6,37 +6,24 @@ use Illuminate\Database\Eloquent\Model;
 interface DataTransferObjectContract
 {
     /**
-     * Factory method to create a DTO instance from raw array data.
+     * Get the singleton instance of the DTO.
      */
-    public static function fromArray(array $data): static;
+    public static function instance(): static;
+
+    /**
+     * Load raw data into the singleton for transformation.
+     */
+    public function load(array $data): static;
 
     /**
      * Returns the raw input data (as received or slightly normalized).
      */
-    public function getRaw(): array;
+    public function getRaw(): ?array;
 
     /**
-     * Returns a normalized array that matches your internal Laravel data structure.
+     * Converts loaded data to internal normalized array structure.
      */
-    public function toArray(): array;
+    public function toModel(): array;
 
-    /**
-     * Builds (but does not persist) the corresponding Eloquent model instance.
-     */
-    public function toModel(): Model;
-
-    /**
-     * Optional: Validate the DTO's data.
-     */
-    public function validate(): void;
-
-    /**
-     * Optional: Check if the DTO’s data passes validation rules.
-     */
-    public function isValid(): bool;
-
-    /**
-     * Returns validation errors if any exist.
-     */
-    public function errors(): array;
+    public function toStage(array $context = []): array;
 }

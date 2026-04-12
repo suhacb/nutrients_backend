@@ -37,7 +37,7 @@ class SyncNutrientToSearch implements ShouldQueue
 
         switch ($this->action) {
             case 'insert':
-                $search->insert($index, $payload);
+                $search->insert($index, $id, $payload);
                 break;
             case 'update':
                 $search->update($index, $id, $payload);

@@ -23,8 +23,6 @@ class NutrientModelTest extends TestCase
             'external_id',
             'name',
             'description',
-            'derivation_code',
-            'derivation_description',
         ];
 
         $model = new Nutrient();

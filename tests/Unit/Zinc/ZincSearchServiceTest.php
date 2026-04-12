@@ -32,31 +32,34 @@ class ZincSearchServiceTest extends TestCase
 
     public function test_insert_sends_post_request_and_returns_true_on_success(): void
     {
+        $id = fake()->numberBetween(1000, 10000);
+
         Http::fake([
-            "{$this->baseUri}/api/{$this->index}/_doc" => Http::response([], 201)
+            "{$this->baseUri}/api/{$this->index}/_doc/{$id}" => Http::response([], 201)
         ]);
 
-        $result = $this->service->insert($this->index, ['foo' => 'bar']);
+        $result = $this->service->insert($this->index, $id, ['foo' => 'bar']);
 
         $this->assertTrue($result);
 
-        Http::assertSent(function ($request) {
-            return $request->url() === "{$this->baseUri}/api/{$this->index}/_doc"
-                && $request->method() === 'POST'
+        Http::assertSent(function ($request) use ($id) {
+            return $request->url() === "{$this->baseUri}/api/{$this->index}/_doc/{$id}"
+                && $request->method() === 'PUT'
                 && $request['foo'] === 'bar';
         });
     }
 
     public function test_insert_throws_exception_on_failure(): void
     {
+        $id = fake()->numberBetween(1000, 10000);
         Http::fake([
-            "{$this->baseUri}/api/{$this->index}/_doc" => Http::response([], 500)
+            "{$this->baseUri}/api/{$this->index}/_doc/{$id}" => Http::response([], 500)
         ]);
 
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Search service unavailable');
 
-        $this->service->insert($this->index, ['foo' => 'bar']);
+        $this->service->insert($this->index, $id, ['foo' => 'bar']);
     }
 
     public function test_update_sends_put_request_and_returns_true_on_success(): void

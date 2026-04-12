@@ -22,7 +22,7 @@ return new class extends Migration
             $table->unsignedBigInteger('default_amount_unit_id');
             $table->timestamps();
             $table->softDeletes();
-
+            
             $table->unique(['source', 'external_id', 'name']);
         });
     }

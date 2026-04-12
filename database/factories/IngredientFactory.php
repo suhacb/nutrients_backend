@@ -34,7 +34,7 @@ class IngredientFactory extends Factory
             'class' => 'final',
             'name' => $this->faker->words(2, true),
             'description' => $this->faker->paragraphs($this->faker->numberBetween(1, 4), true),
-            'default_amount' => 100,
+            'default_amount' => 100.0,
             'default_amount_unit_id' => $this->default_amount_unit_id ?? Unit::factory(),
         ];
     }

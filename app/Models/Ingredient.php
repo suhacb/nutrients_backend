@@ -63,7 +63,7 @@ class Ingredient extends Model
     {
         return $this->belongsToMany(Nutrient::class, 'ingredient_nutrient')
             ->using(IngredientNutrientPivot::class)
-            ->withPivot(['amount', 'amount_unit_id', 'portion_amount', 'portion_amount_unit_id'])
+            ->withPivot(['amount', 'amount_unit_id'])
             ->withTimestamps();
     }
 
@@ -97,7 +97,7 @@ class Ingredient extends Model
 
         // Then explicitly eager load pivot relationships for nutrients
         $this->nutrients->each(function ($nutrient) {
-            $nutrient->pivot->load(['amount_unit', 'portion_amount_unit']);
+            $nutrient->pivot->load(['amount_unit']);
         });
 
         return $this;

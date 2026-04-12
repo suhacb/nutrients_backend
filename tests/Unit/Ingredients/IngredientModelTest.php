@@ -176,8 +176,6 @@ class IngredientModelTest extends TestCase
         $ingredient->nutrients()->attach($nutrient->id, [
             'amount' => 5,
             'amount_unit_id' => $unit->id,
-            'portion_amount' => 2,
-            'portion_amount_unit_id' => $unit->id,
         ]);
 
         // Trigger update to dispatch job
@@ -192,12 +190,10 @@ class IngredientModelTest extends TestCase
 
             $pivot = $loadedIngredient->nutrients->first()->pivot;
             $this->assertTrue($pivot->relationLoaded('amount_unit'));
-            $this->assertTrue($pivot->relationLoaded('portion_amount_unit'));
 
             // Optional: check IDs
             $this->assertEquals($nutrient->id, $loadedIngredient->nutrients->first()->id);
             $this->assertEquals($unit->id, $pivot->amount_unit->id);
-            $this->assertEquals($unit->id, $pivot->portion_amount_unit->id);
             $this->assertEquals($defaultUnit->id, $loadedIngredient->default_amount_unit->id);
 
             return true;
