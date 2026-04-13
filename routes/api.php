@@ -7,6 +7,7 @@ use App\Http\Controllers\LoginController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\NutrientsController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\UnitsController;
 
 /**Route::get('/user', function (Request $request) {
     return $request->user();
@@ -34,6 +35,14 @@ Route::prefix('ingredients')->name('ingredients.')->middleware('verify.frontend'
     Route::put('{ingredient}', [IngredientsController::class, 'update'])->name('update');
     Route::delete('{ingredient}', [IngredientsController::class, 'delete'])->name('delete');
     Route::post('search', [IngredientsController::class, 'search'])->name('search');
+});
+
+Route::prefix('units')->name('units.')->middleware('verify.frontend')->group(function() {
+    Route::get('', [UnitsController::class, 'index'])->name('index');
+    Route::get('{unit}', [UnitsController::class, 'show'])->name('show');
+    Route::post('', [UnitsController::class, 'store'])->name('store');
+    Route::put('{unit}', [UnitsController::class, 'update'])->name('update');
+    Route::delete('{unit}', [UnitsController::class, 'delete'])->name('delete');
 });
 
 Route::prefix('search')->name('search')->middleware('verify.frontend')->group(function() {
