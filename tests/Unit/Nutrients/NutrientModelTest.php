@@ -9,6 +9,7 @@ use App\Models\Ingredient;
 use App\Jobs\SyncNutrientToSearch;
 use Illuminate\Support\Facades\Bus;
 use App\Exceptions\NutrientAttachedException;
+use App\Exceptions\NutrientHasChildrenException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\MakesUnit;
 
@@ -107,6 +108,92 @@ class NutrientModelTest extends TestCase
 
         $this->assertInstanceOf(Unit::class, $nutrient->canonicalUnit);
         $this->assertEquals($unit->id, $nutrient->canonicalUnit->id);
+    }
+
+    /**
+     * Asserts that a nutrient created without `is_label_standard` reads back as false,
+     * confirming the column default propagates correctly through the model.
+     */
+    public function test_is_label_standard_defaults_to_false(): void
+    {
+        $nutrient = Nutrient::factory()->create();
+
+        $this->assertFalse(Nutrient::find($nutrient->id)->is_label_standard);
+    }
+
+    /**
+     * Asserts that `is_label_standard` round-trips through the database as a boolean,
+     * not as the raw tinyint 0/1 stored in MySQL.
+     */
+    public function test_is_label_standard_boolean_cast(): void
+    {
+        $flagged    = Nutrient::factory()->create(['is_label_standard' => true]);
+        $unflagged  = Nutrient::factory()->create(['is_label_standard' => false]);
+
+        $this->assertSame(true,  Nutrient::find($flagged->id)->is_label_standard);
+        $this->assertSame(false, Nutrient::find($unflagged->id)->is_label_standard);
+        $this->assertIsBool(Nutrient::find($flagged->id)->is_label_standard);
+    }
+
+    /**
+     * Asserts that accessing `canonicalUnit` on a nutrient without a canonical_unit_id
+     * returns null rather than throwing, since callers use the null-safe operator.
+     */
+    public function test_canonical_unit_is_null_when_not_set(): void
+    {
+        $nutrient = Nutrient::factory()->create(['canonical_unit_id' => null]);
+
+        $this->assertNull($nutrient->canonicalUnit);
+    }
+
+    /**
+     * Asserts that soft-deleting a parent with at least one non-deleted child throws
+     * NutrientHasChildrenException, leaving both records intact.
+     */
+    public function test_it_prevents_soft_delete_if_has_non_deleted_children(): void
+    {
+        $this->expectException(NutrientHasChildrenException::class);
+        $this->expectExceptionMessage('Cannot delete nutrient: it has one or more non-deleted children.');
+
+        $parent = Nutrient::factory()->create(['name' => 'Macronutrients']);
+        Nutrient::factory()->create(['name' => 'Protein', 'parent_id' => $parent->id]);
+
+        $parent->delete();
+    }
+
+    /**
+     * Asserts that force-deleting a parent with at least one non-deleted child also throws
+     * NutrientHasChildrenException — the guard fires on the `deleting` event for both paths.
+     */
+    public function test_it_prevents_force_delete_if_has_non_deleted_children(): void
+    {
+        $this->expectException(NutrientHasChildrenException::class);
+        $this->expectExceptionMessage('Cannot delete nutrient: it has one or more non-deleted children.');
+
+        $parent = Nutrient::factory()->create(['name' => 'Macronutrients']);
+        Nutrient::factory()->create(['name' => 'Protein', 'parent_id' => $parent->id]);
+
+        $parent->forceDelete();
+    }
+
+    /**
+     * Asserts that soft-deleting a parent is allowed when all of its children are already
+     * soft-deleted, since the `children()` relationship scopes out soft-deleted records.
+     */
+    public function test_it_allows_soft_delete_when_all_children_are_soft_deleted(): void
+    {
+        Bus::fake();
+        
+        $parent = Nutrient::factory()->create(['name' => 'Macronutrients']);
+        $child  = Nutrient::factory()->create(['name' => 'Protein', 'parent_id' => $parent->id]);
+
+        // Bypass the guard by deleting the child first (it has no children of its own)
+        $child->delete();
+
+        // Parent now has no non-deleted children — soft delete must succeed
+        $parent->delete();
+
+        $this->assertSoftDeleted('nutrients', ['id' => $parent->id]);
     }
 
     // test_tags_relationship_resolves will be added once NutrientTag is implemented
