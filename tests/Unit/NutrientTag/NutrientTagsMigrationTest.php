@@ -143,7 +143,7 @@ class NutrientTagsMigrationTest extends TestCase
     {
         $this->assertTrue(Schema::hasTable('nutrient_tags'), "Table 'nutrient_tags' should exist before rollback");
 
-        $migration = include database_path('migrations/2026_04_13_000004_create_nutrient_tags_table.php');
+        $migration = include database_path('migrations/2026_04_16_072715_create_nutrient_tags_table.php');
         $migration->down();
 
         $this->assertFalse(Schema::hasTable('nutrient_tags'), "Table 'nutrient_tags' should be gone after rollback");
