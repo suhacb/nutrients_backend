@@ -6,6 +6,7 @@ use App\Models\Nutrient;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\NutrientRequest;
 use App\Exceptions\NutrientAttachedException;
+use App\Exceptions\NutrientHasChildrenException;
 
 class NutrientsController extends Controller
 {
@@ -16,7 +17,7 @@ class NutrientsController extends Controller
 
     public function show(Nutrient $nutrient): JsonResponse
     {
-        return response()->json($nutrient, 200);
+        return response()->json($nutrient->load('canonicalUnit'), 200);
     }
 
     public function store(NutrientRequest $request): JsonResponse
@@ -39,12 +40,10 @@ class NutrientsController extends Controller
             // Return a JSON response with 204 (No Content) status
             return response()->json(null, 204);
 
+        } catch (NutrientHasChildrenException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         } catch (NutrientAttachedException $e) {
-
-            // Return JSON with error message and appropriate status
-            return response()->json([
-                'message' => $e->getMessage()
-            ], $e->status ?? 409);
+            return response()->json(['message' => $e->getMessage()], 409);
         }
     }
 }

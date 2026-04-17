@@ -76,9 +76,16 @@ class IngredientNutrientPivotMigrationTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $sourceId = DB::table('sources')->insertGetId([
+            'name'       => 'Unit Test Source',
+            'slug'       => 'unit-test-source',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $nutrientId = DB::table('nutrients')->insertGetId([
-            'name' => 'Test Nutrient',
-            'source' => 'UNIT_TEST',
+            'name'       => 'Test Nutrient',
+            'source_id'  => $sourceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

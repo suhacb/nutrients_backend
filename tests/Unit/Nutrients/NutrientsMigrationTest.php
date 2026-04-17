@@ -4,34 +4,51 @@ namespace Tests\Unit\Nutrients;
 
 use Tests\TestCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
+/**
+ * Tests that the nutrients table migration creates the correct schema,
+ * including canonical columns (parent_id, slug, canonical_unit_id,
+ * iu_to_canonical_factor, is_label_standard, display_order) and the
+ * source_id FK (replacing the old source string column).
+ *
+ * Verifies column presence, types, nullability, foreign key constraints,
+ * unique indexes, and that the migrations roll back cleanly.
+ */
 class NutrientsMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
     protected $expectedColumns = [
-        'id' => ['type' => 'bigint', 'nullable' => false],
-        'source' => ['type' => 'varchar', 'nullable' => false],
-        'external_id' => ['type' => 'varchar', 'nullable' => true],
-        'name' => ['type' => 'varchar', 'nullable' => false],
-        'description' => ['type' => 'text', 'nullable' => true],
-        'created_at' => ['type' => 'timestamp', 'nullable' => true],
-        'updated_at' => ['type' => 'timestamp', 'nullable' => true],
-        'deleted_at' => ['type' => 'timestamp', 'nullable' => true]
+        'id'                     => ['type' => 'bigint',    'nullable' => false],
+        'source_id'              => ['type' => 'bigint',    'nullable' => false],
+        'external_id'            => ['type' => 'varchar',   'nullable' => true],
+        'name'                   => ['type' => 'varchar',   'nullable' => false],
+        'description'            => ['type' => 'text',      'nullable' => true],
+        'parent_id'              => ['type' => 'bigint',    'nullable' => true],
+        'slug'                   => ['type' => 'varchar',   'nullable' => true],
+        'canonical_unit_id'      => ['type' => 'bigint',    'nullable' => true],
+        'iu_to_canonical_factor' => ['type' => 'decimal',   'nullable' => true],
+        'is_label_standard'      => ['type' => 'tinyint',   'nullable' => false],
+        'display_order'          => ['type' => 'int',       'nullable' => true],
+        'created_at'             => ['type' => 'timestamp', 'nullable' => true],
+        'updated_at'             => ['type' => 'timestamp', 'nullable' => true],
+        'deleted_at'             => ['type' => 'timestamp', 'nullable' => true],
     ];
 
+    /**
+     * Asserts that every expected column exists in the nutrients table with the correct type and nullability.
+     */
     public function test_nutrients_table_has_expected_columns(): void
     {
-        // Get MySQL columns info
         $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
 
-        // Convert to associative array keyed by column name
         $columns = [];
         foreach ($columnsInfo as $column) {
             $columns[$column->Field] = [
-                'type' => $this->normalizeType($column->Type),
+                'type'     => $this->normalizeType($column->Type),
                 'nullable' => $column->Null === 'YES',
             ];
         }
@@ -53,7 +70,281 @@ class NutrientsMigrationTest extends TestCase
         }
     }
 
-    // Helper to normalize MySQL type (strip size, e.g., bigint(20) → bigint)
+    /**
+     * Asserts that `source_id` is a non-nullable bigint with a foreign key referencing
+     * `sources.id` that restricts deletion of a source while nutrients reference it.
+     */
+    public function test_nutrients_table_has_source_id_column(): void
+    {
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
+        $column = collect($columnsInfo)->firstWhere('Field', 'source_id');
+
+        $this->assertNotNull($column, "Column 'source_id' does not exist");
+        $this->assertSame('NO', $column->Null, "Column 'source_id' should not be nullable");
+        $this->assertStringStartsWith('bigint', strtolower($column->Type));
+
+        $fks = DB::select("
+            SELECT kcu.CONSTRAINT_NAME, rc.DELETE_RULE
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+            JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                ON rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                AND rc.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA
+            WHERE kcu.TABLE_SCHEMA = DATABASE()
+              AND kcu.TABLE_NAME = 'nutrients'
+              AND kcu.COLUMN_NAME = 'source_id'
+              AND kcu.REFERENCED_TABLE_NAME = 'sources'
+        ");
+
+        $this->assertNotEmpty($fks, "Foreign key on 'source_id' referencing 'sources.id' should exist");
+        $this->assertEquals('RESTRICT', $fks[0]->DELETE_RULE, "FK should use RESTRICT on delete");
+    }
+
+    /**
+     * Asserts that `parent_id` is a nullable bigint with a self-referencing foreign key
+     * that sets the column to NULL when the parent nutrient is deleted.
+     */
+    public function test_nutrients_table_has_parent_id_column(): void
+    {
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
+        $column = collect($columnsInfo)->firstWhere('Field', 'parent_id');
+
+        $this->assertNotNull($column, "Column 'parent_id' does not exist");
+        $this->assertSame('YES', $column->Null, "Column 'parent_id' should be nullable");
+        $this->assertStringStartsWith('bigint', strtolower($column->Type));
+
+        $fks = DB::select("
+            SELECT kcu.CONSTRAINT_NAME, rc.DELETE_RULE
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+            JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                ON rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                AND rc.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA
+            WHERE kcu.TABLE_SCHEMA = DATABASE()
+              AND kcu.TABLE_NAME = 'nutrients'
+              AND kcu.COLUMN_NAME = 'parent_id'
+              AND kcu.REFERENCED_TABLE_NAME = 'nutrients'
+        ");
+
+        $this->assertNotEmpty($fks, "Foreign key on 'parent_id' referencing 'nutrients.id' should exist");
+        $this->assertEquals('SET NULL', $fks[0]->DELETE_RULE, "FK should use SET NULL on delete");
+    }
+
+    /**
+     * Asserts that `slug` is a nullable varchar with a unique index applied to it.
+     */
+    public function test_nutrients_table_has_slug_column(): void
+    {
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
+        $column = collect($columnsInfo)->firstWhere('Field', 'slug');
+
+        $this->assertNotNull($column, "Column 'slug' does not exist");
+        $this->assertSame('YES', $column->Null, "Column 'slug' should be nullable");
+        $this->assertStringStartsWith('varchar', strtolower($column->Type));
+
+        $indexes = DB::select("
+            SELECT INDEX_NAME
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'nutrients'
+              AND COLUMN_NAME = 'slug'
+              AND NON_UNIQUE = 0
+        ");
+
+        $this->assertNotEmpty($indexes, "A unique index on 'slug' should exist");
+    }
+
+    /**
+     * Asserts that `canonical_unit_id` is a nullable bigint with a foreign key referencing
+     * `units.id` that sets the column to NULL when the referenced unit is deleted.
+     */
+    public function test_nutrients_table_has_canonical_unit_id_column(): void
+    {
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
+        $column = collect($columnsInfo)->firstWhere('Field', 'canonical_unit_id');
+
+        $this->assertNotNull($column, "Column 'canonical_unit_id' does not exist");
+        $this->assertSame('YES', $column->Null, "Column 'canonical_unit_id' should be nullable");
+        $this->assertStringStartsWith('bigint', strtolower($column->Type));
+
+        $fks = DB::select("
+            SELECT kcu.CONSTRAINT_NAME, rc.DELETE_RULE
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+            JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+                ON rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                AND rc.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA
+            WHERE kcu.TABLE_SCHEMA = DATABASE()
+              AND kcu.TABLE_NAME = 'nutrients'
+              AND kcu.COLUMN_NAME = 'canonical_unit_id'
+              AND kcu.REFERENCED_TABLE_NAME = 'units'
+        ");
+
+        $this->assertNotEmpty($fks, "Foreign key on 'canonical_unit_id' referencing 'units.id' should exist");
+        $this->assertEquals('SET NULL', $fks[0]->DELETE_RULE, "FK should use SET NULL on delete");
+    }
+
+    /**
+     * Asserts that `iu_to_canonical_factor` is a nullable decimal column used to convert
+     * IU-based values to the canonical unit.
+     */
+    public function test_nutrients_table_has_iu_to_canonical_factor_column(): void
+    {
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
+        $column = collect($columnsInfo)->firstWhere('Field', 'iu_to_canonical_factor');
+
+        $this->assertNotNull($column, "Column 'iu_to_canonical_factor' does not exist");
+        $this->assertSame('YES', $column->Null, "Column 'iu_to_canonical_factor' should be nullable");
+        $this->assertStringStartsWith('decimal', strtolower($column->Type));
+    }
+
+    /**
+     * Asserts that `is_label_standard` is a non-nullable tinyint that defaults to 0 (false),
+     * indicating whether the nutrient appears on standard nutrition labels.
+     */
+    public function test_nutrients_table_has_is_label_standard_column(): void
+    {
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
+        $column = collect($columnsInfo)->firstWhere('Field', 'is_label_standard');
+
+        $this->assertNotNull($column, "Column 'is_label_standard' does not exist");
+        $this->assertSame('NO', $column->Null, "Column 'is_label_standard' should not be nullable");
+        $this->assertStringStartsWith('tinyint', strtolower($column->Type));
+        $this->assertEquals('0', $column->Default, "Column 'is_label_standard' should default to 0 (false)");
+    }
+
+    /**
+     * Asserts that `display_order` is a nullable integer column used to control
+     * the presentation order of nutrients in UI contexts.
+     */
+    public function test_nutrients_table_has_display_order_column(): void
+    {
+        $columnsInfo = DB::select("SHOW COLUMNS FROM nutrients");
+        $column = collect($columnsInfo)->firstWhere('Field', 'display_order');
+
+        $this->assertNotNull($column, "Column 'display_order' does not exist");
+        $this->assertSame('YES', $column->Null, "Column 'display_order' should be nullable");
+        $this->assertStringStartsWith('int', strtolower($column->Type));
+    }
+
+    /**
+     * Asserts that multiple NULL slugs are permitted (MySQL treats NULLs as distinct in unique indexes)
+     * while duplicate non-null slugs are rejected by the unique index.
+     */
+    public function test_slug_partial_unique_index(): void
+    {
+        $base = [
+            'source_id'  => $this->insertSource(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        // Multiple NULL slugs must be allowed (MySQL treats NULLs as distinct in unique indexes)
+        DB::table('nutrients')->insert($base + ['name' => 'Protein',  'slug' => null]);
+        DB::table('nutrients')->insert($base + ['name' => 'Fat',      'slug' => null]);
+        $this->assertEquals(2, DB::table('nutrients')->whereNull('slug')->count());
+
+        // A unique non-null slug is accepted
+        DB::table('nutrients')->insert($base + ['name' => 'Fiber', 'slug' => 'fiber']);
+
+        // Duplicate non-null slug must be rejected
+        $this->expectException(QueryException::class);
+        DB::table('nutrients')->insert($base + ['name' => 'Dietary Fiber', 'slug' => 'fiber']);
+    }
+
+    /**
+     * Asserts that calling `down()` on the canonical columns migration drops all six added columns,
+     * and that `up()` re-creates them successfully.
+     */
+    public function test_migration_rolls_back_cleanly(): void
+    {
+        $newColumns = ['parent_id', 'slug', 'canonical_unit_id', 'iu_to_canonical_factor', 'is_label_standard', 'display_order'];
+
+        foreach ($newColumns as $col) {
+            $this->assertTrue(Schema::hasColumn('nutrients', $col), "Column '{$col}' should exist before rollback");
+        }
+
+        $migration = include database_path('migrations/2026_04_13_000002_add_canonical_columns_to_nutrients_table.php');
+        $migration->down();
+
+        foreach ($newColumns as $col) {
+            $this->assertFalse(Schema::hasColumn('nutrients', $col), "Column '{$col}' should be gone after rollback");
+        }
+
+        $migration->up();
+    }
+
+    /**
+     * Asserts that the unique constraint on (source_id, external_id, name) rejects duplicate rows.
+     */
+    public function test_unique_constraint_works_for_source_id_external_id_and_name(): void
+    {
+        $data = [
+            'source_id'   => $this->insertSource(),
+            'external_id' => '203',
+            'name'        => 'Protein',
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ];
+
+        DB::table('nutrients')->insert($data);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('nutrients')->insert($data);
+    }
+
+    /**
+     * Asserts that a nutrient can be inserted without an `external_id` and that the column stores NULL.
+     */
+    public function test_allows_nullable_external_id(): void
+    {
+        DB::table('nutrients')->insert([
+            'source_id'   => $this->insertSource(),
+            'external_id' => null,
+            'name'        => 'Fiber',
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        $row = DB::table('nutrients')->where('name', 'Fiber')->first();
+        $this->assertNotNull($row);
+        $this->assertNull($row->external_id);
+    }
+
+    /**
+     * Asserts that calling `down()` on the source_id migration restores the `source` varchar
+     * column and drops `source_id`, and that `up()` re-applies the change cleanly.
+     */
+    public function test_source_id_migration_rolls_back_cleanly(): void
+    {
+        $this->assertTrue(Schema::hasColumn('nutrients', 'source_id'), "'source_id' should exist before rollback");
+        $this->assertFalse(Schema::hasColumn('nutrients', 'source'), "'source' should not exist before rollback");
+
+        $migration = include database_path('migrations/2026_04_17_074226_replace_source_with_source_id_on_nutrients_table.php');
+        $migration->down();
+
+        $this->assertFalse(Schema::hasColumn('nutrients', 'source_id'), "'source_id' should be gone after rollback");
+        $this->assertTrue(Schema::hasColumn('nutrients', 'source'), "'source' should be restored after rollback");
+
+        $migration->up();
+
+        $this->assertTrue(Schema::hasColumn('nutrients', 'source_id'), "'source_id' should exist after re-applying migration");
+        $this->assertFalse(Schema::hasColumn('nutrients', 'source'), "'source' should be gone after re-applying migration");
+    }
+
+    // -------------------------------------------------------------------------
+
+    private function insertSource(): int
+    {
+        return DB::table('sources')->insertGetId([
+            'name'       => 'USDA FoodData Central',
+            'slug'       => 'usda-' . uniqid(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Strips the size specifier from a MySQL column type string (e.g. `bigint(20)` → `bigint`).
+     */
     protected function normalizeType(string $type): string
     {
         $type = strtolower($type);
@@ -62,39 +353,5 @@ class NutrientsMigrationTest extends TestCase
             return $matches[1];
         }
         return $type;
-    }
-
-    public function test_unique_constraint_works_for_source_external_id_and_name(): void
-    {
-        $data = [
-            'source' => 'USDA',
-            'external_id' => 203,
-            'name' => 'Protein',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ];
-
-        // Insert a row
-        DB::table('nutrients')->insert($data);
-
-        $this->expectException(QueryException::class);
-
-        // Insert duplicate row → should fail
-        DB::table('nutrients')->insert($data);
-    }
-
-    public function test_allows_nullable_external_id(): void
-    {
-        DB::table('nutrients')->insert([
-            'source' => 'USDA',
-            'external_id' => null,
-            'name' => 'Fiber',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $row = DB::table('nutrients')->where('name', 'Fiber')->first();
-        $this->assertNotNull($row);
-        $this->assertNull($row->external_id);
     }
 }

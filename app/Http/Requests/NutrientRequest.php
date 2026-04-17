@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Nutrient;
 use App\Http\Requests\DynamicRequest;
+use Illuminate\Validation\Rule;
 
 class NutrientRequest extends DynamicRequest
 {
@@ -37,6 +38,12 @@ class NutrientRequest extends DynamicRequest
             'description' => ['sometimes', 'string'],
             'derivation_code' => ['sometimes', 'string', 'max:255'],
             'derivation_description' => ['sometimes', 'string', 'max:255'],
+            'parent_id' => ['sometimes', 'integer', 'exists:nutrients,id'],
+            'slug' => ['sometimes', 'string', 'max:255', Rule::unique('nutrients', 'slug')],
+            'canonical_unit_id' => ['sometimes', 'integer', 'exists:units,id'],
+            'iu_to_canonical_factor' => ['sometimes', 'numeric'],
+            'is_label_standard' => ['sometimes', 'boolean'],
+            'display_order' => ['sometimes', 'integer'],
         ];
     }
 
@@ -62,6 +69,12 @@ class NutrientRequest extends DynamicRequest
             'description' => ['sometimes', 'string'],
             'derivation_code' => ['sometimes', 'string', 'max:255'],
             'derivation_description' => ['sometimes', 'string', 'max:255'],
+            'parent_id' => ['sometimes', 'integer', 'exists:nutrients,id'],
+            'slug' => ['sometimes', 'string', 'max:255', Rule::unique('nutrients', 'slug')->ignore($this->nutrient)],
+            'canonical_unit_id' => ['sometimes', 'integer', 'exists:units,id'],
+            'iu_to_canonical_factor' => ['sometimes', 'numeric'],
+            'is_label_standard' => ['sometimes', 'boolean'],
+            'display_order' => ['sometimes', 'integer'],
         ];
     }
 
