@@ -174,6 +174,11 @@ class SourcesTableMigrationTest extends TestCase
     {
         $this->assertTrue(Schema::hasTable('sources'), "Table 'sources' should exist before rollback");
 
+        // The replace_source_with_source_id migration adds a FK from nutrients.source_id
+        // to sources, so it must be rolled back before sources can be dropped.
+        $dependentMigration = include database_path('migrations/2026_04_17_074226_replace_source_with_source_id_on_nutrients_table.php');
+        $dependentMigration->down();
+
         $migration = include database_path('migrations/2026_04_13_164353_create_sources_table.php');
         $migration->down();
 
@@ -182,6 +187,8 @@ class SourcesTableMigrationTest extends TestCase
         $migration->up();
 
         $this->assertTrue(Schema::hasTable('sources'), "Table 'sources' should be recreated after up()");
+
+        $dependentMigration->up();
     }
 
     /**

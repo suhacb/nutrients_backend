@@ -30,7 +30,7 @@ class NutrientModelTest extends TestCase
     public function test_fillable_fields(): void
     {
         $expectedFillable = [
-            'source',
+            'source_id',
             'external_id',
             'name',
             'description',

@@ -143,6 +143,10 @@ class NutrientTagsMigrationTest extends TestCase
     {
         $this->assertTrue(Schema::hasTable('nutrient_tags'), "Table 'nutrient_tags' should exist before rollback");
 
+        // nutrient_nutrient_tag has a FK referencing nutrient_tags, so it must be rolled back first.
+        $pivotMigration = include database_path('migrations/2026_04_17_000001_create_nutrient_nutrient_tag_table.php');
+        $pivotMigration->down();
+
         $migration = include database_path('migrations/2026_04_16_072715_create_nutrient_tags_table.php');
         $migration->down();
 
@@ -151,6 +155,8 @@ class NutrientTagsMigrationTest extends TestCase
         $migration->up();
 
         $this->assertTrue(Schema::hasTable('nutrient_tags'), "Table 'nutrient_tags' should be recreated after up()");
+
+        $pivotMigration->up();
     }
 
     /**

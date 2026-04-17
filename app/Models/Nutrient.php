@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Jobs\SyncNutrientToSearch;
 use App\Models\IngredientNutrientPivot;
 use App\Models\NutrientTag;
+use App\Models\Source;
 use Illuminate\Database\Eloquent\Model;
 use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
@@ -21,7 +22,7 @@ class Nutrient extends Model
     protected $table = 'nutrients';
 
     protected $fillable = [
-        'source',
+        'source_id',
         'external_id',
         'name',
         'description',
@@ -68,6 +69,11 @@ class Nutrient extends Model
         static::restored(function (Nutrient $nutrient) {
             SyncNutrientToSearch::dispatch($nutrient, 'insert')->onQueue('nutrients');
         });
+    }
+
+    public function source(): BelongsTo
+    {
+        return $this->belongsTo(Source::class);
     }
 
     public function parent(): BelongsTo

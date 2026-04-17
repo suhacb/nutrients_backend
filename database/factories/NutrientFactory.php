@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Nutrient;
+use App\Models\Source;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,27 +11,21 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class NutrientFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
-        $source = 'USDA FoodData Central';
         return [
-            'source' => $source,
-            'external_id' => function() use ($source) {
+            'source_id'   => Source::factory(),
+            'external_id' => function (array $attrs) {
                 do {
-                    $number = fake()->numberBetween(1, 999999); // generate random number
+                    $number = fake()->numberBetween(1, 999999);
                     $exists = Nutrient::where([
                         'external_id' => $number,
-                        'source' => $source
+                        'source_id'   => $attrs['source_id'],
                     ])->exists();
                 } while ($exists);
                 return strval($number);
             },
-            'name' => fake()->name(),
+            'name'        => fake()->name(),
             'description' => fake()->paragraph(),
         ];
     }

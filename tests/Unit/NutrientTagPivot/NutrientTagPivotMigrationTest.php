@@ -176,9 +176,16 @@ class NutrientNutrientTagPivotMigrationTest extends TestCase
 
     private function insertNutrient(string $name): int
     {
+        $sourceId = DB::table('sources')->insertGetId([
+            'name'       => 'Unit Test Source',
+            'slug'       => 'unit-test-source',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         return DB::table('nutrients')->insertGetId([
             'name'       => $name,
-            'source'     => 'UNIT_TEST',
+            'source_id'  => $sourceId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -35,7 +35,10 @@ class IngredientFactory extends Factory
             'name' => $this->faker->words(2, true),
             'description' => $this->faker->paragraphs($this->faker->numberBetween(1, 4), true),
             'default_amount' => 100.0,
-            'default_amount_unit_id' => $this->default_amount_unit_id ?? Unit::factory(),
+            'default_amount_unit_id' => function () {
+                $attrs = Unit::factory()->make()->toArray();
+                return Unit::firstOrCreate(['abbreviation' => $attrs['abbreviation']], $attrs)->id;
+            },
         ];
     }
 }
