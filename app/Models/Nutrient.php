@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Jobs\SyncNutrientToSearch;
 use App\Models\IngredientNutrientPivot;
+use App\Models\NutrientTag;
 use Illuminate\Database\Eloquent\Model;
 use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
@@ -90,5 +91,10 @@ class Nutrient extends Model
             ->using(IngredientNutrientPivot::class)
             ->withPivot(['amount', 'amount_unit_id'])
             ->withTimestamps();
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(NutrientTag::class, 'nutrient_nutrient_tag');
     }
 }
