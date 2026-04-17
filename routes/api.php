@@ -2,12 +2,11 @@
 
 use App\Http\Controllers\IngredientsController;
 use App\Http\Controllers\LoginController;
+use App\Http\Controllers\NutrientTagsController;
 use App\Http\Controllers\NutrientsController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SourcesController;
 use App\Http\Controllers\UnitsController;
-use App\Http\Controllers\UsersController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /**Route::get('/user', function (Request $request) {
@@ -27,6 +26,20 @@ Route::prefix('nutrients')->name('nutrients.')->middleware('verify.frontend')->g
     Route::put('{nutrient}', [NutrientsController::class, 'update'])->name('update');
     Route::delete('{nutrient}', [NutrientsController::class, 'delete'])->name('delete');
     Route::post('search', [NutrientsController::class, 'search'])->name('search');
+
+    Route::prefix('{nutrient}/tags')->name('tags.')->group(function () {
+        Route::post('', [NutrientTagsController::class, 'attach'])->name('attach');
+        Route::delete('{tag}', [NutrientTagsController::class, 'detach'])->name('detach');
+        Route::delete('', [NutrientTagsController::class, 'detachAll'])->name('detach-all');
+    });
+});
+
+Route::prefix('nutrient-tags')->name('nutrient-tags.')->middleware('verify.frontend')->group(function() {
+    Route::get('', [NutrientTagsController::class, 'index'])->name('index');
+    Route::get('{nutrientTag}', [NutrientTagsController::class, 'show'])->name('show');
+    Route::post('', [NutrientTagsController::class, 'store'])->name('store');
+    Route::put('{nutrientTag}', [NutrientTagsController::class, 'update'])->name('update');
+    Route::delete('{nutrientTag}', [NutrientTagsController::class, 'delete'])->name('delete');
 });
 
 Route::prefix('ingredients')->name('ingredients.')->middleware('verify.frontend')->group(function() {
