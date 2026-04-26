@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\IngredientNutrientController;
 use App\Http\Controllers\IngredientsController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\NutrientTagsController;
@@ -49,6 +50,14 @@ Route::prefix('ingredients')->name('ingredients.')->middleware('verify.frontend'
     Route::put('{ingredient}', [IngredientsController::class, 'update'])->name('update');
     Route::delete('{ingredient}', [IngredientsController::class, 'delete'])->name('delete');
     Route::post('search', [IngredientsController::class, 'search'])->name('search');
+
+    Route::prefix('{ingredient}/nutrients')->name('nutrients.')->group(function () {
+        Route::get('', [IngredientNutrientController::class, 'index'])->name('index');
+        Route::post('attach', [IngredientNutrientController::class, 'attach'])->name('attach');
+        Route::put('{nutrient}', [IngredientNutrientController::class, 'updatePivot'])->name('update-pivot');
+        Route::delete('{nutrient}', [IngredientNutrientController::class, 'detach'])->name('detach');
+        Route::delete('', [IngredientNutrientController::class, 'detachAll'])->name('detach-all');
+    });
 });
 
 Route::prefix('units')->name('units.')->middleware('verify.frontend')->group(function() {

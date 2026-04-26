@@ -42,7 +42,11 @@ class IngredientNutrientControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertCount(3, $response->json());
-        $this->assertArrayHasKey('pivot', $response->json()[0]);
+        $pivot = $response->json()[0]['pivot'];
+        $this->assertArrayHasKey('amount', $pivot);
+        $this->assertArrayHasKey('amount_unit_id', $pivot);
+        $this->assertEquals(10.0, $pivot['amount']);
+        $this->assertEquals($unit->id, $pivot['amount_unit_id']);
     }
 
     public function test_index_returns_empty_array_when_no_nutrients_attached(): void
@@ -60,10 +64,13 @@ class IngredientNutrientControllerTest extends TestCase
     public function test_attach_adds_nutrient_to_ingredient(): void
     {
         $nutrient = Nutrient::factory()->create();
+        $unit = $this->makeUnit();
 
         $response = $this->withHeaders($this->makeAuthRequestHeader())
             ->postJson(route('ingredients.nutrients.attach', $this->ingredient), [
                 'nutrient_id' => $nutrient->id,
+                'amount' => 42.5,
+                'amount_unit_id' => $unit->id
             ]);
 
         $response->assertStatus(200);
@@ -71,7 +78,9 @@ class IngredientNutrientControllerTest extends TestCase
             'ingredient_id' => $this->ingredient->id,
             'nutrient_id'   => $nutrient->id,
         ]);
-        $this->assertCount(1, $response->json());
+        $pivot = $response->json()[0]['pivot'];
+        $this->assertEquals(42.5, $pivot['amount']);
+        $this->assertEquals($unit->id, $pivot['amount_unit_id']);
     }
 
     public function test_attach_stores_pivot_amount_and_unit(): void
@@ -98,13 +107,24 @@ class IngredientNutrientControllerTest extends TestCase
     public function test_attach_is_idempotent(): void
     {
         $nutrient = Nutrient::factory()->create();
+        $unit = $this->makeUnit();
 
         $this->withHeaders($this->makeAuthRequestHeader())
-            ->postJson(route('ingredients.nutrients.attach', $this->ingredient), ['nutrient_id' => $nutrient->id])
+            ->postJson(route('ingredients.nutrients.attach', $this->ingredient), [
+                'nutrient_id' => $nutrient->id,
+                'amount' => 42.5,
+                'amount_unit_id' => $unit->id,
+                ]
+            )
             ->assertStatus(200);
 
         $this->withHeaders($this->makeAuthRequestHeader())
-            ->postJson(route('ingredients.nutrients.attach', $this->ingredient), ['nutrient_id' => $nutrient->id])
+            ->postJson(route('ingredients.nutrients.attach', $this->ingredient), [
+                'nutrient_id' => $nutrient->id,
+                'amount' => 42.5,
+                'amount_unit_id' => $unit->id,
+                ]
+            )
             ->assertStatus(200);
 
         $this->assertDatabaseCount('ingredient_nutrient', 1);
@@ -164,19 +184,22 @@ class IngredientNutrientControllerTest extends TestCase
 
         $newUnit = Unit::factory()->create();
 
-        $this->withHeaders($this->makeAuthRequestHeader())
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
             ->putJson(route('ingredients.nutrients.update-pivot', [$this->ingredient, $nutrient]), [
                 'amount'         => 99.9,
                 'amount_unit_id' => $newUnit->id,
-            ])
-            ->assertStatus(200);
+            ]);
 
+        $response->assertStatus(200);
         $this->assertDatabaseHas('ingredient_nutrient', [
             'ingredient_id'  => $this->ingredient->id,
             'nutrient_id'    => $nutrient->id,
             'amount'         => 99.9,
             'amount_unit_id' => $newUnit->id,
         ]);
+        $pivot = $response->json()[0]['pivot'];
+        $this->assertEquals(99.9, $pivot['amount']);
+        $this->assertEquals($newUnit->id, $pivot['amount_unit_id']);
     }
 
     public function test_update_pivot_accepts_partial_payload(): void
@@ -192,16 +215,18 @@ class IngredientNutrientControllerTest extends TestCase
             ->assertStatus(200);
 
         $this->assertDatabaseHas('ingredient_nutrient', [
-            'ingredient_id' => $this->ingredient->id,
-            'nutrient_id'   => $nutrient->id,
-            'amount'        => 20.0,
+            'ingredient_id'  => $this->ingredient->id,
+            'nutrient_id'    => $nutrient->id,
+            'amount'         => 20.0,
+            'amount_unit_id' => $unit->id,
         ]);
     }
 
     public function test_update_pivot_rejects_negative_amount(): void
     {
+        $unit = $this->makeUnit();
         $nutrient = Nutrient::factory()->create();
-        $this->ingredient->nutrients()->attach($nutrient->id);
+        $this->ingredient->nutrients()->attach($nutrient->id, ['amount' => 5.0, 'amount_unit_id' => $unit->id]);
 
         $this->withHeaders($this->makeAuthRequestHeader())
             ->putJson(route('ingredients.nutrients.update-pivot', [$this->ingredient, $nutrient]), [
@@ -213,8 +238,9 @@ class IngredientNutrientControllerTest extends TestCase
 
     public function test_update_pivot_rejects_nonexistent_unit(): void
     {
+        $unit = $this->makeUnit();
         $nutrient = Nutrient::factory()->create();
-        $this->ingredient->nutrients()->attach($nutrient->id);
+        $this->ingredient->nutrients()->attach($nutrient->id, ['amount' => 5.0, 'amount_unit_id' => $unit->id]);
 
         $this->withHeaders($this->makeAuthRequestHeader())
             ->putJson(route('ingredients.nutrients.update-pivot', [$this->ingredient, $nutrient]), [
@@ -224,14 +250,27 @@ class IngredientNutrientControllerTest extends TestCase
             ->assertJsonValidationErrors(['amount_unit_id']);
     }
 
+    public function test_update_pivot_on_nonattached_nutrient_is_silent_no_op(): void
+    {
+        $nutrient = Nutrient::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('ingredients.nutrients.update-pivot', [$this->ingredient, $nutrient]), [
+                'amount' => 10.0,
+            ])
+            ->assertStatus(200)
+            ->assertExactJson([]);
+    }
+
     // -------------------------------------------------------------------------
     // detach (single)
     // -------------------------------------------------------------------------
 
     public function test_detach_removes_single_nutrient(): void
     {
+        $unit = $this->makeUnit();
         $nutrients = Nutrient::factory()->count(2)->create();
-        $this->ingredient->nutrients()->attach($nutrients->pluck('id'));
+        $this->ingredient->nutrients()->attach($nutrients->pluck('id'), ['amount' => 1.0, 'amount_unit_id' => $unit->id]);
 
         $this->withHeaders($this->makeAuthRequestHeader())
             ->deleteJson(route('ingredients.nutrients.detach', [$this->ingredient, $nutrients->first()]))
@@ -262,8 +301,9 @@ class IngredientNutrientControllerTest extends TestCase
 
     public function test_detach_all_removes_all_nutrients(): void
     {
+        $unit = $this->makeUnit();
         $nutrients = Nutrient::factory()->count(3)->create();
-        $this->ingredient->nutrients()->attach($nutrients->pluck('id'));
+        $this->ingredient->nutrients()->attach($nutrients->pluck('id'), ['amount' => 1.0, 'amount_unit_id' => $unit->id]);
 
         $this->withHeaders($this->makeAuthRequestHeader())
             ->deleteJson(route('ingredients.nutrients.detach-all', $this->ingredient))
@@ -274,8 +314,9 @@ class IngredientNutrientControllerTest extends TestCase
 
     public function test_detach_all_with_nutrient_ids_removes_only_specified(): void
     {
+        $unit = $this->makeUnit();
         $nutrients = Nutrient::factory()->count(3)->create();
-        $this->ingredient->nutrients()->attach($nutrients->pluck('id'));
+        $this->ingredient->nutrients()->attach($nutrients->pluck('id'), ['amount' => 1.0, 'amount_unit_id' => $unit->id]);
 
         $toDetach = $nutrients->take(2)->pluck('id')->all();
 
