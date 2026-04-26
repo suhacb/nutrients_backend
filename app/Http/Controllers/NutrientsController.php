@@ -5,8 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Nutrient;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\NutrientRequest;
-use App\Exceptions\NutrientAttachedException;
-use App\Exceptions\NutrientHasChildrenException;
 
 class NutrientsController extends Controller
 {
@@ -34,16 +32,7 @@ class NutrientsController extends Controller
 
     public function delete(Nutrient $nutrient): JsonResponse
     {
-        try {
-            $nutrient->delete();
-
-            // Return a JSON response with 204 (No Content) status
-            return response()->json(null, 204);
-
-        } catch (NutrientHasChildrenException $e) {
-            return response()->json(['message' => $e->getMessage()], 409);
-        } catch (NutrientAttachedException $e) {
-            return response()->json(['message' => $e->getMessage()], 409);
-        }
+        $nutrient->delete();
+        return response()->json(null, 204);
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature\Nutrients;
 use Tests\TestCase;
 use Tests\MakesUnit;
 use App\Models\Nutrient;
+use App\Models\Source;
 use Tests\LoginTestUser;
 use App\Models\Ingredient;
 use Illuminate\Support\Facades\Queue;
@@ -23,11 +24,14 @@ class NutrientsControllerTest extends TestCase
 {
     use RefreshDatabase, LoginTestUser, MakesUnit;
 
+    protected Source $source;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->login();
         Queue::fake();
+        $this->source = Source::factory()->create();
     }
 
     /**
@@ -98,9 +102,9 @@ class NutrientsControllerTest extends TestCase
     public function test_store_creates_nutrient(): void
     {
         $payload = [
-            'source' => 'USDA FoodData Central',
+            'source_id'   => $this->source->id,
             'external_id' => '101',
-            'name' => 'Protein',
+            'name'        => 'Protein',
             'description' => 'Test nutrient',
         ];
 
@@ -185,12 +189,12 @@ class NutrientsControllerTest extends TestCase
      * Unprocessable Entity response with validation errors for both the
      * required `name` and `source` fields.
      */
-    public function test_store_requires_name_and_source(): void
+    public function test_store_requires_name_and_source_id(): void
     {
         $response = $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('nutrients.store'), []);
 
         $response->assertStatus(422)->assertJsonValidationErrors([
-            'source',
+            'source_id',
             'name',
         ]);
     }
@@ -206,7 +210,7 @@ class NutrientsControllerTest extends TestCase
         $parent = Nutrient::factory()->create();
 
         $payload = [
-            'source'    => 'USDA FoodData Central',
+            'source_id' => $this->source->id,
             'name'      => 'Child Nutrient',
             'parent_id' => $parent->id,
         ];
@@ -225,7 +229,7 @@ class NutrientsControllerTest extends TestCase
     public function test_store_rejects_nonexistent_parent_id(): void
     {
         $payload = [
-            'source'    => 'USDA FoodData Central',
+            'source_id' => $this->source->id,
             'name'      => 'Child Nutrient',
             'parent_id' => 99999,
         ];
@@ -244,7 +248,7 @@ class NutrientsControllerTest extends TestCase
     public function test_store_rejects_non_integer_parent_id(): void
     {
         $payload = [
-            'source'    => 'USDA FoodData Central',
+            'source_id' => $this->source->id,
             'name'      => 'Child Nutrient',
             'parent_id' => 'not-an-id',
         ];
@@ -303,7 +307,7 @@ class NutrientsControllerTest extends TestCase
         $unit = $this->makeUnit();
 
         $payload = [
-            'source'            => 'USDA FoodData Central',
+            'source_id'         => $this->source->id,
             'name'              => 'Vitamin D',
             'canonical_unit_id' => $unit->id,
         ];
@@ -323,7 +327,7 @@ class NutrientsControllerTest extends TestCase
     public function test_store_rejects_nonexistent_canonical_unit_id(): void
     {
         $payload = [
-            'source'            => 'USDA FoodData Central',
+            'source_id'         => $this->source->id,
             'name'              => 'Vitamin D',
             'canonical_unit_id' => 99999,
         ];
@@ -342,7 +346,7 @@ class NutrientsControllerTest extends TestCase
     public function test_store_rejects_non_integer_canonical_unit_id(): void
     {
         $payload = [
-            'source'            => 'USDA FoodData Central',
+            'source_id'         => $this->source->id,
             'name'              => 'Vitamin D',
             'canonical_unit_id' => 'gram',
         ];
@@ -418,9 +422,9 @@ class NutrientsControllerTest extends TestCase
         Nutrient::factory()->create(['slug' => 'protein']);
 
         $payload = [
-            'source' => 'USDA FoodData Central',
-            'name'   => 'Protein Duplicate',
-            'slug'   => 'protein',
+            'source_id' => $this->source->id,
+            'name'      => 'Protein Duplicate',
+            'slug'      => 'protein',
         ];
 
         $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('nutrients.store'), $payload)
@@ -456,7 +460,7 @@ class NutrientsControllerTest extends TestCase
     public function test_store_rejects_non_numeric_iu_to_canonical_factor(): void
     {
         $payload = [
-            'source'                 => 'USDA FoodData Central',
+            'source_id'              => $this->source->id,
             'name'                   => 'Vitamin A',
             'iu_to_canonical_factor' => 'not-a-number',
         ];
@@ -492,7 +496,7 @@ class NutrientsControllerTest extends TestCase
     public function test_store_rejects_non_boolean_is_label_standard(): void
     {
         $payload = [
-            'source'            => 'USDA FoodData Central',
+            'source_id'         => $this->source->id,
             'name'              => 'Protein',
             'is_label_standard' => 'yes',
         ];
@@ -528,7 +532,7 @@ class NutrientsControllerTest extends TestCase
     public function test_store_rejects_non_integer_display_order(): void
     {
         $payload = [
-            'source'        => 'USDA FoodData Central',
+            'source_id'     => $this->source->id,
             'name'          => 'Protein',
             'display_order' => 'first',
         ];
@@ -568,7 +572,7 @@ class NutrientsControllerTest extends TestCase
         $unit   = $this->makeUnit();
 
         $payload = [
-            'source'                 => 'USDA FoodData Central',
+            'source_id'              => $this->source->id,
             'name'                   => 'Vitamin D',
             'parent_id'              => $parent->id,
             'slug'                   => 'vitamin-d',
