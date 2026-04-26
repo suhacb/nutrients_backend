@@ -68,9 +68,9 @@ class ImportSourceContractTest extends TestCase
             public function transform(array $raw): ImportBatch
             {
                 return new ImportBatch(
-                    nutrient:            new \App\Import\Records\NutrientRecord('1', 'Test', null, null),
                     ingredient:          new \App\Import\Records\IngredientRecord('1', 'Test', null, null, null, null),
                     category:            new \App\Import\Records\IngredientCategoryRecord('Test'),
+                    nutrients:           [new \App\Import\Records\NutrientRecord('1', 'Test', null, null)],
                     ingredientNutrients: [],
                     nutritionFacts:      [],
                 );

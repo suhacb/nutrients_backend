@@ -12,11 +12,6 @@ use PHPUnit\Framework\TestCase;
 
 class ImportBatchTest extends TestCase
 {
-    private function makeNutrientRecord(): NutrientRecord
-    {
-        return new NutrientRecord('1003', 'Protein', null, null);
-    }
-
     private function makeIngredientRecord(): IngredientRecord
     {
         return new IngredientRecord('171705', 'Whole Milk', null, null, null, null);
@@ -27,42 +22,50 @@ class ImportBatchTest extends TestCase
         return new IngredientCategoryRecord('Dairy and Egg Products');
     }
 
+    private function makeNutrientRecord(string $externalId = '1003'): NutrientRecord
+    {
+        return new NutrientRecord($externalId, 'Protein', null, null);
+    }
+
     public function test_constructor_sets_all_properties(): void
     {
-        $nutrient   = $this->makeNutrientRecord();
         $ingredient = $this->makeIngredientRecord();
         $category   = $this->makeCategoryRecord();
-
-        $pivot = new IngredientNutrientRecord('171705', '1003', 3.15, 2);
-        $fact  = new NutritionFactRecord('171705', 'Proximates', 'Protein', 3.15, 2);
+        $nutrient1  = $this->makeNutrientRecord('1003');
+        $nutrient2  = $this->makeNutrientRecord('1004');
+        $pivot      = new IngredientNutrientRecord('171705', '1003', 3.15, 2);
+        $fact       = new NutritionFactRecord('171705', 'Proximates', 'Protein', 3.15, 2);
 
         $batch = new ImportBatch(
-            nutrient:            $nutrient,
             ingredient:          $ingredient,
             category:            $category,
+            nutrients:           [$nutrient1, $nutrient2],
             ingredientNutrients: [$pivot],
             nutritionFacts:      [$fact],
         );
 
-        $this->assertSame($nutrient, $batch->nutrient);
         $this->assertSame($ingredient, $batch->ingredient);
         $this->assertSame($category, $batch->category);
+        $this->assertCount(2, $batch->nutrients);
+        $this->assertSame($nutrient1, $batch->nutrients[0]);
+        $this->assertSame($nutrient2, $batch->nutrients[1]);
         $this->assertCount(1, $batch->ingredientNutrients);
         $this->assertSame($pivot, $batch->ingredientNutrients[0]);
         $this->assertCount(1, $batch->nutritionFacts);
         $this->assertSame($fact, $batch->nutritionFacts[0]);
     }
 
-    public function test_accepts_empty_ingredient_nutrients_and_nutrition_facts(): void
+    public function test_accepts_empty_arrays(): void
     {
         $batch = new ImportBatch(
-            nutrient:            $this->makeNutrientRecord(),
             ingredient:          $this->makeIngredientRecord(),
             category:            $this->makeCategoryRecord(),
+            nutrients:           [],
             ingredientNutrients: [],
             nutritionFacts:      [],
         );
 
+        $this->assertSame([], $batch->nutrients);
         $this->assertSame([], $batch->ingredientNutrients);
         $this->assertSame([], $batch->nutritionFacts);
     }
