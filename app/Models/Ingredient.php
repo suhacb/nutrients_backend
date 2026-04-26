@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\GeneratesSlug;
 use App\Models\IngredientCategory;
 use App\Jobs\SyncIngredientToSearch;
 use App\Models\IngredientNutrientPivot;
@@ -15,13 +16,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Ingredient extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, GeneratesSlug;
     
     protected $fillable = [
         'external_id',
         'source',
         'class',
         'name',
+        'slug',
         'description',
         'default_amount',
         'default_amount_unit_id',

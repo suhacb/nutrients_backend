@@ -30,6 +30,7 @@ class IngredientRequest extends DynamicRequest
             'source' => ['required', 'string', 'max:255'],
             'class' => ['nullable', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
+            'slug' => ['sometimes', 'nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('ingredients', 'slug')],
             'description' => ['nullable', 'string'],
             'default_amount' => ['required', 'numeric', 'min:0'],
             'default_amount_unit_id' => ['required', 'exists:units,id'],
@@ -59,6 +60,7 @@ class IngredientRequest extends DynamicRequest
             'source' => ['sometimes', 'string', 'max:255'],
             'class' => ['sometimes', 'nullable', 'string', 'max:255'],
             'name' => ['sometimes', 'string', 'max:255'],
+            'slug' => ['sometimes', 'nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('ingredients', 'slug')->ignore($ingredientId)],
             'description' => ['sometimes', 'nullable', 'string'],
             'default_amount' => ['sometimes', 'numeric', 'min:0'],
             'default_amount_unit_id' => ['sometimes', 'exists:units,id'],
@@ -71,18 +73,22 @@ class IngredientRequest extends DynamicRequest
             'external_id.unique' => 'The combination of external ID, source, and name must be unique.',
 
             'source.required' => 'Source is required.',
-            'source.string' => 'Source must be a string.',
-            
+            'source.string'   => 'Source must be a string.',
+
             'name.required' => 'Name is required.',
-            
-            'name.string' => 'Name must be a string.',
-            
+            'name.string'   => 'Name must be a string.',
+
+            'slug.string' => 'The slug must be a string.',
+            'slug.max'    => 'The slug may not exceed 255 characters.',
+            'slug.regex'  => 'The slug may only contain lowercase letters, numbers, and hyphens.',
+            'slug.unique' => 'An ingredient with this slug already exists.',
+
             'default_amount.required' => 'Default amount is required.',
-            'default_amount.numeric' => 'Default amount must be a number.',
-            'default_amount.min' => 'Default amount must be at least 0.',
-            
+            'default_amount.numeric'  => 'Default amount must be a number.',
+            'default_amount.min'      => 'Default amount must be at least 0.',
+
             'default_amount_unit_id.required' => 'Default amount unit is required.',
-            'default_amount_unit_id.exists' => 'Selected default amount unit does not exist.',
+            'default_amount_unit_id.exists'   => 'Selected default amount unit does not exist.',
         ];
     }
 
@@ -92,12 +98,16 @@ class IngredientRequest extends DynamicRequest
             'external_id.unique' => 'The combination of external ID, source, and name must be unique.',
 
             'source.string' => 'Source must be a string.',
-            
-            'name.string' => 'Name must be a string.',
-            
+            'name.string'   => 'Name must be a string.',
+
+            'slug.string' => 'The slug must be a string.',
+            'slug.max'    => 'The slug may not exceed 255 characters.',
+            'slug.regex'  => 'The slug may only contain lowercase letters, numbers, and hyphens.',
+            'slug.unique' => 'An ingredient with this slug already exists.',
+
             'default_amount.numeric' => 'Default amount must be a number.',
-            'default_amount.min' => 'Default amount must be at least 0.',
-            
+            'default_amount.min'     => 'Default amount must be at least 0.',
+
             'default_amount_unit_id.exists' => 'Selected default amount unit does not exist.',
         ];
     }

@@ -2,22 +2,23 @@
 
 namespace App\Models;
 
+use App\Exceptions\NutrientAttachedException;
+use App\Exceptions\NutrientHasChildrenException;
 use App\Jobs\SyncNutrientToSearch;
 use App\Models\IngredientNutrientPivot;
 use App\Models\NutrientTag;
 use App\Models\Source;
-use Illuminate\Database\Eloquent\Model;
-use App\Exceptions\NutrientAttachedException;
-use App\Exceptions\NutrientHasChildrenException;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\GeneratesSlug;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Nutrient extends Model
 {
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, GeneratesSlug;
 
     protected $table = 'nutrients';
 

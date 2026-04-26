@@ -18,6 +18,7 @@ class IngredientsMigrationTest extends TestCase
         'source' => ['type' => 'varchar', 'nullable' => false],
         'class' => ['type' => 'varchar', 'nullable' => true],
         'name' => ['type' => 'varchar', 'nullable' => false],
+        'slug' => ['type' => 'varchar', 'nullable' => true],
         'description' => ['type' => 'text', 'nullable' => true],
         'default_amount' => ['type' => 'double', 'nullable' => false],
         'default_amount_unit_id' => ['type' => 'bigint', 'nullable' => false],
@@ -83,6 +84,46 @@ class IngredientsMigrationTest extends TestCase
 
         // Insert duplicate row → should fail
         DB::table('ingredients')->insert($data);
+    }
+
+    public function test_slug_is_nullable(): void
+    {
+        DB::table('ingredients')->insert([
+            'source'                 => 'USDA',
+            'name'                   => 'No Slug Ingredient',
+            'default_amount'         => 100,
+            'default_amount_unit_id' => 1,
+            'created_at'             => now(),
+            'updated_at'             => now(),
+        ]);
+
+        $row = DB::table('ingredients')->where('name', 'No Slug Ingredient')->first();
+        $this->assertNull($row->slug);
+    }
+
+    public function test_slug_unique_constraint_is_enforced(): void
+    {
+        DB::table('ingredients')->insert([
+            'source'                 => 'USDA',
+            'name'                   => 'Whole Milk',
+            'slug'                   => 'whole-milk',
+            'default_amount'         => 100,
+            'default_amount_unit_id' => 1,
+            'created_at'             => now(),
+            'updated_at'             => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('ingredients')->insert([
+            'source'                 => 'USDA',
+            'name'                   => 'Whole Milk Copy',
+            'slug'                   => 'whole-milk',
+            'default_amount'         => 100,
+            'default_amount_unit_id' => 1,
+            'created_at'             => now(),
+            'updated_at'             => now(),
+        ]);
     }
 
     public function test_allows_nullable_external_id(): void

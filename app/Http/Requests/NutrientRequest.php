@@ -29,7 +29,7 @@ class NutrientRequest extends DynamicRequest
             'name'                   => ['required', 'string', 'max:255'],
             'description'            => ['sometimes', 'nullable', 'string'],
             'parent_id'              => ['sometimes', 'nullable', 'integer', 'exists:nutrients,id'],
-            'slug'                   => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('nutrients', 'slug')],
+            'slug'                   => ['sometimes', 'nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('nutrients', 'slug')],
             'canonical_unit_id'      => ['sometimes', 'nullable', 'integer', 'exists:units,id'],
             'iu_to_canonical_factor' => ['sometimes', 'nullable', 'numeric'],
             'is_label_standard'      => ['sometimes', 'boolean'],
@@ -59,7 +59,7 @@ class NutrientRequest extends DynamicRequest
             'name'                   => ['sometimes', 'string', 'max:255'],
             'description'            => ['sometimes', 'nullable', 'string'],
             'parent_id'              => ['sometimes', 'nullable', 'integer', 'exists:nutrients,id'],
-            'slug'                   => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('nutrients', 'slug')->ignore($nutrient)],
+            'slug'                   => ['sometimes', 'nullable', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('nutrients', 'slug')->ignore($nutrient)],
             'canonical_unit_id'      => ['sometimes', 'nullable', 'integer', 'exists:units,id'],
             'iu_to_canonical_factor' => ['sometimes', 'nullable', 'numeric'],
             'is_label_standard'      => ['sometimes', 'boolean'],
@@ -88,6 +88,7 @@ class NutrientRequest extends DynamicRequest
 
             'slug.string' => 'The slug must be a string.',
             'slug.max'    => 'The slug may not exceed 255 characters.',
+            'slug.regex'  => 'The slug may only contain lowercase letters, numbers, and hyphens.',
             'slug.unique' => 'A nutrient with this slug already exists.',
 
             'canonical_unit_id.integer' => 'The canonical unit must be a numeric ID.',
@@ -120,6 +121,7 @@ class NutrientRequest extends DynamicRequest
 
             'slug.string' => 'The slug must be a string.',
             'slug.max'    => 'The slug may not exceed 255 characters.',
+            'slug.regex'  => 'The slug may only contain lowercase letters, numbers, and hyphens.',
             'slug.unique' => 'A nutrient with this slug already exists.',
 
             'canonical_unit_id.integer' => 'The canonical unit must be a numeric ID.',
