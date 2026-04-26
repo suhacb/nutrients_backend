@@ -2,6 +2,7 @@
 
 use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
+use App\Exceptions\SourceHasNutrientsException;
 use App\Http\Middleware\EnsureUserFromToken;
 use App\Http\Middleware\VerifyFrontend;
 use Illuminate\Foundation\Application;
@@ -26,6 +27,9 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json(['message' => $e->getMessage()], 409);
         });
         $exceptions->render(function (NutrientAttachedException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
+        });
+        $exceptions->render(function (SourceHasNutrientsException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         });
     })->create();

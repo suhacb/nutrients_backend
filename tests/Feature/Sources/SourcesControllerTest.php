@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Sources;
 
+use App\Models\Nutrient;
 use App\Models\Source;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\LoginTestUser;
 use Tests\TestCase;
 
@@ -379,6 +381,24 @@ class SourcesControllerTest extends TestCase
             ->assertStatus(204);
 
         $this->assertDatabaseMissing('sources', ['id' => $source->id]);
+    }
+
+    /**
+     * Verifies that deleting a source with attached nutrients returns 409 and
+     * leaves the source record intact.
+     */
+    public function test_cannot_delete_source_with_nutrients(): void
+    {
+        Queue::fake();
+        $source = Source::factory()->create();
+        Nutrient::factory()->create(['source_id' => $source->id]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->deleteJson(route('sources.delete', $source))
+            ->assertStatus(409)
+            ->assertJson(['message' => 'Cannot delete source: it has one or more nutrients attached.']);
+
+        $this->assertDatabaseHas('sources', ['id' => $source->id]);
     }
 
     protected function tearDown(): void
