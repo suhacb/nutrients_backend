@@ -13,11 +13,14 @@ class NutrientTagsControllerTest extends TestCase
 {
     use RefreshDatabase, LoginTestUser;
 
+    protected Nutrient $nutrient;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->login();
         Queue::fake();
+        $this->nutrient = Nutrient::factory()->create();
     }
 
     public function test_index_returns_paginated_nutrient_tags(): void
@@ -268,6 +271,111 @@ class NutrientTagsControllerTest extends TestCase
 
         $this->assertDatabaseMissing('nutrient_tags', ['id' => $tag->id]);
         $this->assertDatabaseCount('nutrient_nutrient_tag', 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // attach
+    // -------------------------------------------------------------------------
+
+    public function test_attach_adds_tag_to_nutrient(): void
+    {
+        $tag = NutrientTag::factory()->create();
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.tags.attach', $this->nutrient), ['tag_id' => $tag->id]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('nutrient_nutrient_tag', [
+            'nutrient_id'     => $this->nutrient->id,
+            'nutrient_tag_id' => $tag->id,
+        ]);
+        $this->assertCount(1, $response->json());
+    }
+
+    public function test_attach_is_idempotent(): void
+    {
+        $tag = NutrientTag::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.tags.attach', $this->nutrient), ['tag_id' => $tag->id])
+            ->assertStatus(200);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.tags.attach', $this->nutrient), ['tag_id' => $tag->id])
+            ->assertStatus(200);
+
+        $this->assertDatabaseCount('nutrient_nutrient_tag', 1);
+    }
+
+    public function test_attach_requires_tag_id(): void
+    {
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.tags.attach', $this->nutrient), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['tag_id']);
+    }
+
+    public function test_attach_rejects_nonexistent_tag_id(): void
+    {
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.tags.attach', $this->nutrient), ['tag_id' => 99999])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['tag_id']);
+    }
+
+    // -------------------------------------------------------------------------
+    // detach
+    // -------------------------------------------------------------------------
+
+    public function test_detach_removes_single_tag(): void
+    {
+        $tags = NutrientTag::factory()->count(2)->create();
+        $this->nutrient->tags()->attach($tags->pluck('id'));
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->deleteJson(route('nutrients.tags.detach', [$this->nutrient, $tags->first()]))
+            ->assertStatus(204);
+
+        $this->assertDatabaseMissing('nutrient_nutrient_tag', [
+            'nutrient_id'     => $this->nutrient->id,
+            'nutrient_tag_id' => $tags->first()->id,
+        ]);
+        $this->assertDatabaseHas('nutrient_nutrient_tag', [
+            'nutrient_id'     => $this->nutrient->id,
+            'nutrient_tag_id' => $tags->last()->id,
+        ]);
+    }
+
+    public function test_detach_nonattached_tag_is_idempotent(): void
+    {
+        $tag = NutrientTag::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->deleteJson(route('nutrients.tags.detach', [$this->nutrient, $tag]))
+            ->assertStatus(204);
+    }
+
+    // -------------------------------------------------------------------------
+    // detachAll
+    // -------------------------------------------------------------------------
+
+    public function test_detach_all_removes_all_tags(): void
+    {
+        $tags = NutrientTag::factory()->count(3)->create();
+        $this->nutrient->tags()->attach($tags->pluck('id'));
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->deleteJson(route('nutrients.tags.detach-all', $this->nutrient))
+            ->assertStatus(204);
+
+        $this->assertDatabaseCount('nutrient_nutrient_tag', 0);
+    }
+
+    public function test_detach_all_on_nutrient_with_no_tags_is_idempotent(): void
+    {
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->deleteJson(route('nutrients.tags.detach-all', $this->nutrient))
+            ->assertStatus(204);
     }
 
     protected function tearDown(): void
