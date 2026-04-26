@@ -1,0 +1,34 @@
+{
+  "FoundationFoods": [
+    {
+      "fdcId": 321358,
+      "description": "Hummus, commercial",
+      "dataType": "Foundation",
+      "foodCategory": { "description": "Legumes and Legume Products" },
+      "labelNutrients": null,
+      "foodNutrients": [
+        {
+          "nutrient": { "id": 1003, "number": "203", "name": "Protein", "rank": 600, "unitName": "g" },
+          "amount": 7.9
+        },
+        {
+          "nutrient": { "id": 1004, "number": "204", "name": "Total lipid (fat)", "rank": 800, "unitName": "g" },
+          "amount": 5.5
+        }
+      ]
+    },
+    {
+      "fdcId": 171705,
+      "description": "Whole Milk",
+      "dataType": "Foundation",
+      "foodCategory": { "description": "Dairy and Egg Products" },
+      "labelNutrients": null,
+      "foodNutrients": [
+        {
+          "nutrient": { "id": 1003, "number": "203", "name": "Protein", "rank": 600, "unitName": "g" },
+          "amount": 3.2
+        }
+      ]
+    }
+  ]
+}
