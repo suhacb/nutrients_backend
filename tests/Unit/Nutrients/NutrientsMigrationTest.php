@@ -25,7 +25,7 @@ class NutrientsMigrationTest extends TestCase
         'id'                     => ['type' => 'bigint',    'nullable' => false],
         'source_id'              => ['type' => 'bigint',    'nullable' => false],
         'external_id'            => ['type' => 'varchar',   'nullable' => true],
-        'name'                   => ['type' => 'varchar',   'nullable' => false],
+        'name'                   => ['type' => 'text',      'nullable' => false],
         'description'            => ['type' => 'text',      'nullable' => true],
         'parent_id'              => ['type' => 'bigint',    'nullable' => true],
         'slug'                   => ['type' => 'varchar',   'nullable' => true],
@@ -318,6 +318,11 @@ class NutrientsMigrationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('nutrients', 'source_id'), "'source_id' should exist before rollback");
         $this->assertFalse(Schema::hasColumn('nutrients', 'source'), "'source' should not exist before rollback");
 
+        // The change_name_to_text migration dropped the (source_id, external_id, name) unique index,
+        // so it must be rolled back first before replace_source_with_source_id can roll back cleanly.
+        $changeNameMigration = include database_path('migrations/2026_04_27_104914_change_name_to_text_on_nutrients_table.php');
+        $changeNameMigration->down();
+
         $migration = include database_path('migrations/2026_04_17_074226_replace_source_with_source_id_on_nutrients_table.php');
         $migration->down();
 
@@ -325,6 +330,7 @@ class NutrientsMigrationTest extends TestCase
         $this->assertTrue(Schema::hasColumn('nutrients', 'source'), "'source' should be restored after rollback");
 
         $migration->up();
+        $changeNameMigration->up();
 
         $this->assertTrue(Schema::hasColumn('nutrients', 'source_id'), "'source_id' should exist after re-applying migration");
         $this->assertFalse(Schema::hasColumn('nutrients', 'source'), "'source' should be gone after re-applying migration");

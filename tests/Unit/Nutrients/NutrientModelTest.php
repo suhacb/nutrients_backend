@@ -7,6 +7,7 @@ use App\Models\Unit;
 use App\Models\Nutrient;
 use App\Models\Ingredient;
 use App\Jobs\SyncNutrientToSearch;
+use App\Traits\GeneratesSlug;
 use Illuminate\Support\Facades\Bus;
 use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
@@ -22,6 +23,20 @@ use Tests\MakesUnit;
 class NutrientModelTest extends TestCase
 {
     use RefreshDatabase, MakesUnit;
+
+    public function test_uses_generates_slug_trait(): void
+    {
+        $this->assertContains(GeneratesSlug::class, class_uses_recursive(Nutrient::class));
+    }
+
+    public function test_slug_is_auto_generated_on_create(): void
+    {
+        Bus::fake();
+        $nutrient = Nutrient::factory()->create(['name' => 'Calcium']);
+
+        $this->assertNotNull($nutrient->slug);
+        $this->assertEquals('calcium', $nutrient->slug);
+    }
 
     /**
      * Asserts that the model's $fillable array matches the expected set of attributes exactly,

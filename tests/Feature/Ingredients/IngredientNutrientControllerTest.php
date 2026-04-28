@@ -182,7 +182,7 @@ class IngredientNutrientControllerTest extends TestCase
         $nutrient = Nutrient::factory()->create();
         $this->ingredient->nutrients()->attach($nutrient->id, ['amount' => 5.0, 'amount_unit_id' => $unit->id]);
 
-        $newUnit = Unit::factory()->create();
+        $newUnit = $this->makeUnit();
 
         $response = $this->withHeaders($this->makeAuthRequestHeader())
             ->putJson(route('ingredients.nutrients.update-pivot', [$this->ingredient, $nutrient]), [

@@ -105,13 +105,13 @@ class IngredientsControllerTest extends TestCase
                 ],
                 'nutrients' => [
                     [
-                        'id' => $nutrient->id,
-                        'source' => $nutrient->source,
+                        'id'          => $nutrient->id,
+                        'source_id'   => $nutrient->source_id,
                         'external_id' => $nutrient->external_id,
-                        'name' => $nutrient->name,
+                        'name'        => $nutrient->name,
                         'description' => $nutrient->description,
                         'pivot' => [
-                            'amount' => 5,
+                            'amount'         => 5,
                             'amount_unit_id' => $amountUnit->id,
                         ],
                     ]
@@ -305,6 +305,117 @@ class IngredientsControllerTest extends TestCase
             'The combination of external ID, source, and name must be unique.',
             $response->json('errors.external_id.0')
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // slug
+    // -------------------------------------------------------------------------
+
+    public function test_store_auto_generates_slug_when_not_provided(): void
+    {
+        $unit = Unit::factory()->create();
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), [
+                'source'                 => 'USDA',
+                'name'                   => 'Whole Milk',
+                'default_amount'         => 100,
+                'default_amount_unit_id' => $unit->id,
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals('whole-milk', $response->json('slug'));
+    }
+
+    public function test_store_accepts_explicit_slug(): void
+    {
+        $unit = Unit::factory()->create();
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), [
+                'source'                 => 'USDA',
+                'name'                   => 'Whole Milk',
+                'slug'                   => 'my-custom-slug',
+                'default_amount'         => 100,
+                'default_amount_unit_id' => $unit->id,
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals('my-custom-slug', $response->json('slug'));
+    }
+
+    public function test_store_rejects_duplicate_slug(): void
+    {
+        $unit = Unit::factory()->create();
+        Ingredient::factory()->create(['slug' => 'whole-milk']);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), [
+                'source'                 => 'USDA',
+                'name'                   => 'Whole Milk Copy',
+                'slug'                   => 'whole-milk',
+                'default_amount'         => 100,
+                'default_amount_unit_id' => $unit->id,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['slug']);
+    }
+
+    public function test_update_accepts_explicit_slug(): void
+    {
+        $ingredient = Ingredient::factory()->create(['slug' => 'old-slug']);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('ingredients.update', $ingredient), ['slug' => 'new-slug'])
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('ingredients', ['id' => $ingredient->id, 'slug' => 'new-slug']);
+    }
+
+    public function test_update_rejects_duplicate_slug(): void
+    {
+        Ingredient::factory()->create(['slug' => 'taken-slug']);
+        $ingredient = Ingredient::factory()->create(['slug' => 'my-slug']);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('ingredients.update', $ingredient), ['slug' => 'taken-slug'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['slug']);
+    }
+
+    public function test_update_allows_same_slug_on_same_record(): void
+    {
+        $ingredient = Ingredient::factory()->create(['slug' => 'my-slug']);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('ingredients.update', $ingredient), ['slug' => 'my-slug'])
+            ->assertStatus(200);
+    }
+
+    public function test_store_rejects_invalid_slug_format(): void
+    {
+        $unit = Unit::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), [
+                'source'                 => 'USDA',
+                'name'                   => 'Whole Milk',
+                'slug'                   => 'Invalid Slug!',
+                'default_amount'         => 100,
+                'default_amount_unit_id' => $unit->id,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['slug']);
+    }
+
+    public function test_update_rejects_invalid_slug_format(): void
+    {
+        $ingredient = Ingredient::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('ingredients.update', $ingredient), ['slug' => 'UPPERCASE'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['slug']);
     }
 
     protected function tearDown(): void

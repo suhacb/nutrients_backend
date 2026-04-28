@@ -19,14 +19,14 @@ class IngredientNutrientPivotFactory extends Factory
      */
     public function definition(): array
     {
-        $unit = Unit::factory()->create();
-        $nutrient = Nutrient::factory()->create();
-        $ingredient = Ingredient::factory()->create();
         return [
-            'ingredient_id' => $ingredient->id,
-            'nutrient_id' => $nutrient->id,
-            'amount' => 100,
-            'amount_unit_id' => $unit->id,
+            'ingredient_id' => Ingredient::factory(),
+            'nutrient_id'   => Nutrient::factory(),
+            'amount'        => 100,
+            'amount_unit_id' => function () {
+                $attrs = Unit::factory()->make()->toArray();
+                return Unit::firstOrCreate(['abbreviation' => $attrs['abbreviation']], $attrs)->id;
+            },
         ];
     }
 }

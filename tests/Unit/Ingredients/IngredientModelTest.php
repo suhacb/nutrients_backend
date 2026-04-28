@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\Unit;
 use App\Models\Nutrient;
 use App\Models\Ingredient;
+use App\Traits\GeneratesSlug;
 use Illuminate\Support\Carbon;
 use App\Jobs\SyncIngredientToSearch;
 use Illuminate\Support\Facades\Queue;
@@ -22,6 +23,20 @@ class IngredientModelTest extends TestCase
         parent::setUp();
     }
     
+    public function test_uses_generates_slug_trait(): void
+    {
+        $this->assertContains(GeneratesSlug::class, class_uses_recursive(Ingredient::class));
+    }
+
+    public function test_slug_is_auto_generated_on_create(): void
+    {
+        Queue::fake();
+        $ingredient = Ingredient::factory()->create(['name' => 'Whole Milk']);
+
+        $this->assertNotNull($ingredient->slug);
+        $this->assertEquals('whole-milk', $ingredient->slug);
+    }
+
     public function test_fillable_attributes(): void
     {
         $ingredient = new Ingredient();
@@ -31,6 +46,7 @@ class IngredientModelTest extends TestCase
             'source',
             'class',
             'name',
+            'slug',
             'description',
             'default_amount',
             'default_amount_unit_id',

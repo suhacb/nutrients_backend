@@ -413,10 +413,31 @@ class NutrientsControllerTest extends TestCase
 
     /**
 
-     *
-     * Verifies that POST /api/nutrients with a slug that is already taken by
-     * another nutrient returns a 422 response with a validation error on slug.
-     */
+    public function test_store_auto_generates_slug_when_not_provided(): void
+    {
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.store'), [
+                'source_id' => $this->source->id,
+                'name'      => 'Vitamin C',
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals('vitamin-c', $response->json('slug'));
+    }
+
+    public function test_store_accepts_explicit_slug(): void
+    {
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.store'), [
+                'source_id' => $this->source->id,
+                'name'      => 'Protein',
+                'slug'      => 'my-protein',
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertEquals('my-protein', $response->json('slug'));
+    }
+
     public function test_store_rejects_duplicate_slug(): void
     {
         Nutrient::factory()->create(['slug' => 'protein']);
@@ -448,6 +469,37 @@ class NutrientsControllerTest extends TestCase
              ->putJson(route('nutrients.update', $nutrient), ['slug' => 'protein'])
              ->assertStatus(422)
              ->assertJsonValidationErrors(['slug']);
+    }
+
+    public function test_update_allows_same_slug_on_same_record(): void
+    {
+        $nutrient = Nutrient::factory()->create(['slug' => 'protein']);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->putJson(route('nutrients.update', $nutrient), ['slug' => 'protein'])
+             ->assertStatus(200);
+    }
+
+    public function test_store_rejects_invalid_slug_format(): void
+    {
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.store'), [
+                'source_id' => $this->source->id,
+                'name'      => 'Protein',
+                'slug'      => 'Invalid Slug!',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['slug']);
+    }
+
+    public function test_update_rejects_invalid_slug_format(): void
+    {
+        $nutrient = Nutrient::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('nutrients.update', $nutrient), ['slug' => 'UPPERCASE'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['slug']);
     }
 
     /**
