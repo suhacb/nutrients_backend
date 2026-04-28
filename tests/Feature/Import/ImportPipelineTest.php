@@ -9,8 +9,7 @@ use App\Import\Sources\USDA\UsdaIngredientTransformer;
 use App\Import\Sources\USDA\UsdaNutrientTransformer;
 use App\Import\Sources\USDA\UsdaNutritionFactTransformer;
 use App\Import\Sources\USDA\UsdaPivotTransformer;
-use App\Jobs\SyncIngredientToSearch;
-use App\Jobs\SyncNutrientToSearch;
+use App\Jobs\SyncSourceToSearch;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Source;
@@ -116,8 +115,7 @@ class ImportPipelineTest extends TestCase
     {
         $this->makePipeline()->run($this->fixture);
 
-        Queue::assertPushed(SyncNutrientToSearch::class);
-        Queue::assertPushed(SyncIngredientToSearch::class);
+        Queue::assertPushed(SyncSourceToSearch::class);
     }
 
     public function test_pipeline_fails_fast_when_source_not_seeded(): void

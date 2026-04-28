@@ -17,7 +17,7 @@ class IngredientsMigrationTest extends TestCase
         'external_id' => ['type' => 'varchar', 'nullable' => true],
         'source' => ['type' => 'varchar', 'nullable' => false],
         'class' => ['type' => 'varchar', 'nullable' => true],
-        'name' => ['type' => 'varchar', 'nullable' => false],
+        'name' => ['type' => 'text', 'nullable' => false],
         'slug' => ['type' => 'varchar', 'nullable' => true],
         'description' => ['type' => 'text', 'nullable' => true],
         'default_amount' => ['type' => 'double', 'nullable' => false],

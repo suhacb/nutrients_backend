@@ -174,6 +174,11 @@ class SourcesTableMigrationTest extends TestCase
     {
         $this->assertTrue(Schema::hasTable('sources'), "Table 'sources' should exist before rollback");
 
+        // The change_name_to_text migration dropped the (source_id, external_id, name) unique index,
+        // so it must be rolled back before replace_source_with_source_id can roll back cleanly.
+        $changeNameMigration = include database_path('migrations/2026_04_27_104914_change_name_to_text_on_nutrients_table.php');
+        $changeNameMigration->down();
+
         // The replace_source_with_source_id migration adds a FK from nutrients.source_id
         // to sources, so it must be rolled back before sources can be dropped.
         $dependentMigration = include database_path('migrations/2026_04_17_074226_replace_source_with_source_id_on_nutrients_table.php');
@@ -189,6 +194,7 @@ class SourcesTableMigrationTest extends TestCase
         $this->assertTrue(Schema::hasTable('sources'), "Table 'sources' should be recreated after up()");
 
         $dependentMigration->up();
+        $changeNameMigration->up();
     }
 
     /**

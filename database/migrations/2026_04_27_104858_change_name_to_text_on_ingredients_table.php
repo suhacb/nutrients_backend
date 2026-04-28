@@ -16,14 +16,16 @@ return new class extends Migration
             $table->dropUnique(['source', 'external_id', 'name']);
             $table->text('name')->change();
             $table->unique(['source', 'external_id'], 'ingredients_source_external_id_unique');
-            $table->index(DB::raw('name(500)'), 'ingredients_name_prefix');
         });
+
+        DB::statement('ALTER TABLE `ingredients` ADD INDEX `ingredients_name_prefix` (`name`(500))');
     }
 
     public function down(): void
     {
+        DB::statement('ALTER TABLE `ingredients` DROP INDEX `ingredients_name_prefix`');
+
         Schema::table('ingredients', function (Blueprint $table) {
-            $table->dropIndex('ingredients_name_prefix');
             $table->dropUnique('ingredients_source_external_id_unique');
             $table->string('name')->change();
             $table->unique(['source', 'external_id', 'name']);

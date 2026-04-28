@@ -12,21 +12,34 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Add the replacement index first so the source_id FK constraint
+        // has a usable index before we drop the old three-column unique index.
+        Schema::table('nutrients', function (Blueprint $table) {
+            $table->unique(['source_id', 'external_id'], 'nutrients_source_id_external_id_unique');
+        });
+
         Schema::table('nutrients', function (Blueprint $table) {
             $table->dropUnique(['source_id', 'external_id', 'name']);
             $table->text('name')->change();
-            $table->unique(['source_id', 'external_id'], 'nutrients_source_id_external_id_unique');
-            $table->index(DB::raw('name(500)'), 'nutrients_name_prefix');
         });
+
+        DB::statement('ALTER TABLE `nutrients` ADD INDEX `nutrients_name_prefix` (`name`(500))');
     }
 
     public function down(): void
     {
+        DB::statement('ALTER TABLE `nutrients` DROP INDEX `nutrients_name_prefix`');
+
+        // Change name back to varchar first; MySQL cannot add a full unique index on a text column.
         Schema::table('nutrients', function (Blueprint $table) {
-            $table->dropIndex('nutrients_name_prefix');
-            $table->dropUnique('nutrients_source_id_external_id_unique');
             $table->string('name')->change();
+        });
+
+        // Add the 3-column unique index first (it covers source_id so the FK stays satisfied),
+        // then drop the 2-column index in the same statement.
+        Schema::table('nutrients', function (Blueprint $table) {
             $table->unique(['source_id', 'external_id', 'name']);
+            $table->dropUnique('nutrients_source_id_external_id_unique');
         });
     }
 };

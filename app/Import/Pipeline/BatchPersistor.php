@@ -7,6 +7,7 @@ class BatchPersistor {
     private array $categoryMap    = [];
     private array $nutrientMap    = [];
     private array $ingredientMap  = [];
+    private ?int  $defaultUnitId  = null;
 
     public function persist(array $batches, \App\Models\Source $source): void
     {
@@ -93,9 +94,10 @@ class BatchPersistor {
 
     private function upsertIngredients(array $batches, \App\Models\Source $source): void
     {
-        $rows      = [];
-        $usedSlugs = [];
-        $now       = now();
+        $rows           = [];
+        $usedSlugs      = [];
+        $categoryByExId = [];
+        $now            = now();
 
         $allExternalIds = collect($batches)
             ->pluck('ingredient.externalId')
@@ -129,6 +131,10 @@ class BatchPersistor {
                 'created_at'            => $now,
                 'updated_at'            => $now,
             ];
+
+            if (isset($this->categoryMap[$batch->category->name])) {
+                $categoryByExId[$record->externalId] = $this->categoryMap[$batch->category->name];
+            }
         }
 
         if (empty($rows)) {
@@ -141,24 +147,24 @@ class BatchPersistor {
             ['name', 'description', 'class', 'updated_at']
         );
 
-        $ingredients = \App\Models\Ingredient::where('source', $source->name)
+        $this->ingredientMap = \App\Models\Ingredient::where('source', $source->name)
             ->whereIn('external_id', array_keys($rows))
-            ->get();
+            ->pluck('id', 'external_id')
+            ->all();
 
-        foreach ($ingredients as $ingredient) {
-            $this->ingredientMap[$ingredient->external_id] = $ingredient->id;
-
-            $categoryName = null;
-            foreach ($batches as $batch) {
-                if ($batch->ingredient->externalId === $ingredient->external_id) {
-                    $categoryName = $batch->category->name;
-                    break;
-                }
+        $pivotRows = [];
+        foreach ($this->ingredientMap as $externalId => $ingredientId) {
+            if (isset($categoryByExId[$externalId])) {
+                $pivotRows[] = [
+                    'ingredient_id'          => $ingredientId,
+                    'ingredient_category_id' => $categoryByExId[$externalId],
+                ];
             }
+        }
 
-            if ($categoryName && isset($this->categoryMap[$categoryName])) {
-                $ingredient->categories()->syncWithoutDetaching([$this->categoryMap[$categoryName]]);
-            }
+        if (!empty($pivotRows)) {
+            \Illuminate\Support\Facades\DB::table('ingredient_ingredient_category')
+                ->insertOrIgnore($pivotRows);
         }
     }
 
@@ -256,7 +262,7 @@ class BatchPersistor {
 
     private function resolveDefaultUnit(): int
     {
-        return \App\Models\Unit::where('abbreviation', 'g')->value('id')
+        return $this->defaultUnitId ??= \App\Models\Unit::where('abbreviation', 'g')->value('id')
             ?? \App\Models\Unit::first()->id;
     }
 }

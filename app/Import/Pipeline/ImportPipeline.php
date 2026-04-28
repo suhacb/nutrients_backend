@@ -3,10 +3,7 @@
 namespace App\Import\Pipeline;
 
 use App\Import\Contracts\ImportSourceContract;
-use App\Jobs\SyncIngredientToSearch;
-use App\Jobs\SyncNutrientToSearch;
-use App\Models\Ingredient;
-use App\Models\Nutrient;
+use App\Jobs\SyncSourceToSearch;
 use App\Models\Source;
 
 class ImportPipeline {
@@ -33,37 +30,15 @@ class ImportPipeline {
             }
 
             if (count($batch) >= $this->batchSize) {
-                $this->processBatch($batch, $source);
+                $this->persistor->persist($batch, $source);
                 $batch = [];
             }
         }
 
         if (!empty($batch)) {
-            $this->processBatch($batch, $source);
+            $this->persistor->persist($batch, $source);
         }
-    }
 
-    private function processBatch(array $batches, Source $source): void
-    {
-        $this->persistor->persist($batches, $source);
-        $this->dispatchSyncJobs($batches);
-    }
-
-    private function dispatchSyncJobs(array $batches): void
-    {
-        $ingredientExternalIds = collect($batches)->pluck('ingredient.externalId')->unique()->all();
-        $nutrientExternalIds   = collect($batches)->flatMap(fn($b) => collect($b->nutrients)->pluck('externalId'))->unique()->all();
-
-        \App\Models\Ingredient::whereIn('external_id', $ingredientExternalIds)
-            ->get()
-            ->each(function (Ingredient $ingredient) {
-                SyncIngredientToSearch::dispatch($ingredient->loadForSearch(), 'upsert')->onQueue('ingredients');
-            });
-
-        \App\Models\Nutrient::whereIn('external_id', $nutrientExternalIds)
-            ->get()
-            ->each(function (Nutrient $nutrient) {
-                SyncNutrientToSearch::dispatch($nutrient, 'upsert')->onQueue('nutrients');
-            });
+        SyncSourceToSearch::dispatch($source)->onQueue('ingredients');
     }
 }

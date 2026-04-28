@@ -2,8 +2,7 @@
 
 namespace Tests\Feature\Import;
 
-use App\Jobs\SyncIngredientToSearch;
-use App\Jobs\SyncNutrientToSearch;
+use App\Jobs\SyncSourceToSearch;
 use App\Models\Source;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,8 +75,7 @@ class ImportFromSourceCommandTest extends TestCase
     {
         $this->artisanImport()->assertExitCode(0);
 
-        Queue::assertPushed(SyncIngredientToSearch::class);
-        Queue::assertPushed(SyncNutrientToSearch::class);
+        Queue::assertPushed(SyncSourceToSearch::class);
     }
 
     public function test_command_is_idempotent(): void
