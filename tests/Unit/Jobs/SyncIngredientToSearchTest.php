@@ -29,12 +29,20 @@ class SyncIngredientToSearchTest extends TestCase
 
     public function test_handle_calls_insert_on_search_service(): void
     {
-        $id = fake()->numberBetween(1000, 10000);
-
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('insert')
             ->once()
-            ->with(config('zinc.indices.ingredients'), $this->ingredient->id, $this->ingredient->toArray());
+            ->with(
+                config('zinc.indices.ingredients'),
+                $this->ingredient->id,
+                Mockery::on(fn($payload) =>
+                    array_key_exists('brand',               $payload) &&
+                    array_key_exists('default_amount_unit', $payload) &&
+                    array_key_exists('nutrients',           $payload) &&
+                    array_key_exists('nutrition_facts',     $payload) &&
+                    array_key_exists('categories',          $payload)
+                )
+            );
 
         $job = new SyncIngredientToSearch($this->ingredient, 'insert');
         $job->handle($mock);
@@ -46,7 +54,17 @@ class SyncIngredientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('update')
             ->once()
-            ->with(config('zinc.indices.ingredients'), $this->ingredient->id, $this->ingredient->toArray());
+            ->with(
+                config('zinc.indices.ingredients'),
+                $this->ingredient->id,
+                Mockery::on(fn($payload) =>
+                    array_key_exists('brand',               $payload) &&
+                    array_key_exists('default_amount_unit', $payload) &&
+                    array_key_exists('nutrients',           $payload) &&
+                    array_key_exists('nutrition_facts',     $payload) &&
+                    array_key_exists('categories',          $payload)
+                )
+            );
 
         $job = new SyncIngredientToSearch($this->ingredient, 'update');
         $job->handle($mock);

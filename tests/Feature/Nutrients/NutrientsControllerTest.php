@@ -5,6 +5,7 @@ namespace Tests\Feature\Nutrients;
 use Tests\TestCase;
 use Tests\MakesUnit;
 use App\Models\Nutrient;
+use App\Models\NutrientTag;
 use App\Models\Source;
 use Tests\LoginTestUser;
 use App\Models\Ingredient;
@@ -400,6 +401,30 @@ class NutrientsControllerTest extends TestCase
      * canonical_unit includes a nested canonical_unit object whose id matches
      * the stored unit.
      */
+    public function test_show_returns_full_nutrient_with_relationships(): void
+    {
+        $unit     = $this->makeUnit();
+        $tag      = NutrientTag::factory()->create();
+        $parent   = Nutrient::factory()->create(['name' => 'Macronutrients']);
+        $nutrient = Nutrient::factory()->create([
+            'source_id'         => $this->source->id,
+            'parent_id'         => $parent->id,
+            'canonical_unit_id' => $unit->id,
+        ]);
+        Nutrient::factory()->create(['name' => 'Child Nutrient', 'parent_id' => $nutrient->id]);
+        $nutrient->tags()->attach($tag);
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('nutrients.show', $nutrient))
+            ->assertStatus(200);
+
+        $response->assertJsonPath('source.id', $this->source->id);
+        $response->assertJsonPath('canonical_unit.id', $unit->id);
+        $response->assertJsonPath('parent.id', $parent->id);
+        $response->assertJsonStructure(['children' => [['id', 'name']]]);
+        $response->assertJsonStructure(['tags'     => [['id', 'name']]]);
+    }
+
     public function test_show_includes_canonical_unit(): void
     {
         $unit     = $this->makeUnit();

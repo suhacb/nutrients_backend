@@ -46,7 +46,7 @@ class SyncIngredientToSearch implements ShouldQueue {
                 // Try the model instance first, fallback to DB query
                 $ingredient = $this->ingredient ?? Ingredient::find($this->id);
                 if ($ingredient) {
-                    $payload = $ingredient->toArray();
+                    $payload = $ingredient->loadForSearch()->toArray();
                     $this->action === 'insert'
                         ? $search->insert($index, $this->id, $payload)
                         : $search->update($index, $this->id, $payload);

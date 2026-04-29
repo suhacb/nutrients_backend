@@ -5,7 +5,9 @@ namespace Tests\Unit\Nutrients;
 use Tests\TestCase;
 use App\Models\Unit;
 use App\Models\Nutrient;
+use App\Models\NutrientTag;
 use App\Models\Ingredient;
+use App\Models\Source;
 use App\Jobs\SyncNutrientToSearch;
 use App\Traits\GeneratesSlug;
 use Illuminate\Support\Facades\Bus;
@@ -13,6 +15,7 @@ use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\MakesUnit;
+use Tests\UsesZincIndices;
 
 /**
  * Tests the Nutrient Eloquent model: fillable fields, casts, relationships
@@ -22,7 +25,7 @@ use Tests\MakesUnit;
  */
 class NutrientModelTest extends TestCase
 {
-    use RefreshDatabase, MakesUnit;
+    use RefreshDatabase, MakesUnit, UsesZincIndices;
 
     public function test_uses_generates_slug_trait(): void
     {
@@ -211,7 +214,37 @@ class NutrientModelTest extends TestCase
         $this->assertSoftDeleted('nutrients', ['id' => $parent->id]);
     }
 
-    // test_tags_relationship_resolves will be added once NutrientTag is implemented
+    public function test_load_for_search_loads_expected_relationships(): void
+    {
+        Bus::fake();
+
+        $unit     = Unit::create(['name' => 'gram', 'abbreviation' => 'g', 'type' => 'mass']);
+        $source   = Source::factory()->create();
+        $tag      = NutrientTag::factory()->create();
+        $parent   = Nutrient::factory()->create(['name' => 'Macronutrients']);
+        $nutrient = Nutrient::factory()->create([
+            'source_id'         => $source->id,
+            'parent_id'         => $parent->id,
+            'canonical_unit_id' => $unit->id,
+        ]);
+        Nutrient::factory()->create(['name' => 'Child Nutrient', 'parent_id' => $nutrient->id]);
+        $nutrient->tags()->attach($tag);
+
+        $fresh = Nutrient::find($nutrient->id);
+        $fresh->loadForSearch();
+
+        $this->assertTrue($fresh->relationLoaded('source'));
+        $this->assertTrue($fresh->relationLoaded('canonicalUnit'));
+        $this->assertTrue($fresh->relationLoaded('parent'));
+        $this->assertTrue($fresh->relationLoaded('children'));
+        $this->assertTrue($fresh->relationLoaded('tags'));
+
+        $this->assertEquals($source->id, $fresh->source->id);
+        $this->assertEquals($unit->id, $fresh->canonicalUnit->id);
+        $this->assertEquals($parent->id, $fresh->parent->id);
+        $this->assertCount(1, $fresh->children);
+        $this->assertCount(1, $fresh->tags);
+    }
 
     /**
      * Asserts that creating a nutrient dispatches a `SyncNutrientToSearch` job
