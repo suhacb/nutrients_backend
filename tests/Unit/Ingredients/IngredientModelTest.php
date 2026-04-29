@@ -15,15 +15,11 @@ use App\Models\Brand;
 use App\Models\IngredientNutritionFact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\MakesUnit;
+use Tests\UsesZincIndices;
 
 class IngredientModelTest extends TestCase
 {
-    use RefreshDatabase, MakesUnit;
-
-    public function setUp(): void
-    {
-        parent::setUp();
-    }
+    use RefreshDatabase, MakesUnit, UsesZincIndices;
     
     public function test_uses_generates_slug_trait(): void
     {
@@ -203,7 +199,7 @@ class IngredientModelTest extends TestCase
             'amount_unit_id' => $amountUnit->id,
         ]);
 
-        IngredientNutritionFact::factory()->create(['ingredient_id' => $ingredient->id]);
+        IngredientNutritionFact::factory()->create(['ingredient_id' => $ingredient->id, 'amount_unit_id' => $defaultUnit->id]);
         $ingredient->categories()->attach($category->id);
 
         $fresh = Ingredient::find($ingredient->id);

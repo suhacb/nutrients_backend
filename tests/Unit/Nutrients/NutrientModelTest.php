@@ -15,6 +15,7 @@ use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\MakesUnit;
+use Tests\UsesZincIndices;
 
 /**
  * Tests the Nutrient Eloquent model: fillable fields, casts, relationships
@@ -24,7 +25,7 @@ use Tests\MakesUnit;
  */
 class NutrientModelTest extends TestCase
 {
-    use RefreshDatabase, MakesUnit;
+    use RefreshDatabase, MakesUnit, UsesZincIndices;
 
     public function test_uses_generates_slug_trait(): void
     {
