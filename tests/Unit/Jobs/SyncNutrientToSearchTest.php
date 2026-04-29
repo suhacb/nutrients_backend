@@ -34,7 +34,7 @@ class SyncNutrientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('insert')
             ->once()
-            ->with('nutrients', $this->nutrient->id, $this->nutrient->toArray());
+            ->with(config('zinc.indices.nutrients'), $this->nutrient->id, $this->nutrient->toArray());
 
         $job = new SyncNutrientToSearch($this->nutrient, 'insert');
         $job->handle($mock);
@@ -50,7 +50,7 @@ class SyncNutrientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('update')
             ->once()
-            ->with('nutrients', $this->nutrient->id, $this->nutrient->toArray());
+            ->with(config('zinc.indices.nutrients'), $this->nutrient->id, $this->nutrient->toArray());
 
         $job = new SyncNutrientToSearch($this->nutrient, 'update');
         $job->handle($mock);
@@ -66,7 +66,7 @@ class SyncNutrientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('delete')
             ->once()
-            ->with('nutrients', $this->nutrient->id);
+            ->with(config('zinc.indices.nutrients'), $this->nutrient->id);
 
         $job = new SyncNutrientToSearch($this->nutrient, 'delete');
         $job->handle($mock);

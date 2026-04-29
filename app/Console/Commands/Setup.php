@@ -82,24 +82,22 @@ class Setup extends Command
 
     private function rebuildZincIndices(): bool
     {
-        $indices = ['ingredients', 'nutrients'];
-
-        foreach ($indices as $index) {
-            $this->line("  Deleting index: {$index}");
+        foreach (config('zinc.indices') as $key => $name) {
+            $this->line("  Deleting index: {$name}");
             $response = Http::withBasicAuth($this->zincUser, $this->zincPassword)
-                ->delete("{$this->zincBaseUri}/api/index/{$index}");
+                ->delete("{$this->zincBaseUri}/api/index/{$name}");
 
             if (!$response->successful() && $response->status() !== 404) {
-                $this->error("Failed to delete Zinc index '{$index}': {$response->body()}");
+                $this->error("Failed to delete Zinc index '{$name}': {$response->body()}");
                 return false;
             }
 
-            $this->line("  Creating index: {$index}");
+            $this->line("  Creating index: {$name}");
             $response = Http::withBasicAuth($this->zincUser, $this->zincPassword)
-                ->put("{$this->zincBaseUri}/api/index", $this->indexPayload($index));
+                ->put("{$this->zincBaseUri}/api/index", $this->indexPayload($key, $name));
 
             if (!$response->successful()) {
-                $this->error("Failed to create Zinc index '{$index}': {$response->body()}");
+                $this->error("Failed to create Zinc index '{$name}': {$response->body()}");
                 return false;
             }
         }
@@ -107,59 +105,12 @@ class Setup extends Command
         return true;
     }
 
-    private function indexPayload(string $index): array
+    private function indexPayload(string $key, string $name): array
     {
-        return match ($index) {
-            'ingredients' => [
-                'name'         => 'ingredients',
-                'storage_type' => 'disk',
-                'shards'       => 1,
-                'replicas'     => 0,
-                'fields'       => [
-                    'id'                     => ['type' => 'integer'],
-                    'external_id'            => ['type' => 'keyword'],
-                    'source'                 => ['type' => 'keyword'],
-                    'class'                  => ['type' => 'keyword'],
-                    'name'                   => ['type' => 'text'],
-                    'description'            => ['type' => 'text'],
-                    'slug'                   => ['type' => 'keyword'],
-                    'default_amount'         => ['type' => 'numeric'],
-                    'default_amount_unit_id' => ['type' => 'integer'],
-                    'brand_id'               => ['type' => 'integer'],
-                    'brand.id'               => ['type' => 'integer'],
-                    'brand.name'             => ['type' => 'text'],
-                    'brand.owner'            => ['type' => 'text'],
-                    'brand.slug'             => ['type' => 'keyword'],
-                    'brand.country'          => ['type' => 'keyword'],
-                    'created_at'             => ['type' => 'date'],
-                    'updated_at'             => ['type' => 'date'],
-                    'deleted_at'             => ['type' => 'date', 'index' => false],
-                ],
-            ],
-            'nutrients' => [
-                'name'         => 'nutrients',
-                'storage_type' => 'disk',
-                'shards'       => 1,
-                'replicas'     => 0,
-                'fields'       => [
-                    'id'                     => ['type' => 'integer'],
-                    'source_id'              => ['type' => 'integer'],
-                    'external_id'            => ['type' => 'keyword'],
-                    'name'                   => ['type' => 'text'],
-                    'description'            => ['type' => 'text'],
-                    'parent_id'              => ['type' => 'integer'],
-                    'slug'                   => ['type' => 'keyword'],
-                    'canonical_unit_id'      => ['type' => 'integer'],
-                    'iu_to_canonical_factor' => ['type' => 'numeric'],
-                    'is_label_standard'      => ['type' => 'boolean'],
-                    'display_order'          => ['type' => 'integer'],
-                    'created_at'             => ['type' => 'date'],
-                    'updated_at'             => ['type' => 'date'],
-                    'deleted_at'             => ['type' => 'date', 'index' => false],
-                ],
-            ],
-            default => throw new \InvalidArgumentException("Unknown index: {$index}"),
-        };
+        return array_merge(
+            ['name' => $name],
+            config("zinc.index_definitions.{$key}")
+        );
     }
 
     private function runImport(array $files, int $batchSize, BatchPersistor $persistor): bool
