@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\IngredientNutrientController;
 use App\Http\Controllers\IngredientsController;
 use App\Http\Controllers\LoginController;
@@ -58,6 +59,14 @@ Route::prefix('ingredients')->name('ingredients.')->middleware('verify.frontend'
         Route::delete('{nutrient}', [IngredientNutrientController::class, 'detach'])->name('detach');
         Route::delete('', [IngredientNutrientController::class, 'detachAll'])->name('detach-all');
     });
+});
+
+Route::prefix('brands')->name('brands.')->middleware('verify.frontend')->group(function() {
+    Route::get('', [BrandsController::class, 'index'])->name('index');
+    Route::get('{brand}', [BrandsController::class, 'show'])->name('show');
+    Route::post('', [BrandsController::class, 'store'])->name('store');
+    Route::put('{brand}', [BrandsController::class, 'update'])->name('update');
+    Route::delete('{brand}', [BrandsController::class, 'delete'])->name('delete');
 });
 
 Route::prefix('units')->name('units.')->middleware('verify.frontend')->group(function() {
