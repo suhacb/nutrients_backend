@@ -33,6 +33,18 @@ class Brand extends Model
                 });
         });
 
+        static::deleted(function (Brand $brand) {
+            if ($brand->isForceDeleting()) {
+                return;
+            }
+            $brand->ingredients()
+                ->select('id')
+                ->each(function (Ingredient $ingredient) {
+                    $ingredient->loadForSearch();
+                    SyncIngredientToSearch::dispatch($ingredient, 'update')->onQueue('ingredients');
+                });
+        });
+
         static::deleting(function (Brand $brand) {
             if ($brand->isForceDeleting() && $brand->ingredients()->exists()) {
                 throw new BrandHasIngredientsException();

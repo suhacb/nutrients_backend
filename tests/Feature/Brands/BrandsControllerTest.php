@@ -200,6 +200,20 @@ class BrandsControllerTest extends TestCase
         Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient2->id);
     }
 
+    public function test_delete_dispatches_sync_for_related_ingredients(): void
+    {
+        $brand       = Brand::factory()->create();
+        $ingredient1 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+        $ingredient2 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->deleteJson(route('brands.delete', $brand))
+            ->assertStatus(204);
+
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient1->id);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient2->id);
+    }
+
     public function test_delete_soft_deletes_brand(): void
     {
         $brand = Brand::factory()->create();

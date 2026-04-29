@@ -106,6 +106,37 @@ class BrandModelTest extends TestCase
         $this->assertSoftDeleted($brand);
     }
 
+    public function test_soft_deleting_brand_dispatches_sync_for_related_ingredients(): void
+    {
+        $brand       = Brand::factory()->create();
+        $ingredient1 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+        $ingredient2 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+
+        Queue::fake();
+
+        $brand->delete();
+
+        Queue::assertPushed(SyncIngredientToSearch::class, 2);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient1->id);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient2->id);
+    }
+
+    public function test_restoring_brand_dispatches_sync_for_related_ingredients(): void
+    {
+        $brand       = Brand::factory()->create();
+        $ingredient1 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+        $ingredient2 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+        $brand->delete();
+
+        Queue::fake();
+
+        $brand->restore();
+
+        Queue::assertPushed(SyncIngredientToSearch::class, 2);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient1->id);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient2->id);
+    }
+
     public function test_updating_brand_dispatches_sync_for_related_ingredients(): void
     {
         $brand       = Brand::factory()->create();
