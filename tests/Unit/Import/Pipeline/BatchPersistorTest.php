@@ -3,12 +3,14 @@
 namespace Tests\Unit\Import\Pipeline;
 
 use App\Import\Pipeline\BatchPersistor;
+use App\Import\Records\BrandRecord;
 use App\Import\Records\ImportBatch;
 use App\Import\Records\IngredientCategoryRecord;
 use App\Import\Records\IngredientNutrientRecord;
 use App\Import\Records\IngredientRecord;
 use App\Import\Records\NutrientRecord;
 use App\Import\Records\NutritionFactRecord;
+use App\Models\Brand;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Source;
@@ -43,6 +45,21 @@ class BatchPersistorTest extends TestCase
             nutrients:           [new NutrientRecord($nutrientNumber, 'Protein', null, $this->unitId)],
             ingredientNutrients: [new IngredientNutrientRecord($fdcId, $nutrientNumber, 7.9, $this->unitId)],
             nutritionFacts:      [],
+        );
+    }
+
+    private function makeBatchWithBrand(
+        string $fdcId = '1106281',
+        string $brandName = 'KROGER',
+        string $brandOwner = 'The Kroger Co.',
+    ): ImportBatch {
+        return new ImportBatch(
+            ingredient:          new IngredientRecord($fdcId, 'Granola', null, 'Branded', null, null),
+            category:            new IngredientCategoryRecord('Cereal'),
+            nutrients:           [],
+            ingredientNutrients: [],
+            nutritionFacts:      [],
+            brand:               new BrandRecord($brandName, $brandOwner, 'United States'),
         );
     }
 
@@ -175,5 +192,39 @@ class BatchPersistorTest extends TestCase
 
         $this->assertDatabaseCount('nutrients', 1);
         $this->assertDatabaseCount('ingredients', 2);
+    }
+
+    public function test_persists_brand_and_links_to_ingredient(): void
+    {
+        (new BatchPersistor())->persist([$this->makeBatchWithBrand()], $this->source);
+
+        $this->assertDatabaseCount('brands', 1);
+        $this->assertDatabaseHas('brands', ['name' => 'KROGER', 'owner' => 'The Kroger Co.']);
+
+        $ingredient = Ingredient::where('external_id', '1106281')->first();
+        $this->assertNotNull($ingredient->brand_id);
+        $this->assertEquals('KROGER', Brand::find($ingredient->brand_id)->name);
+    }
+
+    public function test_ingredient_without_brand_has_null_brand_id(): void
+    {
+        (new BatchPersistor())->persist([$this->makeBatch()], $this->source);
+
+        $ingredient = Ingredient::where('external_id', '321358')->first();
+        $this->assertNull($ingredient->brand_id);
+    }
+
+    public function test_reuses_existing_brand_across_batches(): void
+    {
+        $batch1 = $this->makeBatchWithBrand('1106281', 'KROGER', 'The Kroger Co.');
+        $batch2 = $this->makeBatchWithBrand('9999999', 'KROGER', 'The Kroger Co.');
+
+        (new BatchPersistor())->persist([$batch1, $batch2], $this->source);
+
+        $this->assertDatabaseCount('brands', 1);
+
+        $ingredient1 = Ingredient::where('external_id', '1106281')->first();
+        $ingredient2 = Ingredient::where('external_id', '9999999')->first();
+        $this->assertEquals($ingredient1->brand_id, $ingredient2->brand_id);
     }
 }

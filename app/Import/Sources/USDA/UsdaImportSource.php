@@ -21,6 +21,7 @@ class UsdaImportSource implements \App\Import\Contracts\ImportSourceContract {
         private readonly UsdaIngredientTransformer    $ingredientTransformer,
         private readonly UsdaPivotTransformer         $pivotTransformer,
         private readonly UsdaNutritionFactTransformer $nutritionFactTransformer,
+        private readonly UsdaBrandTransformer         $brandTransformer,
     ) {}
 
     public function getSource(): Source
@@ -68,12 +69,17 @@ class UsdaImportSource implements \App\Import\Contracts\ImportSourceContract {
             ? $this->nutritionFactTransformer->transform($raw['labelNutrients'], $ingredientExternalId)
             : [];
 
+        $brand = isset($raw['brandOwner'])
+            ? $this->brandTransformer->transform($raw)
+            : null;
+
         return new ImportBatch(
             ingredient:          $this->ingredientTransformer->transform($raw),
             category:            $this->extractCategory($raw),
             nutrients:           $nutrients,
             ingredientNutrients: $pivots,
             nutritionFacts:      $nutritionFacts,
+            brand:               $brand,
         );
     }
 

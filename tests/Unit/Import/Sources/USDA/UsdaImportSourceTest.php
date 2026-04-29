@@ -2,12 +2,14 @@
 
 namespace Tests\Unit\Import\Sources\USDA;
 
+use App\Import\Records\BrandRecord;
 use App\Import\Records\ImportBatch;
 use App\Import\Records\IngredientCategoryRecord;
 use App\Import\Records\IngredientNutrientRecord;
 use App\Import\Records\IngredientRecord;
 use App\Import\Records\NutrientRecord;
 use App\Import\Records\NutritionFactRecord;
+use App\Import\Sources\USDA\UsdaBrandTransformer;
 use App\Import\Sources\USDA\UsdaImportSource;
 use App\Import\Sources\USDA\UsdaIngredientTransformer;
 use App\Import\Sources\USDA\UsdaNutrientTransformer;
@@ -31,6 +33,7 @@ class UsdaImportSourceTest extends TestCase
             ingredientTransformer:    new UsdaIngredientTransformer(),
             pivotTransformer:         new UsdaPivotTransformer($this->unitMap),
             nutritionFactTransformer: new UsdaNutritionFactTransformer($this->unitMap),
+            brandTransformer:         new UsdaBrandTransformer(),
         );
     }
 
@@ -63,6 +66,9 @@ class UsdaImportSourceTest extends TestCase
             'dataType'            => 'Branded',
             'foodCategory'        => null,
             'brandedFoodCategory' => 'Cereal',
+            'brandOwner'          => "MICHELE'S",
+            'brandName'           => "MICHELE'S GRANOLA",
+            'marketCountry'       => 'United States',
             'labelNutrients'      => [
                 'protein'  => ['value' => 3.0],
                 'calories' => ['value' => 140.0],
@@ -165,5 +171,22 @@ class UsdaImportSourceTest extends TestCase
 
         $this->assertCount(2, $batch->nutritionFacts);
         $this->assertContainsOnlyInstancesOf(NutritionFactRecord::class, $batch->nutritionFacts);
+    }
+
+    public function test_transform_extracts_brand_for_branded_food(): void
+    {
+        $batch = $this->makeSource()->transform($this->rawBrandedFood());
+
+        $this->assertInstanceOf(BrandRecord::class, $batch->brand);
+        $this->assertSame("MICHELE'S GRANOLA", $batch->brand->name);
+        $this->assertSame("MICHELE'S", $batch->brand->owner);
+        $this->assertSame('United States', $batch->brand->country);
+    }
+
+    public function test_transform_sets_null_brand_for_non_branded_food(): void
+    {
+        $batch = $this->makeSource()->transform($this->rawFoundationFood());
+
+        $this->assertNull($batch->brand);
     }
 }
