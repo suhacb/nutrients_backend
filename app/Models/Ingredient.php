@@ -27,6 +27,7 @@ class Ingredient extends Model
         'description',
         'default_amount',
         'default_amount_unit_id',
+        'brand_id'
     ];
 
     protected $casts = [

@@ -50,6 +50,7 @@ class IngredientModelTest extends TestCase
             'description',
             'default_amount',
             'default_amount_unit_id',
+            'brand_id',
         ];
 
         $this->assertEquals($expected, $ingredient->getFillable());
