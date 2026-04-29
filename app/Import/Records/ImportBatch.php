@@ -2,6 +2,7 @@
 
 namespace App\Import\Records;
 
+use App\Import\Records\BrandRecord;
 use App\Import\Records\IngredientCategoryRecord;
 use App\Import\Records\IngredientRecord;
 
@@ -12,5 +13,6 @@ class ImportBatch {
         public readonly array                    $nutrients,            // NutrientRecord[]
         public readonly array                    $ingredientNutrients,  // IngredientNutrientRecord[]
         public readonly array                    $nutritionFacts,       // NutritionFactRecord[]
+        public readonly ?BrandRecord             $brand = null,
     ) {}
 }

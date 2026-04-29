@@ -34,6 +34,7 @@ class IngredientRequest extends DynamicRequest
             'description' => ['nullable', 'string'],
             'default_amount' => ['required', 'numeric', 'min:0'],
             'default_amount_unit_id' => ['required', 'exists:units,id'],
+            'brand_id' => ['nullable', 'exists:brands,id'],
         ];
     }
 
@@ -64,6 +65,7 @@ class IngredientRequest extends DynamicRequest
             'description' => ['sometimes', 'nullable', 'string'],
             'default_amount' => ['sometimes', 'numeric', 'min:0'],
             'default_amount_unit_id' => ['sometimes', 'exists:units,id'],
+            'brand_id' => ['sometimes', 'nullable', 'exists:brands,id'],
         ];
     }
 

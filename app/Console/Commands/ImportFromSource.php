@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Import\Contracts\ImportSourceContract;
 use App\Import\Pipeline\BatchPersistor;
 use App\Import\Pipeline\ImportPipeline;
+use App\Import\Sources\USDA\UsdaBrandTransformer;
 use App\Import\Sources\USDA\UsdaImportSource;
 use App\Import\Sources\USDA\UsdaIngredientTransformer;
 use App\Import\Sources\USDA\UsdaNutrientTransformer;
@@ -86,6 +87,7 @@ class ImportFromSource extends Command
             ingredientTransformer:    new UsdaIngredientTransformer(),
             pivotTransformer:         new UsdaPivotTransformer($unitMap),
             nutritionFactTransformer: new UsdaNutritionFactTransformer($unitMap),
+            brandTransformer:         new UsdaBrandTransformer(),
         );
     }
 

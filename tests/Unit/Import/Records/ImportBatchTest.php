@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Import\Records;
 
+use App\Import\Records\BrandRecord;
 use App\Import\Records\ImportBatch;
 use App\Import\Records\IngredientCategoryRecord;
 use App\Import\Records\IngredientNutrientRecord;
@@ -68,6 +69,35 @@ class ImportBatchTest extends TestCase
         $this->assertSame([], $batch->nutrients);
         $this->assertSame([], $batch->ingredientNutrients);
         $this->assertSame([], $batch->nutritionFacts);
+    }
+
+    public function test_brand_defaults_to_null(): void
+    {
+        $batch = new ImportBatch(
+            ingredient:          $this->makeIngredientRecord(),
+            category:            $this->makeCategoryRecord(),
+            nutrients:           [],
+            ingredientNutrients: [],
+            nutritionFacts:      [],
+        );
+
+        $this->assertNull($batch->brand);
+    }
+
+    public function test_brand_can_be_set(): void
+    {
+        $brand = new BrandRecord('KROGER', 'The Kroger Co.', 'United States');
+
+        $batch = new ImportBatch(
+            ingredient:          $this->makeIngredientRecord(),
+            category:            $this->makeCategoryRecord(),
+            nutrients:           [],
+            ingredientNutrients: [],
+            nutritionFacts:      [],
+            brand:               $brand,
+        );
+
+        $this->assertSame($brand, $batch->brand);
     }
 
     public function test_all_properties_are_readonly(): void

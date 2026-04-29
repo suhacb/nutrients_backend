@@ -31,7 +31,7 @@ class SyncNutrientToSearch implements ShouldQueue
      */
     public function handle(SearchServiceContract $search): void
     {
-        $index = 'nutrients';
+        $index = config('zinc.indices.nutrients');
         $payload = $this->nutrient->toArray();
         $id = $this->nutrient->id;
 

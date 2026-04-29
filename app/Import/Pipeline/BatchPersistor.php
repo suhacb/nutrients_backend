@@ -2,17 +2,28 @@
 
 namespace App\Import\Pipeline;
 
+use App\Models\Brand;
+use App\Models\Ingredient;
+use App\Models\IngredientCategory;
+use App\Models\Nutrient;
+use App\Models\Source;
+use App\Models\Unit;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
 class BatchPersistor {
 
     private array $categoryMap    = [];
+    private array $brandMap       = [];
     private array $nutrientMap    = [];
     private array $ingredientMap  = [];
     private ?int  $defaultUnitId  = null;
 
-    public function persist(array $batches, \App\Models\Source $source): void
+    public function persist(array $batches, Source $source): void
     {
-        \Illuminate\Support\Facades\DB::transaction(function () use ($batches, $source) {
+        DB::transaction(function () use ($batches, $source) {
             $this->upsertCategories($batches);
+            $this->upsertBrands($batches);
             $this->upsertNutrients($batches, $source);
             $this->upsertIngredients($batches, $source);
             $this->upsertPivots($batches);
@@ -31,14 +42,56 @@ class BatchPersistor {
             return;
         }
 
-        \App\Models\IngredientCategory::upsert(array_values($names), ['name'], ['name']);
+        IngredientCategory::upsert(array_values($names), ['name'], ['name']);
 
-        $this->categoryMap = \App\Models\IngredientCategory::whereIn('name', array_keys($names))
+        $this->categoryMap = IngredientCategory::whereIn('name', array_keys($names))
             ->pluck('id', 'name')
             ->all();
     }
 
-    private function upsertNutrients(array $batches, \App\Models\Source $source): void
+    private function upsertBrands(array $batches): void
+    {
+        $rows = [];
+        $now  = now();
+
+        foreach ($batches as $batch) {
+            if (!$batch->brand) {
+                continue;
+            }
+
+            $record = $batch->brand;
+            $slug   = Str::slug($record->name);
+
+            if (isset($rows[$slug])) {
+                continue;
+            }
+
+            $rows[$slug] = [
+                'name'       => $record->name,
+                'owner'      => $record->owner,
+                'slug'       => $slug,
+                'country'    => $record->country,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if (empty($rows)) {
+            return;
+        }
+
+        Brand::upsert(
+            array_values($rows),
+            ['slug'],
+            ['name', 'owner', 'country', 'updated_at']
+        );
+
+        $this->brandMap = Brand::whereIn('slug', array_keys($rows))
+            ->pluck('id', 'slug')
+            ->all();
+    }
+
+    private function upsertNutrients(array $batches, Source $source): void
     {
         $rows      = [];
         $usedSlugs = [];
@@ -49,7 +102,7 @@ class BatchPersistor {
             ->unique()
             ->all();
 
-        $existingSlugs = \App\Models\Nutrient::where('source_id', $source->id)
+        $existingSlugs = Nutrient::where('source_id', $source->id)
             ->whereIn('external_id', $allExternalIds)
             ->pluck('slug', 'external_id')
             ->all();
@@ -80,19 +133,19 @@ class BatchPersistor {
             return;
         }
 
-        \App\Models\Nutrient::upsert(
+        Nutrient::upsert(
             array_values($rows),
             ['source_id', 'external_id'],
             ['name', 'description', 'canonical_unit_id', 'updated_at']
         );
 
-        $this->nutrientMap = \App\Models\Nutrient::where('source_id', $source->id)
+        $this->nutrientMap = Nutrient::where('source_id', $source->id)
             ->whereIn('external_id', array_keys($rows))
             ->pluck('id', 'external_id')
             ->all();
     }
 
-    private function upsertIngredients(array $batches, \App\Models\Source $source): void
+    private function upsertIngredients(array $batches, Source $source): void
     {
         $rows           = [];
         $usedSlugs      = [];
@@ -104,7 +157,7 @@ class BatchPersistor {
             ->unique()
             ->all();
 
-        $existingSlugs = \App\Models\Ingredient::where('source', $source->name)
+        $existingSlugs = Ingredient::where('source', $source->name)
             ->whereIn('external_id', $allExternalIds)
             ->pluck('slug', 'external_id')
             ->all();
@@ -119,6 +172,8 @@ class BatchPersistor {
             $slug = $existingSlugs[$record->externalId]
                 ?? $this->allocateSlug($record->name, 'ingredients', $usedSlugs);
 
+            $brandSlug = $batch->brand ? Str::slug($batch->brand->name) : null;
+
             $rows[$record->externalId] = [
                 'external_id'           => $record->externalId,
                 'source'                => $source->name,
@@ -127,6 +182,7 @@ class BatchPersistor {
                 'description'           => $record->description,
                 'default_amount'        => $record->defaultAmount ?? 100,
                 'default_amount_unit_id'=> $record->defaultAmountUnitId ?? $this->resolveDefaultUnit(),
+                'brand_id'              => $brandSlug ? ($this->brandMap[$brandSlug] ?? null) : null,
                 'slug'                  => $slug,
                 'created_at'            => $now,
                 'updated_at'            => $now,
@@ -141,13 +197,13 @@ class BatchPersistor {
             return;
         }
 
-        \App\Models\Ingredient::upsert(
+        Ingredient::upsert(
             array_values($rows),
             ['source', 'external_id'],
-            ['name', 'description', 'class', 'updated_at']
+            ['name', 'description', 'class', 'brand_id', 'updated_at']
         );
 
-        $this->ingredientMap = \App\Models\Ingredient::where('source', $source->name)
+        $this->ingredientMap = Ingredient::where('source', $source->name)
             ->whereIn('external_id', array_keys($rows))
             ->pluck('id', 'external_id')
             ->all();
@@ -163,7 +219,7 @@ class BatchPersistor {
         }
 
         if (!empty($pivotRows)) {
-            \Illuminate\Support\Facades\DB::table('ingredient_ingredient_category')
+            DB::table('ingredient_ingredient_category')
                 ->insertOrIgnore($pivotRows);
         }
     }
@@ -198,7 +254,7 @@ class BatchPersistor {
         }
 
         foreach (array_chunk($rows, 50) as $chunk) {
-            \Illuminate\Support\Facades\DB::table('ingredient_nutrient')->upsert(
+            DB::table('ingredient_nutrient')->upsert(
                 $chunk,
                 ['ingredient_id', 'nutrient_id', 'amount_unit_id'],
                 ['amount', 'updated_at']
@@ -236,7 +292,7 @@ class BatchPersistor {
         }
 
         foreach (array_chunk($rows, 50) as $chunk) {
-            \Illuminate\Support\Facades\DB::table('ingredient_nutrition_facts')->upsert(
+            DB::table('ingredient_nutrition_facts')->upsert(
                 $chunk,
                 ['ingredient_id', 'category', 'name'],
                 ['amount', 'amount_unit_id', 'updated_at']
@@ -246,11 +302,11 @@ class BatchPersistor {
 
     private function allocateSlug(string $name, string $table, array &$usedSlugs): string
     {
-        $base    = rtrim(substr(\Illuminate\Support\Str::slug($name), 0, 80), '-');
+        $base    = rtrim(substr(Str::slug($name), 0, 80), '-');
         $slug    = $base;
         $counter = 2;
 
-        while (\Illuminate\Support\Facades\DB::table($table)->where('slug', $slug)->exists()
+        while (DB::table($table)->where('slug', $slug)->exists()
             || in_array($slug, $usedSlugs)) {
             $slug = $base . '-' . $counter++;
         }
@@ -262,7 +318,7 @@ class BatchPersistor {
 
     private function resolveDefaultUnit(): int
     {
-        return $this->defaultUnitId ??= \App\Models\Unit::where('abbreviation', 'g')->value('id')
-            ?? \App\Models\Unit::first()->id;
+        return $this->defaultUnitId ??= Unit::where('abbreviation', 'g')->value('id')
+            ?? Unit::first()->id;
     }
 }

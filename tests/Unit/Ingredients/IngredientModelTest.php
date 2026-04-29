@@ -10,6 +10,7 @@ use App\Traits\GeneratesSlug;
 use Illuminate\Support\Carbon;
 use App\Jobs\SyncIngredientToSearch;
 use Illuminate\Support\Facades\Queue;
+use App\Models\Brand;
 use App\Models\IngredientNutritionFact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\MakesUnit;
@@ -50,6 +51,7 @@ class IngredientModelTest extends TestCase
             'description',
             'default_amount',
             'default_amount_unit_id',
+            'brand_id',
         ];
 
         $this->assertEquals($expected, $ingredient->getFillable());
@@ -203,6 +205,7 @@ class IngredientModelTest extends TestCase
             // Relationships should be loaded
             $this->assertTrue($loadedIngredient->relationLoaded('nutrients'));
             $this->assertTrue($loadedIngredient->relationLoaded('default_amount_unit'));
+            $this->assertTrue($loadedIngredient->relationLoaded('brand'));
 
             $pivot = $loadedIngredient->nutrients->first()->pivot;
             $this->assertTrue($pivot->relationLoaded('amount_unit'));
@@ -214,6 +217,24 @@ class IngredientModelTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_brand_relationship(): void
+    {
+        $brand      = Brand::factory()->create();
+        $ingredient = Ingredient::factory()->create(['brand_id' => $brand->id]);
+
+        $fresh = Ingredient::find($ingredient->id);
+
+        $this->assertInstanceOf(Brand::class, $fresh->brand);
+        $this->assertEquals($brand->id, $fresh->brand->id);
+    }
+
+    public function test_brand_is_nullable(): void
+    {
+        $ingredient = Ingredient::factory()->create(['brand_id' => null]);
+
+        $this->assertNull(Ingredient::find($ingredient->id)->brand);
     }
 
     public function test_nutrition_facts_relationship(): void

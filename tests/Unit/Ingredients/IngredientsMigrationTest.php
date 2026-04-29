@@ -22,6 +22,7 @@ class IngredientsMigrationTest extends TestCase
         'description' => ['type' => 'text', 'nullable' => true],
         'default_amount' => ['type' => 'double', 'nullable' => false],
         'default_amount_unit_id' => ['type' => 'bigint', 'nullable' => false],
+        'brand_id' => ['type' => 'bigint', 'nullable' => true],
         'created_at' => ['type' => 'timestamp', 'nullable' => true],
         'updated_at' => ['type' => 'timestamp', 'nullable' => true],
         'deleted_at' => ['type' => 'timestamp', 'nullable' => true],
@@ -124,6 +125,16 @@ class IngredientsMigrationTest extends TestCase
             'created_at'             => now(),
             'updated_at'             => now(),
         ]);
+    }
+
+    public function test_ingredients_table_has_nullable_brand_id_column(): void
+    {
+        $columnsInfo = DB::select('SHOW COLUMNS FROM ingredients');
+        $column      = collect($columnsInfo)->firstWhere('Field', 'brand_id');
+
+        $this->assertNotNull($column, "Column 'brand_id' not found in ingredients");
+        $this->assertSame('YES', $column->Null, "'brand_id' should be nullable");
+        $this->assertSame('bigint', $this->normalizeType($column->Type));
     }
 
     public function test_allows_nullable_external_id(): void

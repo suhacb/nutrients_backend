@@ -4,6 +4,7 @@ namespace Tests\Feature\Import;
 
 use App\Import\Pipeline\BatchPersistor;
 use App\Import\Pipeline\ImportPipeline;
+use App\Import\Sources\USDA\UsdaBrandTransformer;
 use App\Import\Sources\USDA\UsdaImportSource;
 use App\Import\Sources\USDA\UsdaIngredientTransformer;
 use App\Import\Sources\USDA\UsdaNutrientTransformer;
@@ -52,6 +53,7 @@ class ImportPipelineTest extends TestCase
             ingredientTransformer:    new UsdaIngredientTransformer(),
             pivotTransformer:         new UsdaPivotTransformer($this->unitMap),
             nutritionFactTransformer: new UsdaNutritionFactTransformer($this->unitMap),
+            brandTransformer:         new UsdaBrandTransformer(),
         );
 
         return new ImportPipeline(

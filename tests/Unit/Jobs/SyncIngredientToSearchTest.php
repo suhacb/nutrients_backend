@@ -34,7 +34,7 @@ class SyncIngredientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('insert')
             ->once()
-            ->with('ingredients', $this->ingredient->id, $this->ingredient->toArray());
+            ->with(config('zinc.indices.ingredients'), $this->ingredient->id, $this->ingredient->toArray());
 
         $job = new SyncIngredientToSearch($this->ingredient, 'insert');
         $job->handle($mock);
@@ -46,7 +46,7 @@ class SyncIngredientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('update')
             ->once()
-            ->with('ingredients', $this->ingredient->id, $this->ingredient->toArray());
+            ->with(config('zinc.indices.ingredients'), $this->ingredient->id, $this->ingredient->toArray());
 
         $job = new SyncIngredientToSearch($this->ingredient, 'update');
         $job->handle($mock);
@@ -58,7 +58,7 @@ class SyncIngredientToSearchTest extends TestCase
         $mock = Mockery::mock(SearchServiceContract::class);
         $mock->shouldReceive('delete')
             ->once()
-            ->with('ingredients', $this->ingredient->id);
+            ->with(config('zinc.indices.ingredients'), $this->ingredient->id);
 
         $job = new SyncIngredientToSearch($this->ingredient, 'delete');
         $job->handle($mock);

@@ -38,7 +38,7 @@ class SyncIngredientToSearch implements ShouldQueue {
      */
     public function handle(SearchServiceContract $search): void
     {
-        $index = 'ingredients';
+        $index = config('zinc.indices.ingredients');
 
         switch ($this->action) {
             case 'insert':

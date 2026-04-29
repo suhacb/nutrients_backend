@@ -27,6 +27,7 @@ class Ingredient extends Model
         'description',
         'default_amount',
         'default_amount_unit_id',
+        'brand_id'
     ];
 
     protected $casts = [
@@ -69,6 +70,11 @@ class Ingredient extends Model
             ->withTimestamps();
     }
 
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
     public function default_amount_unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class, 'default_amount_unit_id');
@@ -91,6 +97,7 @@ class Ingredient extends Model
     {
         // Preload default_amount_unit, nutrients and nutrition facts
         $this->load([
+            'brand',
             'default_amount_unit',
             'nutrients',
             'nutrition_facts',

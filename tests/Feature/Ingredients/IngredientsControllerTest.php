@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use App\Models\Brand;
 use App\Models\Unit;
 use App\Models\Nutrient;
 use Tests\LoginTestUser;
@@ -416,6 +417,50 @@ class IngredientsControllerTest extends TestCase
             ->putJson(route('ingredients.update', $ingredient), ['slug' => 'UPPERCASE'])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['slug']);
+    }
+
+    public function test_store_rejects_nonexistent_brand_id(): void
+    {
+        $unit = Unit::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), [
+                'source'                 => 'USDA',
+                'name'                   => 'Whole Milk',
+                'default_amount'         => 100,
+                'default_amount_unit_id' => $unit->id,
+                'brand_id'               => 99999,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['brand_id']);
+    }
+
+    public function test_update_rejects_nonexistent_brand_id(): void
+    {
+        $ingredient = Ingredient::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('ingredients.update', $ingredient), ['brand_id' => 99999])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['brand_id']);
+    }
+
+    public function test_store_accepts_valid_brand_id(): void
+    {
+        $unit  = Unit::factory()->create();
+        $brand = Brand::factory()->create();
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.store'), [
+                'source'                 => 'USDA',
+                'name'                   => 'Whole Milk',
+                'default_amount'         => 100,
+                'default_amount_unit_id' => $unit->id,
+                'brand_id'               => $brand->id,
+            ])
+            ->assertStatus(201);
+
+        $this->assertDatabaseHas('ingredients', ['name' => 'Whole Milk', 'brand_id' => $brand->id]);
     }
 
     protected function tearDown(): void
