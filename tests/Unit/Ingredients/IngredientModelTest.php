@@ -185,7 +185,10 @@ class IngredientModelTest extends TestCase
         Queue::fake();
 
         $defaultUnit = $this->makeUnit();
-        $amountUnit  = Unit::factory()->create(['name' => 'milligram', 'abbreviation' => 'mg', 'type' => 'mass']);
+        $amountUnit  = Unit::firstOrCreate(
+            ['abbreviation' => 'mg'],
+            ['name' => 'milligram', 'type' => 'mass']
+        );
         $brand       = Brand::factory()->create();
         $nutrient    = Nutrient::factory()->create();
         $category    = IngredientCategory::factory()->create();
