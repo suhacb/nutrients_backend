@@ -6,6 +6,7 @@ use Tests\TestCase;
 use App\Models\Unit;
 use App\Models\Nutrient;
 use App\Models\Ingredient;
+use App\Models\IngredientCategory;
 use App\Traits\GeneratesSlug;
 use Illuminate\Support\Carbon;
 use App\Jobs\SyncIngredientToSearch;
@@ -177,6 +178,46 @@ class IngredientModelTest extends TestCase
             return ($job->ingredient?->is($ingredient) ?? true)
                 && $job->action === 'insert';
         });
+    }
+
+    public function test_load_for_search_loads_expected_relationships(): void
+    {
+        Queue::fake();
+
+        $defaultUnit = $this->makeUnit();
+        $amountUnit  = Unit::factory()->create(['name' => 'milligram', 'abbreviation' => 'mg', 'type' => 'mass']);
+        $brand       = Brand::factory()->create();
+        $nutrient    = Nutrient::factory()->create();
+        $category    = IngredientCategory::factory()->create();
+
+        $ingredient = Ingredient::factory()->create([
+            'default_amount_unit_id' => $defaultUnit->id,
+            'brand_id'               => $brand->id,
+        ]);
+
+        $ingredient->nutrients()->attach($nutrient->id, [
+            'amount'         => 5,
+            'amount_unit_id' => $amountUnit->id,
+        ]);
+
+        IngredientNutritionFact::factory()->create(['ingredient_id' => $ingredient->id]);
+        $ingredient->categories()->attach($category->id);
+
+        $fresh = Ingredient::find($ingredient->id);
+        $fresh->loadForSearch();
+
+        $this->assertTrue($fresh->relationLoaded('brand'));
+        $this->assertTrue($fresh->relationLoaded('default_amount_unit'));
+        $this->assertTrue($fresh->relationLoaded('nutrients'));
+        $this->assertTrue($fresh->relationLoaded('nutrition_facts'));
+        $this->assertTrue($fresh->relationLoaded('categories'));
+
+        $this->assertEquals($brand->id, $fresh->brand->id);
+        $this->assertEquals($defaultUnit->id, $fresh->default_amount_unit->id);
+        $this->assertCount(1, $fresh->nutrients);
+        $this->assertCount(1, $fresh->nutrition_facts);
+        $this->assertCount(1, $fresh->categories);
+        $this->assertTrue($fresh->nutrients->first()->pivot->relationLoaded('amount_unit'));
     }
 
     public function test_jobs_have_relationships_loaded_for_search(): void

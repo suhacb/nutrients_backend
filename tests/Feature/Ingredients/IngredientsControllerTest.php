@@ -137,6 +137,20 @@ class IngredientsControllerTest extends TestCase
         $this->assertArrayHasKey('pivot', $json['nutrients'][0]);
     }
 
+    public function test_show_includes_brand(): void
+    {
+        $brand      = Brand::factory()->create();
+        $ingredient = Ingredient::factory()->create(['brand_id' => $brand->id]);
+
+        $response = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200);
+
+        $response->assertJsonPath('brand.id',   $brand->id);
+        $response->assertJsonPath('brand.name', $brand->name);
+        $response->assertJsonPath('brand.slug', $brand->slug);
+    }
+
     public function test_store_creates_ingredient_and_dispatches_job(): void
     {
         $unit = Unit::factory()->create();
