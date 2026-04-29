@@ -15,7 +15,7 @@ class NutrientsController extends Controller
 
     public function show(Nutrient $nutrient): JsonResponse
     {
-        return response()->json($nutrient->load('canonicalUnit'), 200);
+        return response()->json($nutrient->loadForSearch(), 200);
     }
 
     public function store(NutrientRequest $request): JsonResponse

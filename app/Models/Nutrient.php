@@ -104,4 +104,9 @@ class Nutrient extends Model
     {
         return $this->belongsToMany(NutrientTag::class, 'nutrient_nutrient_tag');
     }
+
+    public function loadForSearch(): self
+    {
+        return $this->load(['source', 'canonicalUnit', 'parent', 'children', 'tags']);
+    }
 }
