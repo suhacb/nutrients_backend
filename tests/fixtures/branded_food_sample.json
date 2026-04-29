@@ -1,0 +1,36 @@
+{
+  "BrandedFoods": [
+    {
+      "fdcId": 1106281,
+      "description": "GRANOLA, CINNAMON, RAISIN",
+      "dataType": "Branded",
+      "brandOwner": "MICHELE'S",
+      "brandName": "MICHELE'S GRANOLA",
+      "marketCountry": "United States",
+      "brandedFoodCategory": "Cereal",
+      "foodNutrients": [],
+      "labelNutrients": null
+    },
+    {
+      "fdcId": 1849686,
+      "description": "MATCHA GREEN TEA POWDER",
+      "dataType": "Branded",
+      "brandOwner": "G. T. Japan, Inc.",
+      "brandName": "MAEDA-EN",
+      "marketCountry": "United States",
+      "brandedFoodCategory": "Tea",
+      "foodNutrients": [],
+      "labelNutrients": null
+    },
+    {
+      "fdcId": 9999999,
+      "description": "NO BRAND NAME PRODUCT",
+      "dataType": "Branded",
+      "brandOwner": "GENERIC FOODS INC.",
+      "marketCountry": "United States",
+      "brandedFoodCategory": "Snacks",
+      "foodNutrients": [],
+      "labelNutrients": null
+    }
+  ]
+}

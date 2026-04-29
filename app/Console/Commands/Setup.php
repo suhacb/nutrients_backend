@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Import\Pipeline\BatchPersistor;
 use App\Import\Pipeline\ImportPipeline;
+use App\Import\Sources\USDA\UsdaBrandTransformer;
 use App\Import\Sources\USDA\UsdaImportSource;
 use App\Import\Sources\USDA\UsdaIngredientTransformer;
 use App\Import\Sources\USDA\UsdaNutrientTransformer;
@@ -124,6 +125,12 @@ class Setup extends Command
                     'slug'                   => ['type' => 'keyword'],
                     'default_amount'         => ['type' => 'numeric'],
                     'default_amount_unit_id' => ['type' => 'integer'],
+                    'brand_id'               => ['type' => 'integer'],
+                    'brand.id'               => ['type' => 'integer'],
+                    'brand.name'             => ['type' => 'text'],
+                    'brand.owner'            => ['type' => 'text'],
+                    'brand.slug'             => ['type' => 'keyword'],
+                    'brand.country'          => ['type' => 'keyword'],
                     'created_at'             => ['type' => 'date'],
                     'updated_at'             => ['type' => 'date'],
                     'deleted_at'             => ['type' => 'date', 'index' => false],
@@ -164,6 +171,7 @@ class Setup extends Command
             ingredientTransformer:    new UsdaIngredientTransformer(),
             pivotTransformer:         new UsdaPivotTransformer($unitMap),
             nutritionFactTransformer: new UsdaNutritionFactTransformer($unitMap),
+            brandTransformer:         new UsdaBrandTransformer(),
         );
 
         $pipeline = new ImportPipeline($source, $persistor, $batchSize);
