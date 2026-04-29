@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Exceptions\BrandHasIngredientsException;
+use App\Jobs\SyncIngredientToSearch;
 use App\Traits\GeneratesSlug;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,15 @@ class Brand extends Model
 
     protected static function booted(): void
     {
+        static::saved(function (Brand $brand) {
+            $brand->ingredients()
+                ->select('id')
+                ->each(function (Ingredient $ingredient) {
+                    $ingredient->loadForSearch();
+                    SyncIngredientToSearch::dispatch($ingredient, 'update')->onQueue('ingredients');
+                });
+        });
+
         static::deleting(function (Brand $brand) {
             if ($brand->isForceDeleting() && $brand->ingredients()->exists()) {
                 throw new BrandHasIngredientsException();

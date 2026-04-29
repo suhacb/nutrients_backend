@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Brands;
 
+use App\Jobs\SyncIngredientToSearch;
 use App\Models\Brand;
 use App\Models\Ingredient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -183,6 +184,20 @@ class BrandsControllerTest extends TestCase
         $this->withHeaders($this->makeAuthRequestHeader())
             ->putJson(route('brands.update', $brand), [])
             ->assertStatus(200);
+    }
+
+    public function test_update_dispatches_sync_for_related_ingredients(): void
+    {
+        $brand       = Brand::factory()->create();
+        $ingredient1 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+        $ingredient2 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->putJson(route('brands.update', $brand), ['name' => 'Updated Name'])
+            ->assertStatus(200);
+
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient1->id);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient2->id);
     }
 
     public function test_delete_soft_deletes_brand(): void

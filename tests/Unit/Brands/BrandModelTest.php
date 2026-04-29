@@ -3,6 +3,7 @@
 namespace Tests\Unit\Brands;
 
 use App\Exceptions\BrandHasIngredientsException;
+use App\Jobs\SyncIngredientToSearch;
 use App\Models\Brand;
 use App\Models\Ingredient;
 use App\Traits\GeneratesSlug;
@@ -103,5 +104,20 @@ class BrandModelTest extends TestCase
         $brand->delete();
 
         $this->assertSoftDeleted($brand);
+    }
+
+    public function test_updating_brand_dispatches_sync_for_related_ingredients(): void
+    {
+        $brand       = Brand::factory()->create();
+        $ingredient1 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+        $ingredient2 = Ingredient::factory()->create(['brand_id' => $brand->id]);
+
+        Queue::fake();
+
+        $brand->update(['name' => 'Updated Name']);
+
+        Queue::assertPushed(SyncIngredientToSearch::class, 2);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient1->id);
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->id === $ingredient2->id);
     }
 }
