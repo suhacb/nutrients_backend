@@ -3,29 +3,31 @@
 namespace Tests\Unit\Ingredients;
 
 use Tests\TestCase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class IngredientsMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
     protected $expectedColumns = [
-        'id' => ['type' => 'bigint', 'nullable' => false],
-        'external_id' => ['type' => 'varchar', 'nullable' => true],
-        'source' => ['type' => 'varchar', 'nullable' => false],
-        'class' => ['type' => 'varchar', 'nullable' => true],
-        'name' => ['type' => 'text', 'nullable' => false],
-        'slug' => ['type' => 'varchar', 'nullable' => true],
-        'description' => ['type' => 'text', 'nullable' => true],
-        'default_amount' => ['type' => 'double', 'nullable' => false],
-        'default_amount_unit_id' => ['type' => 'bigint', 'nullable' => false],
-        'brand_id' => ['type' => 'bigint', 'nullable' => true],
-        'created_at' => ['type' => 'timestamp', 'nullable' => true],
-        'updated_at' => ['type' => 'timestamp', 'nullable' => true],
-        'deleted_at' => ['type' => 'timestamp', 'nullable' => true],
+        'id'                     => ['type' => 'bigint',    'nullable' => false],
+        'external_id'            => ['type' => 'varchar',   'nullable' => true],
+        'source'                 => ['type' => 'varchar',   'nullable' => false],
+        'class'                  => ['type' => 'varchar',   'nullable' => true],
+        'name'                   => ['type' => 'text',      'nullable' => false],
+        'slug'                   => ['type' => 'varchar',   'nullable' => true],
+        'description'            => ['type' => 'text',      'nullable' => true],
+        'default_amount'         => ['type' => 'double',    'nullable' => false],
+        'default_amount_unit_id' => ['type' => 'bigint',    'nullable' => false],
+        'brand_id'               => ['type' => 'bigint',    'nullable' => true],
+        'sync_status'            => ['type' => 'enum',      'nullable' => false],
+        'created_at'             => ['type' => 'timestamp', 'nullable' => true],
+        'updated_at'             => ['type' => 'timestamp', 'nullable' => true],
+        'deleted_at'             => ['type' => 'timestamp', 'nullable' => true],
     ];
 
     public function test_ingredients_table_has_expected_columns(): void
@@ -135,6 +137,35 @@ class IngredientsMigrationTest extends TestCase
         $this->assertNotNull($column, "Column 'brand_id' not found in ingredients");
         $this->assertSame('YES', $column->Null, "'brand_id' should be nullable");
         $this->assertSame('bigint', $this->normalizeType($column->Type));
+    }
+
+    public function test_sync_status_defaults_to_pending(): void
+    {
+        DB::table('ingredients')->insert([
+            'source'                 => 'USDA FoodData Central',
+            'name'                   => 'Carrot',
+            'default_amount'         => 100,
+            'default_amount_unit_id' => 1,
+            'created_at'             => now(),
+            'updated_at'             => now(),
+        ]);
+
+        $row = DB::table('ingredients')->where('name', 'Carrot')->first();
+        $this->assertSame('pending', $row->sync_status);
+    }
+
+    public function test_sync_status_migration_rolls_back_cleanly(): void
+    {
+        $this->assertTrue(Schema::hasColumn('ingredients', 'sync_status'), "'sync_status' should exist before rollback");
+
+        $migration = include database_path('migrations/2026_04_30_091254_add_sync_status_to_ingredients_table.php');
+        $migration->down();
+
+        $this->assertFalse(Schema::hasColumn('ingredients', 'sync_status'), "'sync_status' should be gone after rollback");
+
+        $migration->up();
+
+        $this->assertTrue(Schema::hasColumn('ingredients', 'sync_status'), "'sync_status' should exist after re-applying migration");
     }
 
     public function test_allows_nullable_external_id(): void

@@ -33,6 +33,7 @@ class NutrientsMigrationTest extends TestCase
         'iu_to_canonical_factor' => ['type' => 'decimal',   'nullable' => true],
         'is_label_standard'      => ['type' => 'tinyint',   'nullable' => false],
         'display_order'          => ['type' => 'int',       'nullable' => true],
+        'sync_status'            => ['type' => 'enum',      'nullable' => false],
         'created_at'             => ['type' => 'timestamp', 'nullable' => true],
         'updated_at'             => ['type' => 'timestamp', 'nullable' => true],
         'deleted_at'             => ['type' => 'timestamp', 'nullable' => true],
@@ -334,6 +335,33 @@ class NutrientsMigrationTest extends TestCase
 
         $this->assertTrue(Schema::hasColumn('nutrients', 'source_id'), "'source_id' should exist after re-applying migration");
         $this->assertFalse(Schema::hasColumn('nutrients', 'source'), "'source' should be gone after re-applying migration");
+    }
+
+    public function test_sync_status_defaults_to_pending(): void
+    {
+        DB::table('nutrients')->insert([
+            'source_id'  => $this->insertSource(),
+            'name'       => 'Protein',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $row = DB::table('nutrients')->where('name', 'Protein')->first();
+        $this->assertSame('pending', $row->sync_status);
+    }
+
+    public function test_sync_status_migration_rolls_back_cleanly(): void
+    {
+        $this->assertTrue(Schema::hasColumn('nutrients', 'sync_status'), "'sync_status' should exist before rollback");
+
+        $migration = include database_path('migrations/2026_04_30_091308_add_sync_status_to_nutrients_table.php');
+        $migration->down();
+
+        $this->assertFalse(Schema::hasColumn('nutrients', 'sync_status'), "'sync_status' should be gone after rollback");
+
+        $migration->up();
+
+        $this->assertTrue(Schema::hasColumn('nutrients', 'sync_status'), "'sync_status' should exist after re-applying migration");
     }
 
     // -------------------------------------------------------------------------

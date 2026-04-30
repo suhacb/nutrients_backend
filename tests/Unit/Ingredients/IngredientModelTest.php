@@ -2,19 +2,21 @@
 
 namespace Tests\Unit\Ingredients;
 
-use Tests\TestCase;
-use App\Models\Unit;
-use App\Models\Nutrient;
+use App\Enums\SyncStatus;
+use App\Jobs\SyncIngredientToSearch;
+use App\Models\Brand;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
-use App\Traits\GeneratesSlug;
-use Illuminate\Support\Carbon;
-use App\Jobs\SyncIngredientToSearch;
-use Illuminate\Support\Facades\Queue;
-use App\Models\Brand;
 use App\Models\IngredientNutritionFact;
+use App\Models\Nutrient;
+use App\Models\Unit;
+use App\Traits\GeneratesSlug;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Tests\MakesUnit;
+use Tests\TestCase;
 use Tests\UsesZincIndices;
 
 class IngredientModelTest extends TestCase
@@ -72,6 +74,75 @@ class IngredientModelTest extends TestCase
             $ingredient->delete();
             $this->assertInstanceOf(Carbon::class, $ingredient->deleted_at);
         });
+    }
+
+    public function test_sync_status_is_not_mass_assignable(): void
+    {
+        $ingredient = new Ingredient();
+        $ingredient->fill(['sync_status' => SyncStatus::Synced]);
+
+        $this->assertNull($ingredient->sync_status);
+    }
+
+    public function test_sync_status_is_cast_to_enum(): void
+    {
+        Queue::fake();
+        $ingredient = Ingredient::factory()->create();
+
+        $this->assertInstanceOf(SyncStatus::class, $ingredient->fresh()->sync_status);
+        $this->assertSame(SyncStatus::Pending, $ingredient->fresh()->sync_status);
+    }
+
+    public function test_updated_event_resets_sync_status_to_pending_and_dispatches_job(): void
+    {
+        Queue::fake();
+        $ingredient = Ingredient::factory()->create();
+        DB::table('ingredients')->where('id', $ingredient->id)->update(['sync_status' => 'synced']);
+
+        Queue::fake();
+        $ingredient->update(['name' => 'Updated Name']);
+
+        $this->assertSame('pending', DB::table('ingredients')->where('id', $ingredient->id)->value('sync_status'));
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->action === 'update');
+    }
+
+    public function test_deleted_event_resets_sync_status_to_pending_and_dispatches_job(): void
+    {
+        Queue::fake();
+        $ingredient = Ingredient::factory()->create();
+        DB::table('ingredients')->where('id', $ingredient->id)->update(['sync_status' => 'synced']);
+
+        Queue::fake();
+        $ingredient->delete();
+
+        $this->assertSame('pending', DB::table('ingredients')->where('id', $ingredient->id)->value('sync_status'));
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->action === 'delete');
+    }
+
+    public function test_restored_event_resets_sync_status_to_pending_and_dispatches_job(): void
+    {
+        Queue::fake();
+        $ingredient = Ingredient::factory()->create();
+        $ingredient->delete();
+        DB::table('ingredients')->where('id', $ingredient->id)->update(['sync_status' => 'synced']);
+
+        Queue::fake();
+        $ingredient->restore();
+
+        $this->assertSame('pending', DB::table('ingredients')->where('id', $ingredient->id)->value('sync_status'));
+        Queue::assertPushed(SyncIngredientToSearch::class, fn($job) => $job->action === 'insert');
+    }
+
+    public function test_updating_only_sync_status_does_not_dispatch_job(): void
+    {
+        Queue::fake();
+        $ingredient = Ingredient::factory()->create();
+
+        Queue::fake();
+        $ingredient->sync_status = SyncStatus::Synced;
+        $ingredient->save();
+
+        Queue::assertNotPushed(SyncIngredientToSearch::class);
     }
 
     public function test_nutrients_relationship(): void

@@ -2,17 +2,19 @@
 
 namespace App\Models;
 
-use App\Traits\GeneratesSlug;
-use App\Models\IngredientCategory;
+use App\Enums\SyncStatus;
 use App\Jobs\SyncIngredientToSearch;
+use App\Models\IngredientCategory;
 use App\Models\IngredientNutrientPivot;
 use App\Models\IngredientNutritionFact;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Traits\GeneratesSlug;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Ingredient extends Model
 {
@@ -31,7 +33,8 @@ class Ingredient extends Model
     ];
 
     protected $casts = [
-        'default_amount' => 'double'
+        'default_amount' => 'double',
+        'sync_status'    => SyncStatus::class,
     ];
 
     protected static function booted()
@@ -42,21 +45,28 @@ class Ingredient extends Model
         });
 
         static::updated(function (Ingredient $ingredient) {
+            $changed = array_diff(array_keys($ingredient->getChanges()), ['sync_status', 'updated_at']);
+            if (empty($changed)) {
+                return;
+            }
+            DB::table('ingredients')->where('id', $ingredient->id)->update(['sync_status' => SyncStatus::Pending->value]);
             $ingredient->loadForSearch();
             SyncIngredientToSearch::dispatch($ingredient, 'update')->onQueue('ingredients');
         });
 
-        static::deleting(function(Ingredient $ingredient) {
+        static::deleting(function (Ingredient $ingredient) {
             if ($ingredient->isForceDeleting()) {
                 $ingredient->nutrients()->detach();
             }
         });
 
         static::deleted(function (Ingredient $ingredient) {
+            DB::table('ingredients')->where('id', $ingredient->id)->update(['sync_status' => SyncStatus::Pending->value]);
             SyncIngredientToSearch::dispatch((object)['id' => $ingredient->id], 'delete')->onQueue('ingredients');
         });
 
         static::restored(function (Ingredient $ingredient) {
+            DB::table('ingredients')->where('id', $ingredient->id)->update(['sync_status' => SyncStatus::Pending->value]);
             $ingredient->loadForSearch();
             SyncIngredientToSearch::dispatch($ingredient, 'insert')->onQueue('ingredients');
         });
