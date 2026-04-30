@@ -14,7 +14,7 @@ class LinkBrandsFromUsda extends Command
 {
     protected $signature = 'app:link-brands-from-usda
                             {file              : Absolute or storage-relative path to branded_food.json}
-                            {--backup=         : Path where a pre-run database dump will be saved (required)}
+                            {--backup=         : Path where a pre-run database dump will be saved}
                             {--batchSize=500   : Number of records per processing batch}';
 
     protected $description = 'Link brands from a USDA branded_food.json file to existing ingredients';
@@ -24,11 +24,6 @@ class LinkBrandsFromUsda extends Command
         $file      = $this->resolveFilePath($this->argument('file'));
         $backup    = $this->option('backup');
         $batchSize = (int) $this->option('batchSize');
-
-        if (!$backup) {
-            $this->error('--backup is required. Provide a path for the pre-run database dump.');
-            return self::FAILURE;
-        }
 
         if (!file_exists($file)) {
             $this->error("File not found: {$file}");
@@ -42,12 +37,14 @@ class LinkBrandsFromUsda extends Command
             return self::FAILURE;
         }
 
-        $this->info("Creating database backup at: {$backup}");
-        if (!$this->dumpDatabase($backup)) {
-            $this->error('Database backup failed. Aborting.');
-            return self::FAILURE;
+        if ($backup) {
+            $this->info("Creating database backup at: {$backup}");
+            if (!$this->dumpDatabase($backup)) {
+                $this->error('Database backup failed. Aborting.');
+                return self::FAILURE;
+            }
+            $this->info('Backup created.');
         }
-        $this->info('Backup created.');
 
         try {
             $this->info("Starting brand linking (batchSize={$batchSize}): {$file}");
@@ -106,26 +103,31 @@ class LinkBrandsFromUsda extends Command
             $pdo = new \PDO($dsn, $user, $pass);
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-            $sql    = "-- Backup: {$dbname} | " . now()->toIso8601String() . "\n\nSET FOREIGN_KEY_CHECKS=0;\n\n";
             $tables = $pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
 
+            $fh = fopen($path, 'w');
+            if ($fh === false) {
+                throw new \RuntimeException("Could not open backup file for writing: {$path}");
+            }
+
+            fwrite($fh, "-- Backup: {$dbname} | " . now()->toIso8601String() . "\n\nSET FOREIGN_KEY_CHECKS=0;\n\n");
+
             foreach ($tables as $table) {
-                $row  = $pdo->query("SHOW CREATE TABLE `{$table}`")->fetch(\PDO::FETCH_NUM);
-                $sql .= "DROP TABLE IF EXISTS `{$table}`;\n{$row[1]};\n\n";
+                $row = $pdo->query("SHOW CREATE TABLE `{$table}`")->fetch(\PDO::FETCH_NUM);
+                fwrite($fh, "DROP TABLE IF EXISTS `{$table}`;\n{$row[1]};\n\n");
 
                 $stmt = $pdo->query("SELECT * FROM `{$table}`");
                 while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
                     $cols   = implode(', ', array_map(fn($c) => "`{$c}`", array_keys($row)));
                     $values = implode(', ', array_map(fn($v) => $v === null ? 'NULL' : $pdo->quote((string) $v), $row));
-                    $sql   .= "INSERT INTO `{$table}` ({$cols}) VALUES ({$values});\n";
+                    fwrite($fh, "INSERT INTO `{$table}` ({$cols}) VALUES ({$values});\n");
                 }
 
-                $sql .= "\n";
+                fwrite($fh, "\n");
             }
 
-            $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
-
-            file_put_contents($path, $sql);
+            fwrite($fh, "SET FOREIGN_KEY_CHECKS=1;\n");
+            fclose($fh);
             return true;
         } catch (\Throwable $e) {
             return false;
