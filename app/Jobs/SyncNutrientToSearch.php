@@ -2,12 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Enums\SyncStatus;
 use App\Models\Nutrient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Support\Facades\DB;
 use App\Services\Search\SearchServiceContract;
 
 class SyncNutrientToSearch implements ShouldQueue
@@ -46,5 +48,12 @@ class SyncNutrientToSearch implements ShouldQueue
                 $search->delete($index, $id);
                 break;
         }
+
+        DB::table('nutrients')->where('id', $id)->update(['sync_status' => SyncStatus::Synced->value]);
+    }
+
+    public function failed(\Throwable $e): void
+    {
+        DB::table('nutrients')->where('id', $this->nutrient->id)->update(['sync_status' => SyncStatus::Failed->value]);
     }
 }
