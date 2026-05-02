@@ -184,4 +184,35 @@ class OllamaClientTest extends TestCase
                 && $request->data()['temperature'] === 0.7;
         });
     }
+
+    // -------------------------------------------------------------------------
+    // isAvailable()
+    // -------------------------------------------------------------------------
+
+    public function test_is_available_returns_true_when_api_responds(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/tags" => Http::response(['models' => []], 200),
+        ]);
+
+        $this->assertTrue($this->client->isAvailable());
+    }
+
+    public function test_is_available_returns_false_on_http_error(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/tags" => Http::response('', 500),
+        ]);
+
+        $this->assertFalse($this->client->isAvailable());
+    }
+
+    public function test_is_available_returns_false_on_connection_failure(): void
+    {
+        Http::fake(function () {
+            throw new ConnectionException('Connection refused');
+        });
+
+        $this->assertFalse($this->client->isAvailable());
+    }
 }

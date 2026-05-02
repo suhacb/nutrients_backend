@@ -80,7 +80,11 @@ class OllamaClient implements LlmClientContract
 
     public function isAvailable(): bool
     {
-        // implemented in next step
-        return false;
+        try {
+            $response = Http::timeout(5)->get("{$this->baseUrl}/api/tags");
+            return $response->successful();
+        } catch (ConnectionException) {
+            return false;
+        }
     }
 }
