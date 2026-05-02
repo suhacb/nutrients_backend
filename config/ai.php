@@ -20,6 +20,17 @@ return [
     ],
 
     'sources' => [
-        // Trusted nutrition sources used by web search tools (populated in ai-tools branch)
+        'https://fdc.nal.usda.gov/',
+        'https://www.nal.usda.gov/human-nutrition-and-food-safety/food-composition',
+        'https://food-nutrition.canada.ca/cnf-fce/index-eng.jsp',
+        'https://www.fao.org/infoods/',
+        'https://world.openfoodfacts.org/',
+        'https://pubmed.ncbi.nlm.nih.gov/',
+        'https://www.cochranelibrary.com/',
+        'https://www.who.int/health-topics/nutrition',
+        'https://www.nice.org.uk/',
+        'https://www.efsa.europa.eu/',
+        'https://ods.od.nih.gov/',
+        'https://www.ars.usda.gov/',
     ],
 ];
