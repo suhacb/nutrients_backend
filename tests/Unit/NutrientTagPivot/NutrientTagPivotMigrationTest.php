@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
-class NutrientNutrientTagPivotMigrationTest extends TestCase
+class NutrientTagPivotMigrationTest extends TestCase
 {
     use RefreshDatabase;
         protected array $expectedColumns = [
