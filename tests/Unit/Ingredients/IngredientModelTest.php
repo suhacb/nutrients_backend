@@ -93,6 +93,12 @@ class IngredientModelTest extends TestCase
         $this->assertSame(SyncStatus::Pending, $ingredient->fresh()->sync_status);
     }
 
+    public function test_sync_status_cast_is_declared_in_casts_array(): void
+    {
+        $this->assertArrayHasKey('sync_status', (new Ingredient())->getCasts());
+        $this->assertSame(SyncStatus::class, (new Ingredient())->getCasts()['sync_status']);
+    }
+
     public function test_updated_event_resets_sync_status_to_pending_and_dispatches_job(): void
     {
         Queue::fake();

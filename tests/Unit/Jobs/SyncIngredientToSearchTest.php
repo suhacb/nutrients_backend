@@ -136,6 +136,21 @@ class SyncIngredientToSearchTest extends TestCase
         $this->assertEquals(SyncStatus::Failed->value, $status);
     }
 
+    public function test_handle_skips_search_but_sets_synced_when_ingredient_not_found(): void
+    {
+        $mock = Mockery::mock(SearchServiceContract::class);
+        $mock->shouldNotReceive('insert');
+        $mock->shouldNotReceive('update');
+
+        Ingredient::withoutEvents(fn() => $this->ingredient->delete());
+
+        $job = new SyncIngredientToSearch((object)['id' => $this->ingredient->id], 'insert');
+        $job->handle($mock);
+
+        $status = DB::table('ingredients')->where('id', $this->ingredient->id)->value('sync_status');
+        $this->assertEquals(SyncStatus::Synced->value, $status);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
