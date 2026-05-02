@@ -3,7 +3,59 @@
 namespace App\AI\Clients;
 
 use App\AI\Contracts\LlmClientContract;
+use App\Exceptions\LlmRequestFailedException;
+use App\Exceptions\LlmUnavailableException;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
 
-class OllamaClient implements LlmClientContract {
-    
+class OllamaClient implements LlmClientContract
+{
+    public function __construct(
+        private readonly string $baseUrl,
+        private readonly string $model,
+        private readonly int    $timeout,
+    ) {}
+
+    public function generate(string $prompt, array $options = []): string
+    {
+        $payload = array_merge([
+            'model'  => $this->model,
+            'prompt' => $prompt,
+            'stream' => false,
+        ], $options);
+
+        try {
+            $response = Http::timeout($this->timeout)
+                ->post("{$this->baseUrl}/api/generate", $payload);
+        } catch (ConnectionException $e) {
+            throw new LlmUnavailableException($e->getMessage(), 0, $e);
+        }
+
+        if ($response->failed()) {
+            throw new LlmRequestFailedException(
+                "Ollama generate request failed with status {$response->status()}.",
+                $response->status(),
+            );
+        }
+
+        $text = $response->json('response');
+
+        if ($text === null) {
+            throw new LlmRequestFailedException('Ollama response missing expected "response" key.');
+        }
+
+        return $text;
+    }
+
+    public function chat(array $messages, array $options = []): string
+    {
+        // implemented in next step
+        return '';
+    }
+
+    public function isAvailable(): bool
+    {
+        // implemented in next step
+        return false;
+    }
 }

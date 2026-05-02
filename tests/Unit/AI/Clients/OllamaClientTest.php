@@ -2,15 +2,116 @@
 
 namespace Tests\Unit\AI\Clients;
 
-use PHPUnit\Framework\TestCase;
+use App\AI\Clients\OllamaClient;
+use App\Exceptions\LlmRequestFailedException;
+use App\Exceptions\LlmUnavailableException;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
 
 class OllamaClientTest extends TestCase
 {
-    /**
-     * A basic unit test example.
-     */
-    public function test_example(): void
+    private OllamaClient $client;
+
+    private string $baseUrl;
+
+    protected function setUp(): void
     {
-        $this->assertTrue(true);
+        parent::setUp();
+
+        $this->baseUrl = config('ai.ollama.base_url');
+
+        $this->client = new OllamaClient(
+            baseUrl: $this->baseUrl,
+            model:   config('ai.ollama.model'),
+            timeout: config('ai.ollama.timeout'),
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // generate()
+    // -------------------------------------------------------------------------
+
+    public function test_generate_returns_response_text_on_success(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/generate" => Http::response(
+                ['response' => 'Vitamin C is an essential nutrient.'],
+                200
+            ),
+        ]);
+
+        $result = $this->client->generate('Describe vitamin C.');
+
+        $this->assertSame('Vitamin C is an essential nutrient.', $result);
+    }
+
+    public function test_generate_throws_request_failed_on_http_error(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/generate" => Http::response('Internal Server Error', 500),
+        ]);
+
+        $this->expectException(LlmRequestFailedException::class);
+
+        $this->client->generate('Describe vitamin C.');
+    }
+
+    public function test_generate_http_error_carries_status_code(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/generate" => Http::response('', 503),
+        ]);
+
+        try {
+            $this->client->generate('Describe vitamin C.');
+            $this->fail('Expected LlmRequestFailedException');
+        } catch (LlmRequestFailedException $e) {
+            $this->assertSame(503, $e->getHttpStatus());
+        }
+    }
+
+    public function test_generate_throws_unavailable_on_connection_failure(): void
+    {
+        Http::fake(function () {
+            throw new ConnectionException('cURL error 7: Connection refused');
+        });
+
+        $this->expectException(LlmUnavailableException::class);
+
+        $this->client->generate('Describe vitamin C.');
+    }
+
+    public function test_generate_throws_request_failed_when_response_key_missing(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/generate" => Http::response(['unexpected' => 'shape'], 200),
+        ]);
+
+        $this->expectException(LlmRequestFailedException::class);
+
+        $this->client->generate('Describe vitamin C.');
+    }
+
+    public function test_generate_passes_options_to_request_body(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/generate" => Http::response(['response' => 'ok'], 200),
+        ]);
+
+        $this->client->generate('prompt', ['temperature' => 0.5]);
+
+        Http::assertSent(fn($request) => $request->data()['temperature'] === 0.5);
+    }
+
+    public function test_generate_options_can_override_model(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/generate" => Http::response(['response' => 'ok'], 200),
+        ]);
+
+        $this->client->generate('prompt', ['model' => 'llama3']);
+
+        Http::assertSent(fn($request) => $request->data()['model'] === 'llama3');
     }
 }
