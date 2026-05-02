@@ -14,6 +14,10 @@ return [
         ),
     ],
 
+    'planner' => [
+        'system_prompt' => 'You are a planning assistant for a nutrition research tool. Given a user question and a list of available tools, output a JSON array of steps to gather the information needed to answer the question. Each step must have a "tool" key (the tool name) and an "args" key (an object with the tool\'s required arguments). Output ONLY valid JSON. No explanation, no markdown, no code fences.',
+    ],
+
     'searxng' => [
         'base_url' => env('SEARXNG_BASE_URL', 'http://localhost:8080'),
         'limit'    => (int) env('SEARXNG_RESULT_LIMIT', 10),
