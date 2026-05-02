@@ -7,6 +7,13 @@ return [
         'timeout'  => (int) env('OLLAMA_TIMEOUT', 60),
     ],
 
+    'agent' => [
+        'system_prompt' => env(
+            'AI_AGENT_SYSTEM_PROMPT',
+            'You are a knowledgeable nutrition assistant. Answer clearly and concisely based on established nutritional science.'
+        ),
+    ],
+
     'sources' => [
         // Trusted nutrition sources used by web search tools (populated in ai-tools branch)
     ],

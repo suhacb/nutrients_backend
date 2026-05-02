@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgentController;
 use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\IngredientNutrientController;
 use App\Http\Controllers\IngredientsController;
@@ -83,6 +84,10 @@ Route::prefix('sources')->name('sources.')->middleware('verify.frontend')->group
     Route::post('', [SourcesController::class, 'store'])->name('store');
     Route::put('{source}', [SourcesController::class, 'update'])->name('update');
     Route::delete('{source}', [SourcesController::class, 'delete'])->name('delete');
+});
+
+Route::prefix('agent')->name('agent.')->middleware('verify.frontend')->group(function () {
+    Route::post('', [AgentController::class, 'ask'])->name('ask');
 });
 
 Route::prefix('search')->name('search')->middleware('verify.frontend')->group(function() {
