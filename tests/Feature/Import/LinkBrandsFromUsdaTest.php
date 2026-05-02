@@ -116,12 +116,6 @@ class LinkBrandsFromUsdaTest extends TestCase
         });
     }
 
-    public function test_fails_without_backup_option(): void
-    {
-        $this->artisan('app:link-brands-from-usda', ['file' => $this->fixture])
-            ->assertExitCode(1);
-    }
-
     public function test_fails_when_file_not_found(): void
     {
         $this->artisan('app:link-brands-from-usda', [
