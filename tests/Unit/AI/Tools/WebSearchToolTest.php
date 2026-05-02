@@ -109,6 +109,44 @@ class WebSearchToolTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Source filtering
+    // -------------------------------------------------------------------------
+
+    public function test_query_includes_site_filters_when_sources_configured(): void
+    {
+        Http::fake([
+            $this->searchUrl() . '*' => Http::response(['results' => $this->fakeResults(1)], 200),
+        ]);
+
+        $tool = new WebSearchTool(
+            baseUrl: $this->baseUrl,
+            limit: $this->limit,
+            sources: ['https://ods.od.nih.gov/', 'https://pubmed.ncbi.nlm.nih.gov/'],
+        );
+
+        $tool->run(['query' => 'magnesium']);
+
+        Http::assertSent(function ($request) {
+            $query = $request->data()['q'];
+            return str_contains($query, 'site:ods.od.nih.gov')
+                && str_contains($query, 'site:pubmed.ncbi.nlm.nih.gov');
+        });
+    }
+
+    public function test_query_is_unmodified_when_no_sources_configured(): void
+    {
+        Http::fake([
+            $this->searchUrl() . '*' => Http::response(['results' => $this->fakeResults(1)], 200),
+        ]);
+
+        $this->makeTool()->run(['query' => 'magnesium']);
+
+        Http::assertSent(function ($request) {
+            return $request->data()['q'] === 'magnesium';
+        });
+    }
+
+    // -------------------------------------------------------------------------
     // Tool metadata
     // -------------------------------------------------------------------------
 

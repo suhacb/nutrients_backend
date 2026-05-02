@@ -12,6 +12,7 @@ class WebSearchTool implements ToolContract
     public function __construct(
         private readonly string $baseUrl,
         private readonly int    $limit,
+        private readonly array  $sources = [],
     ) {}
 
     public function name(): string
@@ -31,9 +32,19 @@ class WebSearchTool implements ToolContract
 
     public function run(array $args): mixed
     {
+        $query = $args['query'];
+
+        if (!empty($this->sources)) {
+            $siteFilter = implode(' OR ', array_map(
+                fn (string $url) => 'site:' . parse_url($url, PHP_URL_HOST),
+                $this->sources
+            ));
+            $query = "{$query} {$siteFilter}";
+        }
+
         try {
             $response = Http::get("{$this->baseUrl}/search", [
-                'q'      => $args['query'],
+                'q'      => $query,
                 'format' => 'json',
             ]);
         } catch (ConnectionException $e) {
