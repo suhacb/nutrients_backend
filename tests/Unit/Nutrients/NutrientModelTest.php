@@ -2,19 +2,21 @@
 
 namespace Tests\Unit\Nutrients;
 
-use Tests\TestCase;
-use App\Models\Unit;
-use App\Models\Nutrient;
-use App\Models\NutrientTag;
-use App\Models\Ingredient;
-use App\Models\Source;
-use App\Jobs\SyncNutrientToSearch;
-use App\Traits\GeneratesSlug;
-use Illuminate\Support\Facades\Bus;
+use App\Enums\SyncStatus;
 use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
+use App\Jobs\SyncNutrientToSearch;
+use App\Models\Ingredient;
+use App\Models\Nutrient;
+use App\Models\NutrientTag;
+use App\Models\Source;
+use App\Models\Unit;
+use App\Traits\GeneratesSlug;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Tests\MakesUnit;
+use Tests\TestCase;
 use Tests\UsesZincIndices;
 
 /**
@@ -80,6 +82,7 @@ class NutrientModelTest extends TestCase
             'deleted_at'             => 'datetime',
             'is_label_standard'      => 'boolean',
             'iu_to_canonical_factor' => 'decimal:6',
+            'sync_status'            => SyncStatus::class,
         ];
 
         $this->assertEquals(
@@ -316,6 +319,75 @@ class NutrientModelTest extends TestCase
                    $job->action === 'insert' &&
                    $job->queue === 'nutrients';
         });
+    }
+
+    public function test_sync_status_is_not_mass_assignable(): void
+    {
+        $nutrient = new Nutrient();
+        $nutrient->fill(['sync_status' => SyncStatus::Synced]);
+
+        $this->assertNull($nutrient->sync_status);
+    }
+
+    public function test_sync_status_is_cast_to_enum(): void
+    {
+        Bus::fake();
+        $nutrient = Nutrient::factory()->create();
+
+        $this->assertInstanceOf(SyncStatus::class, $nutrient->fresh()->sync_status);
+        $this->assertSame(SyncStatus::Pending, $nutrient->fresh()->sync_status);
+    }
+
+    public function test_updated_event_resets_sync_status_to_pending_and_dispatches_job(): void
+    {
+        Bus::fake();
+        $nutrient = Nutrient::factory()->create();
+        DB::table('nutrients')->where('id', $nutrient->id)->update(['sync_status' => 'synced']);
+
+        Bus::fake();
+        $nutrient->update(['name' => 'Updated Name']);
+
+        $this->assertSame('pending', DB::table('nutrients')->where('id', $nutrient->id)->value('sync_status'));
+        Bus::assertDispatched(SyncNutrientToSearch::class, fn($job) => $job->action === 'update');
+    }
+
+    public function test_deleted_event_resets_sync_status_to_pending_and_dispatches_job(): void
+    {
+        Bus::fake();
+        $nutrient = Nutrient::factory()->create();
+        DB::table('nutrients')->where('id', $nutrient->id)->update(['sync_status' => 'synced']);
+
+        Bus::fake();
+        $nutrient->delete();
+
+        $this->assertSame('pending', DB::table('nutrients')->where('id', $nutrient->id)->value('sync_status'));
+        Bus::assertDispatched(SyncNutrientToSearch::class, fn($job) => $job->action === 'delete');
+    }
+
+    public function test_restored_event_resets_sync_status_to_pending_and_dispatches_job(): void
+    {
+        Bus::fake();
+        $nutrient = Nutrient::factory()->create();
+        $nutrient->delete();
+        DB::table('nutrients')->where('id', $nutrient->id)->update(['sync_status' => 'synced']);
+
+        Bus::fake();
+        $nutrient->restore();
+
+        $this->assertSame('pending', DB::table('nutrients')->where('id', $nutrient->id)->value('sync_status'));
+        Bus::assertDispatched(SyncNutrientToSearch::class, fn($job) => $job->action === 'insert');
+    }
+
+    public function test_updating_only_sync_status_does_not_dispatch_job(): void
+    {
+        Bus::fake();
+        $nutrient = Nutrient::factory()->create();
+
+        Bus::fake();
+        $nutrient->sync_status = SyncStatus::Synced;
+        $nutrient->save();
+
+        Bus::assertNotDispatched(SyncNutrientToSearch::class);
     }
 
     /**

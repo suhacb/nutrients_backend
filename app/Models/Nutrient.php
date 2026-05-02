@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SyncStatus;
 use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
 use App\Jobs\SyncNutrientToSearch;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Nutrient extends Model
 {
@@ -41,6 +43,7 @@ class Nutrient extends Model
         'deleted_at'             => 'datetime',
         'is_label_standard'      => 'boolean',
         'iu_to_canonical_factor' => 'decimal:6',
+        'sync_status'            => SyncStatus::class,
     ];
 
     protected static function booted()
@@ -50,6 +53,11 @@ class Nutrient extends Model
         });
 
         static::updated(function (Nutrient $nutrient) {
+            $changed = array_diff(array_keys($nutrient->getChanges()), ['sync_status', 'updated_at']);
+            if (empty($changed)) {
+                return;
+            }
+            DB::table('nutrients')->where('id', $nutrient->id)->update(['sync_status' => SyncStatus::Pending->value]);
             SyncNutrientToSearch::dispatch($nutrient, 'update')->onQueue('nutrients');
         });
 
@@ -64,10 +72,12 @@ class Nutrient extends Model
         });
 
         static::deleted(function (Nutrient $nutrient) {
+            DB::table('nutrients')->where('id', $nutrient->id)->update(['sync_status' => SyncStatus::Pending->value]);
             SyncNutrientToSearch::dispatch($nutrient, 'delete')->onQueue('nutrients');
         });
 
         static::restored(function (Nutrient $nutrient) {
+            DB::table('nutrients')->where('id', $nutrient->id)->update(['sync_status' => SyncStatus::Pending->value]);
             SyncNutrientToSearch::dispatch($nutrient, 'insert')->onQueue('nutrients');
         });
     }

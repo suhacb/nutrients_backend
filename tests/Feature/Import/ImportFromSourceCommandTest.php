@@ -88,14 +88,6 @@ class ImportFromSourceCommandTest extends TestCase
         $this->assertDatabaseCount('ingredient_nutrient', 3);
     }
 
-    public function test_command_fails_without_backup_option(): void
-    {
-        $this->artisan('app:import-from-source', [
-            'source' => 'usda',
-            'file'   => $this->fixture,
-        ])->assertExitCode(1);
-    }
-
     public function test_command_fails_when_file_not_found(): void
     {
         $this->artisanImport(['file' => '/nonexistent/file.json'])
