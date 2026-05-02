@@ -114,4 +114,74 @@ class OllamaClientTest extends TestCase
 
         Http::assertSent(fn($request) => $request->data()['model'] === 'llama3');
     }
+
+    // -------------------------------------------------------------------------
+    // chat()
+    // -------------------------------------------------------------------------
+
+    public function test_chat_returns_message_content_on_success(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'Protein builds muscle.'],
+            ], 200),
+        ]);
+
+        $result = $this->client->chat([
+            ['role' => 'system', 'content' => 'You are a nutritionist.'],
+            ['role' => 'user',   'content' => 'What does protein do?'],
+        ]);
+
+        $this->assertSame('Protein builds muscle.', $result);
+    }
+
+    public function test_chat_throws_request_failed_on_http_error(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/chat" => Http::response('Internal Server Error', 500),
+        ]);
+
+        $this->expectException(LlmRequestFailedException::class);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+    }
+
+    public function test_chat_throws_request_failed_when_message_content_missing(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/chat" => Http::response(['unexpected' => 'shape'], 200),
+        ]);
+
+        $this->expectException(LlmRequestFailedException::class);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+    }
+
+    public function test_chat_throws_unavailable_on_connection_failure(): void
+    {
+        Http::fake(function () {
+            throw new ConnectionException('cURL error 7: Connection refused');
+        });
+
+        $this->expectException(LlmUnavailableException::class);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+    }
+
+    public function test_chat_passes_messages_and_options_to_request_body(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $messages = [['role' => 'user', 'content' => 'Hello']];
+        $this->client->chat($messages, ['temperature' => 0.7]);
+
+        Http::assertSent(function ($request) use ($messages) {
+            return $request->data()['messages'] === $messages
+                && $request->data()['temperature'] === 0.7;
+        });
+    }
 }

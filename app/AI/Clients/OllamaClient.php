@@ -49,8 +49,33 @@ class OllamaClient implements LlmClientContract
 
     public function chat(array $messages, array $options = []): string
     {
-        // implemented in next step
-        return '';
+        $payload = array_merge([
+            'model'    => $this->model,
+            'messages' => $messages,
+            'stream'   => false,
+        ], $options);
+
+        try {
+            $response = Http::timeout($this->timeout)
+                ->post("{$this->baseUrl}/api/chat", $payload);
+        } catch (ConnectionException $e) {
+            throw new LlmUnavailableException($e->getMessage(), 0, $e);
+        }
+
+        if ($response->failed()) {
+            throw new LlmRequestFailedException(
+                "Ollama chat request failed with status {$response->status()}.",
+                $response->status(),
+            );
+        }
+
+        $text = $response->json('message.content');
+
+        if ($text === null) {
+            throw new LlmRequestFailedException('Ollama response missing expected "message.content" key.');
+        }
+
+        return $text;
     }
 
     public function isAvailable(): bool
