@@ -14,6 +14,11 @@ return [
         ),
     ],
 
+    'searxng' => [
+        'base_url' => env('SEARXNG_BASE_URL', 'http://localhost:8080'),
+        'limit'    => (int) env('SEARXNG_RESULT_LIMIT', 10),
+    ],
+
     'sources' => [
         // Trusted nutrition sources used by web search tools (populated in ai-tools branch)
     ],
