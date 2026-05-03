@@ -6,6 +6,7 @@ use App\Models\Nutrient;
 use Illuminate\Http\JsonResponse;
 use App\Http\Requests\NutrientRequest;
 use App\Http\Requests\ResourceSearchRequest;
+use App\Http\Resources\NutrientResource;
 use App\Services\Search\SearchServiceContract;
 
 class NutrientsController extends Controller
@@ -25,7 +26,7 @@ class NutrientsController extends Controller
             return response()->json($document, 200);
         }
 
-        return response()->json($nutrient->loadForSearch(), 200);
+        return response()->json(new NutrientResource($nutrient->loadForSearch()), 200);
     }
 
     public function store(NutrientRequest $request): JsonResponse

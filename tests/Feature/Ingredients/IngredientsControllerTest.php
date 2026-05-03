@@ -101,7 +101,6 @@ class IngredientsControllerTest extends TestCase
                 'description' => $ingredient->description,
                 // no need to enforce 100.0 formatting
                 'default_amount' => $ingredient->default_amount,
-                'default_amount_unit_id' => $ingredient->default_amount_unit_id,
                 'default_amount_unit' => [
                     'id' => $defaultUnit->id,
                     'name' => $defaultUnit->name,
@@ -111,13 +110,11 @@ class IngredientsControllerTest extends TestCase
                 'nutrients' => [
                     [
                         'id'          => $nutrient->id,
-                        'source_id'   => $nutrient->source_id,
                         'external_id' => $nutrient->external_id,
                         'name'        => $nutrient->name,
                         'description' => $nutrient->description,
                         'pivot' => [
-                            'amount'         => 5,
-                            'amount_unit_id' => $amountUnit->id,
+                            'amount' => 5,
                         ],
                     ]
                 ],
@@ -139,6 +136,66 @@ class IngredientsControllerTest extends TestCase
         $this->assertArrayHasKey('nutrients', $json);
         $this->assertCount(1, $json['nutrients']);
         $this->assertArrayHasKey('pivot', $json['nutrients'][0]);
+    }
+
+    // -------------------------------------------------------------------------
+    // API Resource — redundant FK fields must be absent
+    // -------------------------------------------------------------------------
+
+    public function test_show_omits_fk_fields_from_ingredient(): void
+    {
+        $unit       = Unit::factory()->create();
+        $brand      = Brand::factory()->create();
+        $ingredient = Ingredient::factory()->create([
+            'brand_id'               => $brand->id,
+            'default_amount_unit_id' => $unit->id,
+        ]);
+
+        $json = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json();
+
+        $this->assertArrayNotHasKey('brand_id', $json);
+        $this->assertArrayNotHasKey('default_amount_unit_id', $json);
+    }
+
+    public function test_show_omits_fk_fields_from_nutrition_facts(): void
+    {
+        $unit       = Unit::factory()->create();
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $unit->id]);
+        \App\Models\IngredientNutritionFact::factory()->create([
+            'ingredient_id'  => $ingredient->id,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $fact = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json('nutrition_facts.0');
+
+        $this->assertArrayNotHasKey('ingredient_id', $fact);
+        $this->assertArrayNotHasKey('amount_unit_id', $fact);
+    }
+
+    public function test_show_omits_fk_fields_from_nutrient_pivot(): void
+    {
+        $unit       = Unit::factory()->create();
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $unit->id]);
+        $nutrient   = Nutrient::factory()->create();
+        $ingredient->nutrients()->attach($nutrient->id, [
+            'amount'         => 5,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $pivot = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json('nutrients.0.pivot');
+
+        $this->assertArrayNotHasKey('ingredient_id', $pivot);
+        $this->assertArrayNotHasKey('nutrient_id', $pivot);
+        $this->assertArrayNotHasKey('amount_unit_id', $pivot);
     }
 
     public function test_show_includes_brand(): void

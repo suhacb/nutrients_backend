@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ingredient;
 use App\Http\Requests\IngredientRequest;
 use App\Http\Requests\ResourceSearchRequest;
+use App\Http\Resources\IngredientResource;
 use App\Services\Search\SearchServiceContract;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,7 +27,7 @@ class IngredientsController extends Controller
             return response()->json($document, 200);
         }
 
-        return response()->json($ingredient->loadForSearch(), 200);
+        return response()->json(new IngredientResource($ingredient->loadForSearch()), 200);
     }
 
     public function store(IngredientRequest $request): JsonResponse

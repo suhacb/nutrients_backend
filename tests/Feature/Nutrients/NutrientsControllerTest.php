@@ -440,6 +440,30 @@ class NutrientsControllerTest extends TestCase
              ->assertJsonPath('canonical_unit.id', $unit->id);
     }
 
+    // -------------------------------------------------------------------------
+    // API Resource — redundant FK fields must be absent
+    // -------------------------------------------------------------------------
+
+    public function test_show_omits_fk_fields_from_nutrient(): void
+    {
+        $unit    = $this->makeUnit();
+        $parent  = Nutrient::factory()->create();
+        $nutrient = Nutrient::factory()->create([
+            'source_id'         => $this->source->id,
+            'canonical_unit_id' => $unit->id,
+            'parent_id'         => $parent->id,
+        ]);
+
+        $json = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('nutrients.show', $nutrient))
+            ->assertStatus(200)
+            ->json();
+
+        $this->assertArrayNotHasKey('source_id', $json);
+        $this->assertArrayNotHasKey('canonical_unit_id', $json);
+        $this->assertArrayNotHasKey('parent_id', $json);
+    }
+
     /**
 
     public function test_store_auto_generates_slug_when_not_provided(): void
