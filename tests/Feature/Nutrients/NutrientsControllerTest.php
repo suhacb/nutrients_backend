@@ -9,6 +9,9 @@ use App\Models\NutrientTag;
 use App\Models\Source;
 use Tests\LoginTestUser;
 use App\Models\Ingredient;
+use App\Services\Search\SearchServiceContract;
+use App\Services\Search\SearchServiceResponse;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -33,6 +36,7 @@ class NutrientsControllerTest extends TestCase
         $this->login();
         Queue::fake();
         $this->source = Source::factory()->create();
+        Http::fake([config('zinc.base_url') . '/*' => Http::response([], 404)]);
     }
 
     /**
@@ -670,6 +674,79 @@ class NutrientsControllerTest extends TestCase
             'is_label_standard' => true,
             'display_order'     => 5,
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // show — Zinc-first with MySQL fallback
+    // -------------------------------------------------------------------------
+
+    public function test_show_returns_zinc_document_when_synced(): void
+    {
+        $nutrient     = Nutrient::factory()->create(['name' => 'Magnesium']);
+        $zincDocument = ['id' => $nutrient->id, 'name' => 'Magnesium', 'description' => 'An essential mineral.'];
+
+        $this->mock(SearchServiceContract::class, function ($mock) use ($nutrient, $zincDocument) {
+            $mock->shouldReceive('get')
+                ->with('nutrients', $nutrient->id)
+                ->once()
+                ->andReturn($zincDocument);
+        });
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('nutrients.show', $nutrient))
+            ->assertStatus(200)
+            ->assertJson($zincDocument);
+    }
+
+    public function test_show_falls_back_to_mysql_when_zinc_returns_null(): void
+    {
+        $nutrient = Nutrient::factory()->create(['name' => 'Magnesium']);
+
+        $this->mock(SearchServiceContract::class, function ($mock) use ($nutrient) {
+            $mock->shouldReceive('get')
+                ->with('nutrients', $nutrient->id)
+                ->once()
+                ->andReturn(null);
+        });
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('nutrients.show', $nutrient))
+            ->assertStatus(200)
+            ->assertJsonPath('id', $nutrient->id)
+            ->assertJsonPath('name', 'Magnesium');
+    }
+
+    // -------------------------------------------------------------------------
+    // search
+    // -------------------------------------------------------------------------
+
+    public function test_search_delegates_to_zinc_and_returns_results(): void
+    {
+        $this->mock(SearchServiceContract::class, function ($mock) {
+            $mock->shouldReceive('search')
+                ->with('nutrients', 'magnesium', 25, 1)
+                ->once()
+                ->andReturn(new SearchServiceResponse(
+                    query: 'magnesium',
+                    index: 'nutrients',
+                    total: 1,
+                    perPage: 25,
+                    results: [['id' => 1, 'name' => 'Magnesium', 'description' => null, 'score' => 0.9]],
+                ));
+        });
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.search'), ['query' => 'magnesium'])
+            ->assertStatus(200)
+            ->assertJsonPath('results.0.name', 'Magnesium');
+    }
+
+    public function test_search_returns_422_when_query_is_missing(): void
+    {
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('nutrients.search'), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['query']);
     }
 
     protected function tearDown(): void

@@ -96,12 +96,13 @@ class ZincSearchService implements SearchServiceContract
         $hits = $data['hits']['hits'] ?? [];
 
         $results = array_map(fn($hit) => [
-            'id' => $hit['_source']['id'] ?? null,
-            'name' => $hit['_source']['name'] ?? null,
+            'id'          => $hit['_source']['id'] ?? null,
+            'name'        => $hit['_source']['name'] ?? null,
             'description' => $hit['_source']['description'] ?? null,
-            // 'source' => $hit['_source'] ?? null,
-            'score' => $hit['_score'] ?? ($hit['_source']['score'] ?? null),
+            'score'       => $hit['_score'] ?? ($hit['_source']['score'] ?? null),
         ], $hits);
+
+        usort($results, fn($a, $b) => $b['score'] <=> $a['score']);
 
         return new SearchServiceResponse(
             query: $query,
@@ -110,5 +111,21 @@ class ZincSearchService implements SearchServiceContract
             perPage: $limit,
             results: $results
         );
+    }
+
+    public function get(string $index, string|int $id): ?array
+    {
+        $response = Http::withBasicAuth($this->username, $this->password)
+            ->get("{$this->baseUri}/api/{$index}/_doc/{$id}");
+
+        if ($response->status() === 404) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            throw new Exception("Search service unavailable");
+        }
+
+        return $response->json('_source');
     }
 }

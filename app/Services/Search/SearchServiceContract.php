@@ -9,4 +9,6 @@ interface SearchServiceContract {
     public function delete(string $index, string|int $id): bool;
 
     public function search(string $index, string $query, int $limit = 10, int $offset = 0): SearchServiceResponse;
+
+    public function get(string $index, string|int $id): ?array;
 }
