@@ -6,6 +6,7 @@ use App\AI\Agent\AgentContext;
 use App\AI\Agent\Executor;
 use App\AI\Agent\Planner;
 use App\AI\Agent\Synthesizer;
+use Illuminate\Support\Facades\Log;
 
 class AgentOrchestrator
 {
@@ -20,6 +21,7 @@ class AgentOrchestrator
         $context = new AgentContext($prompt);
 
         $this->planner->plan($context);
+        Log::debug('agent.plan', ['prompt' => $prompt, 'plan' => $context->getPlan()]);
         $this->executor->execute($context);
 
         return $this->synthesizer->synthesize($context);
