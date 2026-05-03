@@ -127,4 +127,40 @@ class PlannerTest extends TestCase
         $allText = implode(' ', array_column($capturedMessages, 'content'));
         $this->assertStringContainsString('web_search', $allText);
     }
+
+    public function test_system_prompt_instructs_verbatim_entity_extraction(): void
+    {
+        $captured = null;
+
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')
+            ->once()
+            ->andReturnUsing(function (array $messages) use (&$captured) {
+                $captured = $messages;
+                return $this->validPlanJson();
+            });
+
+        (new Planner($llm, $this->makeRegistry()))->plan(new AgentContext('Describe vitamin C'));
+
+        $system = collect($captured)->firstWhere('role', 'system')['content'] ?? '';
+        $this->assertStringContainsString('verbatim', strtolower($system));
+    }
+
+    public function test_user_prompt_is_forwarded_in_user_message(): void
+    {
+        $captured = null;
+
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')
+            ->once()
+            ->andReturnUsing(function (array $messages) use (&$captured) {
+                $captured = $messages;
+                return $this->validPlanJson();
+            });
+
+        (new Planner($llm, $this->makeRegistry()))->plan(new AgentContext('Describe vitamin C'));
+
+        $user = collect($captured)->firstWhere('role', 'user')['content'] ?? '';
+        $this->assertStringContainsString('Describe vitamin C', $user);
+    }
 }

@@ -153,4 +153,75 @@ class ZincSearchServiceTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    public function test_search_results_are_sorted_by_score_descending(): void
+    {
+        Http::fake([
+            "{$this->baseUri}/api/{$this->index}/_search" => Http::response([
+                'hits' => [
+                    'total' => 3,
+                    'hits'  => [
+                        ['_source' => ['id' => 3, 'name' => 'Low',    'description' => null], '_score' => 0.3],
+                        ['_source' => ['id' => 1, 'name' => 'High',   'description' => null], '_score' => 0.9],
+                        ['_source' => ['id' => 2, 'name' => 'Medium', 'description' => null], '_score' => 0.6],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $result = $this->service->search($this->index, 'test', 10, 1);
+
+        $scores = array_column($result->results, 'score');
+        $this->assertSame([0.9, 0.6, 0.3], $scores);
+    }
+
+    // -------------------------------------------------------------------------
+    // get()
+    // -------------------------------------------------------------------------
+
+    public function test_get_sends_get_request_and_returns_source_on_success(): void
+    {
+        $id       = 42;
+        $document = ['id' => 42, 'name' => 'Magnesium', 'description' => 'An essential mineral.'];
+
+        Http::fake([
+            "{$this->baseUri}/api/{$this->index}/_doc/{$id}" => Http::response(['_source' => $document], 200),
+        ]);
+
+        $result = $this->service->get($this->index, $id);
+
+        $this->assertSame($document, $result);
+
+        Http::assertSent(function ($request) use ($id) {
+            return $request->url() === "{$this->baseUri}/api/{$this->index}/_doc/{$id}"
+                && $request->method() === 'GET';
+        });
+    }
+
+    public function test_get_returns_null_when_document_not_found(): void
+    {
+        $id = 999;
+
+        Http::fake([
+            "{$this->baseUri}/api/{$this->index}/_doc/{$id}" => Http::response([], 404),
+        ]);
+
+        $result = $this->service->get($this->index, $id);
+
+        $this->assertNull($result);
+    }
+
+    public function test_get_throws_exception_on_server_error(): void
+    {
+        $id = 42;
+
+        Http::fake([
+            "{$this->baseUri}/api/{$this->index}/_doc/{$id}" => Http::response([], 500),
+        ]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Search service unavailable');
+
+        $this->service->get($this->index, $id);
+    }
 }

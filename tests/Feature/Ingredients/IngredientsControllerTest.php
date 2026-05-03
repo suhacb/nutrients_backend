@@ -10,6 +10,9 @@ use Tests\LoginTestUser;
 use App\Models\Ingredient;
 use App\Jobs\SyncIngredientToSearch;
 use App\Models\IngredientCategory;
+use App\Services\Search\SearchServiceContract;
+use App\Services\Search\SearchServiceResponse;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,8 +24,9 @@ class IngredientsControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Queue::fake(); // Prevent actual jobs from running
+        Queue::fake();
         $this->login();
+        Http::fake([config('zinc.base_url') . '/*' => Http::response([], 404)]);
     }
 
     public function test_index_returns_paginated_ingredients(): void
@@ -97,7 +101,6 @@ class IngredientsControllerTest extends TestCase
                 'description' => $ingredient->description,
                 // no need to enforce 100.0 formatting
                 'default_amount' => $ingredient->default_amount,
-                'default_amount_unit_id' => $ingredient->default_amount_unit_id,
                 'default_amount_unit' => [
                     'id' => $defaultUnit->id,
                     'name' => $defaultUnit->name,
@@ -107,13 +110,11 @@ class IngredientsControllerTest extends TestCase
                 'nutrients' => [
                     [
                         'id'          => $nutrient->id,
-                        'source_id'   => $nutrient->source_id,
                         'external_id' => $nutrient->external_id,
                         'name'        => $nutrient->name,
                         'description' => $nutrient->description,
                         'pivot' => [
-                            'amount'         => 5,
-                            'amount_unit_id' => $amountUnit->id,
+                            'amount' => 5,
                         ],
                     ]
                 ],
@@ -135,6 +136,66 @@ class IngredientsControllerTest extends TestCase
         $this->assertArrayHasKey('nutrients', $json);
         $this->assertCount(1, $json['nutrients']);
         $this->assertArrayHasKey('pivot', $json['nutrients'][0]);
+    }
+
+    // -------------------------------------------------------------------------
+    // API Resource — redundant FK fields must be absent
+    // -------------------------------------------------------------------------
+
+    public function test_show_omits_fk_fields_from_ingredient(): void
+    {
+        $unit       = Unit::factory()->create();
+        $brand      = Brand::factory()->create();
+        $ingredient = Ingredient::factory()->create([
+            'brand_id'               => $brand->id,
+            'default_amount_unit_id' => $unit->id,
+        ]);
+
+        $json = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json();
+
+        $this->assertArrayNotHasKey('brand_id', $json);
+        $this->assertArrayNotHasKey('default_amount_unit_id', $json);
+    }
+
+    public function test_show_omits_fk_fields_from_nutrition_facts(): void
+    {
+        $unit       = Unit::factory()->create();
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $unit->id]);
+        \App\Models\IngredientNutritionFact::factory()->create([
+            'ingredient_id'  => $ingredient->id,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $fact = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json('nutrition_facts.0');
+
+        $this->assertArrayNotHasKey('ingredient_id', $fact);
+        $this->assertArrayNotHasKey('amount_unit_id', $fact);
+    }
+
+    public function test_show_omits_fk_fields_from_nutrient_pivot(): void
+    {
+        $unit       = Unit::factory()->create();
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $unit->id]);
+        $nutrient   = Nutrient::factory()->create();
+        $ingredient->nutrients()->attach($nutrient->id, [
+            'amount'         => 5,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $pivot = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json('nutrients.0.pivot');
+
+        $this->assertArrayNotHasKey('ingredient_id', $pivot);
+        $this->assertArrayNotHasKey('nutrient_id', $pivot);
+        $this->assertArrayNotHasKey('amount_unit_id', $pivot);
     }
 
     public function test_show_includes_brand(): void
@@ -475,6 +536,83 @@ class IngredientsControllerTest extends TestCase
             ->assertStatus(201);
 
         $this->assertDatabaseHas('ingredients', ['name' => 'Whole Milk', 'brand_id' => $brand->id]);
+    }
+
+    // -------------------------------------------------------------------------
+    // show — Zinc-first with MySQL fallback
+    // -------------------------------------------------------------------------
+
+    public function test_show_returns_zinc_document_when_synced(): void
+    {
+        $ingredient   = Ingredient::factory()->create(['name' => 'Olive Oil']);
+        $zincDocument = ['id' => $ingredient->id, 'name' => 'Olive Oil', 'description' => 'A rich oil.'];
+
+        $this->mock(SearchServiceContract::class, function ($mock) use ($ingredient, $zincDocument) {
+            $mock->shouldReceive('get')
+                ->with('ingredients', $ingredient->id)
+                ->once()
+                ->andReturn($zincDocument);
+        });
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->assertJson($zincDocument);
+    }
+
+    public function test_show_falls_back_to_mysql_when_zinc_returns_null(): void
+    {
+        $unit       = Unit::factory()->create();
+        $ingredient = Ingredient::factory()->create([
+            'name'                   => 'Olive Oil',
+            'default_amount_unit_id' => $unit->id,
+        ]);
+
+        $this->mock(SearchServiceContract::class, function ($mock) use ($ingredient) {
+            $mock->shouldReceive('get')
+                ->with('ingredients', $ingredient->id)
+                ->once()
+                ->andReturn(null);
+        });
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->assertJsonPath('id', $ingredient->id)
+            ->assertJsonPath('name', 'Olive Oil');
+    }
+
+    // -------------------------------------------------------------------------
+    // search
+    // -------------------------------------------------------------------------
+
+    public function test_search_delegates_to_zinc_and_returns_results(): void
+    {
+        $this->mock(SearchServiceContract::class, function ($mock) {
+            $mock->shouldReceive('search')
+                ->with('ingredients', 'olive', 25, 1)
+                ->once()
+                ->andReturn(new SearchServiceResponse(
+                    query: 'olive',
+                    index: 'ingredients',
+                    total: 1,
+                    perPage: 25,
+                    results: [['id' => 1, 'name' => 'Olive Oil', 'description' => null, 'score' => 0.9]],
+                ));
+        });
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.search'), ['query' => 'olive'])
+            ->assertStatus(200)
+            ->assertJsonPath('results.0.name', 'Olive Oil');
+    }
+
+    public function test_search_returns_422_when_query_is_missing(): void
+    {
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('ingredients.search'), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['query']);
     }
 
     protected function tearDown(): void
