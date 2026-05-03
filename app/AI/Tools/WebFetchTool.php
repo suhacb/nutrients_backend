@@ -5,6 +5,7 @@ namespace App\AI\Tools;
 use App\AI\Contracts\ToolContract;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 class WebFetchTool implements ToolContract
@@ -30,6 +31,8 @@ class WebFetchTool implements ToolContract
 
     public function run(array $args): mixed
     {
+        Log::debug('web_fetch.url', ['url' => $args['url']]);
+
         try {
             $response = Http::timeout($this->timeout)->get($args['url']);
         } catch (ConnectionException $e) {

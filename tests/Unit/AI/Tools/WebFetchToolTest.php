@@ -4,6 +4,7 @@ namespace Tests\Unit\AI\Tools;
 
 use App\AI\Tools\WebFetchTool;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class WebFetchToolTest extends TestCase
@@ -92,6 +93,28 @@ class WebFetchToolTest extends TestCase
         $this->expectException(\RuntimeException::class);
 
         $this->makeTool()->run(['url' => 'https://example.com']);
+    }
+
+    // -------------------------------------------------------------------------
+    // Logging
+    // -------------------------------------------------------------------------
+
+    public function test_fetched_url_is_logged_at_debug_level(): void
+    {
+        $logged = null;
+
+        Log::shouldReceive('debug')
+            ->once()
+            ->andReturnUsing(function (string $message, array $ctx) use (&$logged) {
+                $logged = ['message' => $message, 'ctx' => $ctx];
+            });
+
+        Http::fake(['https://example.com' => Http::response('<html><body><p>Content.</p></body></html>', 200)]);
+
+        $this->makeTool()->run(['url' => 'https://example.com']);
+
+        $this->assertSame('web_fetch.url', $logged['message']);
+        $this->assertSame('https://example.com', $logged['ctx']['url']);
     }
 
     // -------------------------------------------------------------------------
