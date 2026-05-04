@@ -8,6 +8,7 @@ use App\Services\Auth\AuthService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Client\RequestException;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class LoginController extends Controller
@@ -24,12 +25,33 @@ class LoginController extends Controller
         $this->applicationUrl = request()->header('X-Client-Url') ?? null;
     }
 
+    #[OA\Post(
+        path: '/api/auth/login',
+        summary: 'Get OAuth2 redirect URI',
+        tags: ['Auth'],
+        responses: [
+            new OA\Response(response: 200, description: 'Redirect URI', content: new OA\JsonContent(
+                properties: [new OA\Property(property: 'redirect_uri', type: 'string', example: 'https://auth.example.com/oauth/authorize?...')]
+            )),
+        ]
+    )]
     public function login (): JsonResponse {
         return response()->json([
             'redirect_uri' => $this->service->login()
         ], 200);
     }
 
+    #[OA\Get(
+        path: '/api/auth/validate-access-token',
+        summary: 'Validate a bearer access token',
+        security: [['frontend' => []]],
+        tags: ['Auth'],
+        responses: [
+            new OA\Response(response: 200, description: 'Token is valid'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 503, description: 'Auth service unavailable'),
+        ]
+    )]
     public function validateAccessToken(): JsonResponse {
         if(!$this->accessToken) {
             return response()->json(['error' => 'Unauthorized'], 401);
@@ -37,7 +59,7 @@ class LoginController extends Controller
 
         try {
             $response = $this->service->validate($this->accessToken, $this->refreshToken, $this->applicationName, $this->applicationUrl);
-            
+
             if ($response->successful()) {
                 $responseData = $response->json();
                 if($responseData == true) { return response()->json("true", 200); }
@@ -53,6 +75,17 @@ class LoginController extends Controller
         }
     }
 
+    #[OA\Post(
+        path: '/api/auth/logout',
+        summary: 'Logout and invalidate tokens',
+        security: [['frontend' => []]],
+        tags: ['Auth'],
+        responses: [
+            new OA\Response(response: 200, description: 'Logged out successfully'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 503, description: 'Auth service unavailable'),
+        ]
+    )]
     public function logout(): JsonResponse {
         if (!$this->accessToken) {
             return response()->json(['error' => 'Unauthorized'], 401);

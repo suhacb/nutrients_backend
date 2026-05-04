@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\SearchRequest;
 use Illuminate\Support\Facades\Cache;
 use App\Services\Search\SearchServiceContract;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class SearchController extends Controller
@@ -18,7 +19,36 @@ class SearchController extends Controller
     {
         $this->searchService = $searchService;
     }
-    
+
+    #[OA\Post(
+        path: '/api/search',
+        summary: 'Full-text search across a resource index with caching',
+        security: [['frontend' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['query', 'index'],
+                properties: [
+                    new OA\Property(property: 'query', type: 'string', example: 'broccoli'),
+                    new OA\Property(property: 'index', type: 'string', example: 'ingredients', description: 'Search index name (e.g. ingredients, nutrients)'),
+                    new OA\Property(property: 'page', type: 'integer', example: 1),
+                ]
+            )
+        ),
+        tags: ['Search'],
+        responses: [
+            new OA\Response(response: 200, description: 'Search results', content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'hits', type: 'array', items: new OA\Items(type: 'object')),
+                    new OA\Property(property: 'total', type: 'integer', example: 10),
+                    new OA\Property(property: 'page', type: 'integer', example: 1),
+                ]
+            )),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 502, description: 'Search service unavailable'),
+        ]
+    )]
     public function search(SearchRequest $request): JsonResponse
     {
         $data = $request->validated();

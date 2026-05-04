@@ -1,0 +1,3005 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Nutrients API",
+        "description": "REST API for managing ingredients and their nutritional data.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost",
+            "description": "API Server"
+        }
+    ],
+    "paths": {
+        "/api/agent": {
+            "post": {
+                "tags": [
+                    "Agent"
+                ],
+                "summary": "Ask the AI nutrition agent a question",
+                "operationId": "34eb8cbb34df32b7e944b04631bad5ef",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "prompt"
+                                ],
+                                "properties": {
+                                    "prompt": {
+                                        "type": "string",
+                                        "example": "What are the benefits of vitamin C?"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "AI response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "response": {
+                                            "type": "string",
+                                            "example": "Vitamin C is an essential nutrient..."
+                                        },
+                                        "model": {
+                                            "type": "string",
+                                            "example": "llama3.2"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "502": {
+                        "description": "AI service returned unexpected response"
+                    },
+                    "503": {
+                        "description": "AI service unavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/brands": {
+            "get": {
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "List brands (paginated)",
+                "operationId": "02dade6ef73b43ec83bd6c207f453017",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of brands",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Brand"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer"
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "last_page": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Create a new brand",
+                "operationId": "e33aeeffdf4a6ebca0d467f3125c4c2e",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Acme Foods"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "owner": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "country": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Brand"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/brands/{brand}": {
+            "get": {
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Get a single brand",
+                "operationId": "50441dc20d5f060caae0a11c6222868a",
+                "parameters": [
+                    {
+                        "name": "brand",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Brand resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Brand"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Update a brand",
+                "operationId": "7a48c164be636d6b3d81d03f0d843e1d",
+                "parameters": [
+                    {
+                        "name": "brand",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "owner": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "country": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Brand"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Delete a brand",
+                "operationId": "8f928c6be1394a8a64a728308e26817b",
+                "parameters": [
+                    {
+                        "name": "brand",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/ingredients/{ingredient}/nutrients": {
+            "get": {
+                "tags": [
+                    "IngredientNutrients"
+                ],
+                "summary": "List nutrients attached to an ingredient",
+                "operationId": "c4110bc2112c2eb8304574f751d787f9",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Nutrient list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Nutrient"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "IngredientNutrients"
+                ],
+                "summary": "Detach multiple nutrients from an ingredient",
+                "operationId": "1405d8b366e16faedc5009397c32e4f8",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nutrient_ids"
+                                ],
+                                "properties": {
+                                    "nutrient_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "Detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/ingredients/{ingredient}/nutrients/attach": {
+            "post": {
+                "tags": [
+                    "IngredientNutrients"
+                ],
+                "summary": "Attach a nutrient to an ingredient",
+                "operationId": "3d008aefee89333d24eb8baaac2144f4",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nutrient_id"
+                                ],
+                                "properties": {
+                                    "nutrient_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 10.5,
+                                        "nullable": true
+                                    },
+                                    "amount_unit_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated nutrient list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Nutrient"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/ingredients/{ingredient}/nutrients/{nutrient}": {
+            "put": {
+                "tags": [
+                    "IngredientNutrients"
+                ],
+                "summary": "Update pivot data for a nutrient on an ingredient",
+                "operationId": "1a75e9333eef06f9eebefacb6329a5a4",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "amount_unit_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated nutrient list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Nutrient"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "IngredientNutrients"
+                ],
+                "summary": "Detach a nutrient from an ingredient",
+                "operationId": "f6719f327d40027f24c94e66ab1907e5",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/ingredients": {
+            "get": {
+                "tags": [
+                    "Ingredients"
+                ],
+                "summary": "List ingredients (paginated)",
+                "operationId": "5d595349bcfde36b13640a043eb2db57",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of ingredients",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Ingredient"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 500
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 25
+                                        },
+                                        "last_page": {
+                                            "type": "integer",
+                                            "example": 20
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Ingredients"
+                ],
+                "summary": "Create a new ingredient",
+                "operationId": "0d674a4f6ca04a7604deddd5ffc1d160",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "source",
+                                    "name",
+                                    "default_amount",
+                                    "default_amount_unit_id"
+                                ],
+                                "properties": {
+                                    "source": {
+                                        "type": "string",
+                                        "example": "USDA"
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Broccoli, raw"
+                                    },
+                                    "external_id": {
+                                        "type": "string",
+                                        "example": "321360",
+                                        "nullable": true
+                                    },
+                                    "class": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "broccoli-raw",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "default_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 100
+                                    },
+                                    "default_amount_unit_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "brand_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ingredient"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/ingredients/{ingredient}": {
+            "get": {
+                "tags": [
+                    "Ingredients"
+                ],
+                "summary": "Get a single ingredient with all relationships",
+                "operationId": "b5bdb82e230552aabcf49f77306133a5",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "description": "Ingredient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ingredient resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ingredient"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Ingredients"
+                ],
+                "summary": "Update an ingredient",
+                "operationId": "ce3cdee317f0ef1b5d9a3cbc18b101ca",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "description": "Ingredient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "source": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "external_id": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "class": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "default_amount": {
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "default_amount_unit_id": {
+                                        "type": "integer"
+                                    },
+                                    "brand_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ingredient"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Ingredients"
+                ],
+                "summary": "Soft-delete an ingredient",
+                "operationId": "b519f81034a5ac4cdff57d149fd05c00",
+                "parameters": [
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "description": "Ingredient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/ingredients/search": {
+            "post": {
+                "tags": [
+                    "Ingredients"
+                ],
+                "summary": "Full-text search ingredients",
+                "operationId": "2fae9b559b45f1504e94f06123bfe98c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "query"
+                                ],
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "example": "broccoli"
+                                    },
+                                    "page": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "hits": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Ingredient"
+                                            }
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get OAuth2 redirect URI",
+                "operationId": "929538638b39fce3e5d2c142898267b5",
+                "responses": {
+                    "200": {
+                        "description": "Redirect URI",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "redirect_uri": {
+                                            "type": "string",
+                                            "example": "https://auth.example.com/oauth/authorize?..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/validate-access-token": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Validate a bearer access token",
+                "operationId": "cd2c295b52742448174746ee7ea4bbca",
+                "responses": {
+                    "200": {
+                        "description": "Token is valid"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "503": {
+                        "description": "Auth service unavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout and invalidate tokens",
+                "operationId": "f1edef7f79a0461455ab182363b1fd37",
+                "responses": {
+                    "200": {
+                        "description": "Logged out successfully"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "503": {
+                        "description": "Auth service unavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrient-tags": {
+            "get": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "List nutrient tags (paginated)",
+                "operationId": "9773be54d8961d8895e9fdf1ac602b5a",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of nutrient tags",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/NutrientTag"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer"
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "last_page": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "Create a new nutrient tag",
+                "operationId": "9434cc8a6e8157bef51aabfbaebb74e8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "slug"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Fat-soluble"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "fat-soluble"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NutrientTag"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrient-tags/{nutrientTag}": {
+            "get": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "Get a single nutrient tag",
+                "operationId": "bf048e643b7f1f889e49b0b430f8354c",
+                "parameters": [
+                    {
+                        "name": "nutrientTag",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "NutrientTag resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NutrientTag"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "Update a nutrient tag",
+                "operationId": "291b664a6e9ce401111681d9fc436fd9",
+                "parameters": [
+                    {
+                        "name": "nutrientTag",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "slug": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NutrientTag"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "Delete a nutrient tag",
+                "operationId": "a2173965ba2ab3c23e379619e269df3f",
+                "parameters": [
+                    {
+                        "name": "nutrientTag",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrients/{nutrient}/tags": {
+            "post": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "Attach a tag to a nutrient",
+                "operationId": "2992197104d17d81e0d67d7165fe7008",
+                "parameters": [
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "tag_id"
+                                ],
+                                "properties": {
+                                    "tag_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated tag list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/NutrientTag"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "Detach all tags from a nutrient",
+                "operationId": "eb8fe5a39920cd9cbe4050e02e3b5e25",
+                "parameters": [
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "All tags detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrients/{nutrient}/tags/{tag}": {
+            "delete": {
+                "tags": [
+                    "NutrientTags"
+                ],
+                "summary": "Detach a specific tag from a nutrient",
+                "operationId": "2be0de208a01c98c51fe7d2ca3484aa1",
+                "parameters": [
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "tag",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrients": {
+            "get": {
+                "tags": [
+                    "Nutrients"
+                ],
+                "summary": "List nutrients (paginated)",
+                "operationId": "59153af12457b12724a580787f70c96b",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of nutrients",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Nutrient"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 100
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 25
+                                        },
+                                        "last_page": {
+                                            "type": "integer",
+                                            "example": 4
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Nutrients"
+                ],
+                "summary": "Create a new nutrient",
+                "operationId": "606e7a95222294837bdd4c6e76780226",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "source_id",
+                                    "name"
+                                ],
+                                "properties": {
+                                    "source_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Vitamin C"
+                                    },
+                                    "external_id": {
+                                        "type": "string",
+                                        "example": "1004",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "parent_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "vitamin-c",
+                                        "nullable": true
+                                    },
+                                    "canonical_unit_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "iu_to_canonical_factor": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "is_label_standard": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "display_order": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Nutrient"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrients/{nutrient}": {
+            "get": {
+                "tags": [
+                    "Nutrients"
+                ],
+                "summary": "Get a single nutrient with all relationships",
+                "operationId": "bedeae6923057eede2de724c1539b771",
+                "parameters": [
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "description": "Nutrient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Nutrient resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Nutrient"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Nutrients"
+                ],
+                "summary": "Update a nutrient",
+                "operationId": "29dd63bc25f96eb426c742025fa497a0",
+                "parameters": [
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "description": "Nutrient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "source_id": {
+                                        "type": "integer"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "external_id": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "parent_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "canonical_unit_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "iu_to_canonical_factor": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "is_label_standard": {
+                                        "type": "boolean"
+                                    },
+                                    "display_order": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Nutrient"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Nutrients"
+                ],
+                "summary": "Soft-delete a nutrient",
+                "operationId": "85ab7fd539285e785253af7299131755",
+                "parameters": [
+                    {
+                        "name": "nutrient",
+                        "in": "path",
+                        "description": "Nutrient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrients/search": {
+            "post": {
+                "tags": [
+                    "Nutrients"
+                ],
+                "summary": "Full-text search nutrients",
+                "operationId": "88f86f852f92e5f4751fd9e29d7f124c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "query"
+                                ],
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "example": "vitamin c"
+                                    },
+                                    "page": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "hits": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Nutrient"
+                                            }
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 5
+                                        },
+                                        "page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/search": {
+            "post": {
+                "tags": [
+                    "Search"
+                ],
+                "summary": "Full-text search across a resource index with caching",
+                "operationId": "06b31678f7e6f0ba423b15e1055d7f5d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "query",
+                                    "index"
+                                ],
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "example": "broccoli"
+                                    },
+                                    "index": {
+                                        "description": "Search index name (e.g. ingredients, nutrients)",
+                                        "type": "string",
+                                        "example": "ingredients"
+                                    },
+                                    "page": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "hits": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 10
+                                        },
+                                        "page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "502": {
+                        "description": "Search service unavailable"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/sources": {
+            "get": {
+                "tags": [
+                    "Sources"
+                ],
+                "summary": "List sources (paginated)",
+                "operationId": "0d4b9d4235ca94b03bc00fc5d9d47dc5",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of sources",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Source"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer"
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "last_page": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Sources"
+                ],
+                "summary": "Create a new source",
+                "operationId": "c8b05c203ddba0cbf523e393fef7f5f8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "slug"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "USDA FoodData Central"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "usda-fooddata-central"
+                                    },
+                                    "url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Source"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/sources/{source}": {
+            "get": {
+                "tags": [
+                    "Sources"
+                ],
+                "summary": "Get a single source",
+                "operationId": "75be94f315ccb4a8b5f045374448936a",
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Source resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Source"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Sources"
+                ],
+                "summary": "Update a source",
+                "operationId": "5caad678d15a4fcf2ceb96991b878ec4",
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "slug": {
+                                        "type": "string"
+                                    },
+                                    "url": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Source"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Sources"
+                ],
+                "summary": "Delete a source",
+                "operationId": "29f75a6a578fedf53ed9d96d6894ec87",
+                "parameters": [
+                    {
+                        "name": "source",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/units": {
+            "get": {
+                "tags": [
+                    "Units"
+                ],
+                "summary": "List units (paginated)",
+                "operationId": "295b451e7075d6052290154e2042a1e5",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of units",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Unit"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer"
+                                        },
+                                        "total": {
+                                            "type": "integer"
+                                        },
+                                        "per_page": {
+                                            "type": "integer"
+                                        },
+                                        "last_page": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Units"
+                ],
+                "summary": "Create a new unit",
+                "operationId": "aad258e5671f50e08f4e544f7bed01be",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "abbreviation"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Gram"
+                                    },
+                                    "abbreviation": {
+                                        "type": "string",
+                                        "example": "g"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "example": "mass",
+                                        "nullable": true
+                                    },
+                                    "to_base_factor": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 1,
+                                        "nullable": true
+                                    },
+                                    "base_unit_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unit"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/units/{unit}": {
+            "get": {
+                "tags": [
+                    "Units"
+                ],
+                "summary": "Get a single unit with base and derived units",
+                "operationId": "312c08234b596a15489b92207251c169",
+                "parameters": [
+                    {
+                        "name": "unit",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Unit resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unit"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Units"
+                ],
+                "summary": "Update a unit",
+                "operationId": "1b15aec7644e432e985b579d05e432b7",
+                "parameters": [
+                    {
+                        "name": "unit",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "abbreviation": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "to_base_factor": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "base_unit_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Unit"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Units"
+                ],
+                "summary": "Delete a unit",
+                "operationId": "5dd737d967c4ad71f456271b85ed797e",
+                "parameters": [
+                    {
+                        "name": "unit",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Brand": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Acme Foods"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "acme-foods"
+                    },
+                    "owner": {
+                        "type": "string",
+                        "example": "Acme Corp",
+                        "nullable": true
+                    },
+                    "country": {
+                        "type": "string",
+                        "example": "US",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "IngredientCategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Vegetables"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "IngredientNutrientPivot": {
+                "properties": {
+                    "amount": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 10.5,
+                        "nullable": true
+                    },
+                    "amount_unit": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Unit"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "IngredientNutritionFact": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "category": {
+                        "type": "string",
+                        "example": "Vitamins",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Vitamin C"
+                    },
+                    "amount": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 52,
+                        "nullable": true
+                    },
+                    "unit": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Unit"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Ingredient": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "example": "321360",
+                        "nullable": true
+                    },
+                    "source": {
+                        "type": "string",
+                        "example": "USDA",
+                        "nullable": true
+                    },
+                    "class": {
+                        "type": "string",
+                        "example": "FoodItem",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Broccoli, raw"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "broccoli-raw"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "default_amount": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 100,
+                        "nullable": true
+                    },
+                    "sync_status": {
+                        "type": "string",
+                        "example": "synced"
+                    },
+                    "brand": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Brand"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "default_amount_unit": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Unit"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "nutrients": {
+                        "type": "array",
+                        "items": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/Nutrient"
+                                },
+                                {
+                                    "properties": {
+                                        "pivot": {
+                                            "$ref": "#/components/schemas/IngredientNutrientPivot"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "nullable": true
+                    },
+                    "nutrition_facts": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IngredientNutritionFact"
+                        },
+                        "nullable": true
+                    },
+                    "categories": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IngredientCategory"
+                        },
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deleted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Nutrient": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "example": "1004",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Vitamin C"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "vitamin-c"
+                    },
+                    "iu_to_canonical_factor": {
+                        "type": "number",
+                        "format": "float",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "is_label_standard": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "display_order": {
+                        "type": "integer",
+                        "example": 10,
+                        "nullable": true
+                    },
+                    "sync_status": {
+                        "type": "string",
+                        "example": "synced"
+                    },
+                    "source": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Source"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "canonical_unit": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Unit"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "parent": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Nutrient"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "children": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Nutrient"
+                        }
+                    },
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NutrientTag"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deleted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "NutrientTag": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Fat-soluble"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "fat-soluble"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Source": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "USDA FoodData Central"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "usda-fooddata-central"
+                    },
+                    "url": {
+                        "type": "string",
+                        "example": "https://fdc.nal.usda.gov",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Unit": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Gram"
+                    },
+                    "abbreviation": {
+                        "type": "string",
+                        "example": "g"
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "mass",
+                        "nullable": true
+                    },
+                    "to_base_factor": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "base_unit_id": {
+                        "type": "integer",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "frontend": {
+                "type": "http",
+                "description": "Bearer token obtained from POST /api/auth/login. Also requires X-Refresh-Token, X-Application-Name, and X-Client-Url headers on every request.",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Agent",
+            "description": "Agent"
+        },
+        {
+            "name": "Brands",
+            "description": "Brands"
+        },
+        {
+            "name": "IngredientNutrients",
+            "description": "IngredientNutrients"
+        },
+        {
+            "name": "Ingredients",
+            "description": "Ingredients"
+        },
+        {
+            "name": "Auth",
+            "description": "Auth"
+        },
+        {
+            "name": "NutrientTags",
+            "description": "NutrientTags"
+        },
+        {
+            "name": "Nutrients",
+            "description": "Nutrients"
+        },
+        {
+            "name": "Search",
+            "description": "Search"
+        },
+        {
+            "name": "Sources",
+            "description": "Sources"
+        },
+        {
+            "name": "Units",
+            "description": "Units"
+        }
+    ]
+}
