@@ -3,16 +3,19 @@
 namespace App\AI;
 
 use App\AI\Agent\AgentContext;
-use App\AI\Agent\Executor;
+use App\AI\Agent\Extractor;
+use App\AI\Agent\Gatherer;
 use App\AI\Agent\Planner;
 use App\AI\Agent\Synthesizer;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class AgentOrchestrator
 {
     public function __construct(
         private readonly Planner     $planner,
-        private readonly Executor    $executor,
+        private readonly Gatherer    $gatherer,
+        private readonly Extractor   $extractor,
         private readonly Synthesizer $synthesizer,
     ) {}
 
@@ -20,10 +23,16 @@ class AgentOrchestrator
     {
         $context = new AgentContext($prompt);
 
-        $this->planner->plan($context);
-        Log::debug('agent.plan', ['prompt' => $prompt, 'plan' => $context->getPlan()]);
-        $this->executor->execute($context);
+        try {
+            $this->planner->plan($context);
+            Log::debug('agent.plan', ['prompt' => $prompt, 'plan' => $context->getPlan()]);
 
-        return $this->synthesizer->synthesize($context);
+            $this->gatherer->gather($context);
+            $this->extractor->extract($context);
+
+            return $this->synthesizer->synthesize($context);
+        } finally {
+            Storage::deleteDirectory("agent-runs/{$context->getRunId()}");
+        }
     }
 }

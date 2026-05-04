@@ -12,33 +12,37 @@ class Synthesizer
 
     public function synthesize(AgentContext $context): string
     {
-        $userMessage = "Question: {$context->getPrompt()}";
+        $extractions = $context->getExtractions();
 
-        $toolResults = $context->getToolResults();
-
-        if (!empty($toolResults)) {
-            $userMessage .= "\n\nResearch results:\n" . $this->formatResults($toolResults);
-            $userMessage .= "\n\nBased on the research above, provide a comprehensive and accurate answer.";
+        if (empty($extractions)) {
+            return $this->llm->chat([
+                ['role' => 'system', 'content' => config('ai.agent.system_prompt')],
+                ['role' => 'user',   'content' => $context->getPrompt()],
+            ]);
         }
 
+        $sources          = $context->getSources();
+        $extractionBlocks = [];
+
+        foreach ($extractions as $i => ['path' => $path, 'sourceIndex' => $si]) {
+            $url                = $sources[$si]['url'] ?? 'unknown';
+            $extractionBlocks[] = '--- Source ' . ($i + 1) . " ({$url}) ---\n" . file_get_contents($path);
+        }
+
+        $categories   = config('ai.extraction.categories', []);
+        $categoryList = implode(', ', $categories);
+
         $messages = [
-            ['role' => 'system', 'content' => config('ai.agent.system_prompt')],
-            ['role' => 'user',   'content' => $userMessage],
+            [
+                'role'    => 'system',
+                'content' => config('ai.agent.system_prompt'),
+            ],
+            [
+                'role'    => 'user',
+                'content' => "Question: {$context->getPrompt()}\n\nCover these aspects: {$categoryList}\n\nResearch extractions from " . count($extractions) . " sources:\n\n" . implode("\n\n", $extractionBlocks) . "\n\nWrite a comprehensive, well-structured answer based on the research above.",
+            ],
         ];
 
         return $this->llm->chat($messages);
-    }
-
-    private function formatResults(array $toolResults): string
-    {
-        return implode("\n\n", array_map(function (array $entry) {
-            $args    = implode(', ', array_map(fn ($k, $v) => "{$k}: \"{$v}\"", array_keys($entry['args']), $entry['args']));
-            $header  = "--- {$entry['tool']} ({$args}) ---";
-            $content = is_array($entry['result'])
-                ? json_encode($entry['result'], JSON_PRETTY_PRINT)
-                : (string) $entry['result'];
-
-            return "{$header}\n{$content}";
-        }, $toolResults));
     }
 }
