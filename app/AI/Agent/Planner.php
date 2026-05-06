@@ -4,6 +4,7 @@ namespace App\AI\Agent;
 
 use App\AI\Contracts\LlmClientContract;
 use App\AI\ToolRegistry;
+use Illuminate\Support\Facades\Log;
 
 class Planner
 {
@@ -29,7 +30,9 @@ class Planner
         ];
 
         $raw  = $this->llm->chat($messages);
+        Log::debug('agent.planner.raw', ['prompt' => $context->getPrompt(), 'raw' => $raw]);
         $json = $this->extractJson($raw);
+        Log::debug('agent.planner.json', ['json' => $json, 'decoded' => json_decode($json, true)]);
 
         $decoded = json_decode($json, true);
 

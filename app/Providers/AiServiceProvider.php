@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\AI\Agent\Extractor;
+use App\AI\Agent\Gatherer;
 use App\AI\Clients\OllamaClient;
 use App\AI\Contracts\LlmClientContract;
 use App\AI\ToolRegistry;
+use App\AI\Tools\PdfFetchTool;
 use App\AI\Tools\WebFetchTool;
 use App\AI\Tools\WebSearchTool;
 use Illuminate\Support\ServiceProvider;
@@ -33,8 +36,24 @@ class AiServiceProvider extends ServiceProvider
             ));
 
             $registry->register(new WebFetchTool());
+            $registry->register(new PdfFetchTool());
 
             return $registry;
+        });
+
+        $this->app->singleton(Gatherer::class, function () {
+            return new Gatherer(
+                registry: $this->app->make(ToolRegistry::class),
+            );
+        });
+
+        $this->app->singleton(Extractor::class, function () {
+            return new Extractor(
+                llm:            $this->app->make(LlmClientContract::class),
+                categories:     config('ai.extraction.categories'),
+                systemPrompt:   config('ai.extraction.system_prompt'),
+                maxSourceChars: config('ai.extraction.max_source_chars'),
+            );
         });
     }
 }

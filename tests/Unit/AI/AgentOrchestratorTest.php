@@ -3,17 +3,25 @@
 namespace Tests\Unit\AI;
 
 use App\AI\Agent\AgentContext;
-use App\AI\Agent\Executor;
+use App\AI\Agent\Extractor;
+use App\AI\Agent\Gatherer;
 use App\AI\Agent\Planner;
 use App\AI\Agent\Synthesizer;
 use App\AI\AgentOrchestrator;
 use App\Exceptions\LlmUnavailableException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
 
 class AgentOrchestratorTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local');
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
@@ -23,17 +31,22 @@ class AgentOrchestratorTest extends TestCase
     private function makePlanner(?\Closure $callback = null): Planner
     {
         $planner = Mockery::mock(Planner::class);
-        $planner->shouldReceive('plan')
-            ->once()
-            ->andReturnUsing($callback ?? fn (AgentContext $ctx) => null);
+        $planner->shouldReceive('plan')->once()->andReturnUsing($callback ?? fn () => null);
         return $planner;
     }
 
-    private function makeExecutor(): Executor
+    private function makeGatherer(): Gatherer
     {
-        $executor = Mockery::mock(Executor::class);
-        $executor->shouldReceive('execute')->once();
-        return $executor;
+        $gatherer = Mockery::mock(Gatherer::class);
+        $gatherer->shouldReceive('gather')->once();
+        return $gatherer;
+    }
+
+    private function makeExtractor(): Extractor
+    {
+        $extractor = Mockery::mock(Extractor::class);
+        $extractor->shouldReceive('extract')->once();
+        return $extractor;
     }
 
     private function makeSynthesizer(string $returns): Synthesizer
@@ -43,24 +56,32 @@ class AgentOrchestratorTest extends TestCase
         return $synthesizer;
     }
 
+    private function makeOrchestrator(
+        ?Planner $planner = null,
+        ?Gatherer $gatherer = null,
+        ?Extractor $extractor = null,
+        ?Synthesizer $synthesizer = null,
+    ): AgentOrchestrator {
+        return new AgentOrchestrator(
+            $planner    ?? $this->makePlanner(),
+            $gatherer   ?? $this->makeGatherer(),
+            $extractor  ?? $this->makeExtractor(),
+            $synthesizer ?? $this->makeSynthesizer('answer'),
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Happy path
     // -------------------------------------------------------------------------
 
     public function test_run_returns_synthesizer_output(): void
     {
-        $orchestrator = new AgentOrchestrator(
-            $this->makePlanner(),
-            $this->makeExecutor(),
-            $this->makeSynthesizer('Magnesium supports enzyme reactions.'),
-        );
+        $result = $this->makeOrchestrator(synthesizer: $this->makeSynthesizer('Zinc supports immunity.'))->run('What does zinc do?');
 
-        $result = $orchestrator->run('What does magnesium do?');
-
-        $this->assertSame('Magnesium supports enzyme reactions.', $result);
+        $this->assertSame('Zinc supports immunity.', $result);
     }
 
-    public function test_run_calls_planner_executor_synthesizer_in_order(): void
+    public function test_run_calls_pipeline_in_correct_order(): void
     {
         $order = [];
 
@@ -68,62 +89,104 @@ class AgentOrchestratorTest extends TestCase
         $planner->shouldReceive('plan')->once()
             ->andReturnUsing(function () use (&$order) { $order[] = 'planner'; });
 
-        $executor = Mockery::mock(Executor::class);
-        $executor->shouldReceive('execute')->once()
-            ->andReturnUsing(function () use (&$order) { $order[] = 'executor'; });
+        $gatherer = Mockery::mock(Gatherer::class);
+        $gatherer->shouldReceive('gather')->once()
+            ->andReturnUsing(function () use (&$order) { $order[] = 'gatherer'; });
+
+        $extractor = Mockery::mock(Extractor::class);
+        $extractor->shouldReceive('extract')->once()
+            ->andReturnUsing(function () use (&$order) { $order[] = 'extractor'; });
 
         $synthesizer = Mockery::mock(Synthesizer::class);
         $synthesizer->shouldReceive('synthesize')->once()
             ->andReturnUsing(function () use (&$order) { $order[] = 'synthesizer'; return 'answer'; });
 
-        (new AgentOrchestrator($planner, $executor, $synthesizer))->run('prompt');
+        (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer))->run('prompt');
 
-        $this->assertSame(['planner', 'executor', 'synthesizer'], $order);
+        $this->assertSame(['planner', 'gatherer', 'extractor', 'synthesizer'], $order);
     }
 
-    public function test_plan_is_logged_at_debug_level_after_planning(): void
+    public function test_plan_is_logged_after_planning(): void
     {
         $logged = null;
 
-        Log::shouldReceive('debug')
-            ->once()
-            ->andReturnUsing(function (string $message, array $ctx) use (&$logged) {
-                $logged = ['message' => $message, 'ctx' => $ctx];
-            });
+        Log::shouldReceive('debug')->andReturnUsing(function (string $msg, array $ctx) use (&$logged) {
+            if ($msg === 'agent.plan') {
+                $logged = ['message' => $msg, 'ctx' => $ctx];
+            }
+        });
 
         $planner = Mockery::mock(Planner::class);
-        $planner->shouldReceive('plan')
-            ->once()
-            ->andReturnUsing(function (AgentContext $ctx) {
-                $ctx->setPlan([['tool' => 'web_search', 'args' => ['query' => 'vitamin C']]]);
-            });
+        $planner->shouldReceive('plan')->once()->andReturnUsing(function (AgentContext $ctx) {
+            $ctx->setPlan([['tool' => 'web_search', 'args' => ['query' => 'zinc']]]);
+        });
 
-        (new AgentOrchestrator(
-            $planner,
-            $this->makeExecutor(),
-            $this->makeSynthesizer('answer'),
-        ))->run('Describe vitamin C');
+        $this->makeOrchestrator(planner: $planner)->run('Describe zinc');
 
-        $this->assertSame('agent.plan', $logged['message']);
+        $this->assertNotNull($logged);
         $this->assertArrayHasKey('prompt', $logged['ctx']);
         $this->assertArrayHasKey('plan', $logged['ctx']);
     }
 
     // -------------------------------------------------------------------------
-    // Error handling
+    // Cleanup
+    // -------------------------------------------------------------------------
+
+    public function test_temp_directory_is_deleted_after_successful_run(): void
+    {
+        $runId = null;
+
+        $planner = Mockery::mock(Planner::class);
+        $planner->shouldReceive('plan')->once()->andReturnUsing(function (AgentContext $ctx) use (&$runId) {
+            $runId = $ctx->getRunId();
+            Storage::makeDirectory("agent-runs/{$runId}");
+            Storage::put("agent-runs/{$runId}/test.txt", 'data');
+        });
+
+        $this->makeOrchestrator(planner: $planner)->run('prompt');
+
+        $this->assertFalse(Storage::directoryExists("agent-runs/{$runId}"));
+    }
+
+    public function test_temp_directory_is_deleted_even_when_pipeline_throws(): void
+    {
+        $runId = null;
+
+        $planner = Mockery::mock(Planner::class);
+        $planner->shouldReceive('plan')->once()->andReturnUsing(function (AgentContext $ctx) use (&$runId) {
+            $runId = $ctx->getRunId();
+            Storage::makeDirectory("agent-runs/{$runId}");
+            throw new LlmUnavailableException('Ollama down');
+        });
+
+        $gatherer    = Mockery::mock(Gatherer::class);
+        $extractor   = Mockery::mock(Extractor::class);
+        $synthesizer = Mockery::mock(Synthesizer::class);
+
+        try {
+            (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer))->run('prompt');
+        } catch (LlmUnavailableException) {
+            // expected
+        }
+
+        $this->assertFalse(Storage::directoryExists("agent-runs/{$runId}"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Error propagation
     // -------------------------------------------------------------------------
 
     public function test_llm_unavailable_exception_propagates(): void
     {
         $planner = Mockery::mock(Planner::class);
-        $planner->shouldReceive('plan')->once()
-            ->andThrow(new LlmUnavailableException('Connection refused'));
+        $planner->shouldReceive('plan')->once()->andThrow(new LlmUnavailableException('Connection refused'));
 
-        $executor    = Mockery::mock(Executor::class);
+        $gatherer    = Mockery::mock(Gatherer::class);
+        $extractor   = Mockery::mock(Extractor::class);
         $synthesizer = Mockery::mock(Synthesizer::class);
 
         $this->expectException(LlmUnavailableException::class);
 
-        (new AgentOrchestrator($planner, $executor, $synthesizer))->run('prompt');
+        (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer))->run('prompt');
     }
 }
