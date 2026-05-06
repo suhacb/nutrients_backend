@@ -39,7 +39,7 @@ class Synthesizer
             ],
             [
                 'role'    => 'user',
-                'content' => "Question: {$context->getPrompt()}\n\nCover these aspects: {$categoryList}\n\nResearch extractions from " . count($extractions) . " sources:\n\n" . implode("\n\n", $extractionBlocks) . "\n\nWrite a comprehensive, well-structured answer based on the research above.",
+                'content' => "Question: {$context->getPrompt()}\n\nCover these aspects: {$categoryList}\n\nResearch extractions from " . count($extractions) . " sources:\n\n" . implode("\n\n", $extractionBlocks) . "\n\nWrite a comprehensive, well-structured markdown answer based on the research above. Do not use emojis.",
             ],
         ];
 
