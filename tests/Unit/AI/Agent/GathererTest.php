@@ -141,6 +141,49 @@ class GathererTest extends TestCase
         $this->assertCount(2, $ctx->getSources());
     }
 
+    public function test_pdf_with_multiple_chunks_adds_each_as_separate_source(): void
+    {
+        $results = [['url' => 'https://example.com/zinc.pdf', 'title' => 'Zinc PDF', 'snippet' => '...']];
+
+        $pdfTool = Mockery::mock(ToolContract::class);
+        $pdfTool->shouldReceive('name')->andReturn('pdf_fetch');
+        $pdfTool->shouldReceive('run')->andReturn([
+            str_repeat('a', 200),
+            str_repeat('b', 200),
+            str_repeat('c', 200),
+        ]);
+
+        $ctx = $this->contextWithSearchPlan();
+        (new Gatherer($this->registry(
+            $this->searchTool($results),
+            $pdfTool,
+        )))->gather($ctx);
+
+        $this->assertCount(3, $ctx->getSources());
+    }
+
+    public function test_pdf_chunk_sources_all_share_the_same_url(): void
+    {
+        $results = [['url' => 'https://example.com/zinc.pdf', 'title' => 'Zinc PDF', 'snippet' => '...']];
+
+        $pdfTool = Mockery::mock(ToolContract::class);
+        $pdfTool->shouldReceive('name')->andReturn('pdf_fetch');
+        $pdfTool->shouldReceive('run')->andReturn([
+            str_repeat('a', 200),
+            str_repeat('b', 200),
+        ]);
+
+        $ctx = $this->contextWithSearchPlan();
+        (new Gatherer($this->registry(
+            $this->searchTool($results),
+            $pdfTool,
+        )))->gather($ctx);
+
+        foreach ($ctx->getSources() as $source) {
+            $this->assertSame('https://example.com/zinc.pdf', $source['url']);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Filtering
     // -------------------------------------------------------------------------

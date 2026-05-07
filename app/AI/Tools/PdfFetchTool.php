@@ -54,6 +54,32 @@ class PdfFetchTool implements ToolContract
             @unlink($tmp);
         }
 
-        return preg_replace('/\n{3,}/', "\n\n", trim($text));
+        $text = preg_replace('/\n{3,}/', "\n\n", trim($text));
+
+        return static::chunkText(
+            $text,
+            config('ai.extraction.max_source_chars'),
+            config('ai.extraction.chunk_overlap'),
+            config('ai.extraction.max_chunks'),
+        );
+    }
+
+    public static function chunkText(string $text, int $chunkSize, int $overlap, int $maxChunks): array
+    {
+        if (mb_strlen($text) <= $chunkSize) {
+            return [$text];
+        }
+
+        $stride = $chunkSize - $overlap;
+        $chunks = [];
+        $offset = 0;
+        $length = mb_strlen($text);
+
+        while ($offset < $length && count($chunks) < $maxChunks) {
+            $chunks[] = mb_substr($text, $offset, $chunkSize);
+            $offset  += $stride;
+        }
+
+        return $chunks;
     }
 }

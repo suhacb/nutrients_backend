@@ -21,6 +21,8 @@ return [
     'extraction' => [
         'system_prompt'    => 'You are an information extractor for a nutrition research tool. Given a source document and a research question, extract only the facts and data points relevant to answering the question. Organise by the provided categories. If a category has no relevant information in this source, omit it. Discard navigation text, boilerplate, and irrelevant content. Be concise and factual.',
         'max_source_chars' => (int) env('AI_EXTRACTION_MAX_SOURCE_CHARS', 24000),
+        'chunk_overlap'    => (int) env('AI_EXTRACTION_CHUNK_OVERLAP', 2000),
+        'max_chunks'       => (int) env('AI_EXTRACTION_MAX_CHUNKS', 5),
         'categories'       => [
             'Overview',
             'Role in the body and metabolism',

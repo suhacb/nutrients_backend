@@ -53,18 +53,23 @@ class Gatherer
             Log::debug('agent.gatherer.fetch_start', ['index' => $i, 'url' => $url, 'type' => $toolName]);
 
             try {
-                $text = (string) $this->registry->resolve($toolName)->run(['url' => $url]);
+                $toolResult = $this->registry->resolve($toolName)->run(['url' => $url]);
 
-                if (mb_strlen(trim($text)) < 100) {
-                    Log::debug('agent.gatherer.fetch_empty', ['index' => $i, 'url' => $url]);
-                    continue;
+                $chunks = is_array($toolResult)
+                    ? $toolResult
+                    : [mb_substr((string) $toolResult, 0, config('ai.extraction.max_source_chars'))];
+
+                foreach ($chunks as $chunkIndex => $chunkText) {
+                    if (mb_strlen(trim($chunkText)) < 100) {
+                        Log::debug('agent.gatherer.fetch_empty', ['index' => $i, 'chunk' => $chunkIndex, 'url' => $url]);
+                        continue;
+                    }
+
+                    Storage::put("{$dir}/{$i}_{$chunkIndex}.txt", $chunkText);
+                    $context->addSource(Storage::path("{$dir}/{$i}_{$chunkIndex}.txt"), $url, $result['title'] ?? '');
                 }
 
-                $text = mb_substr($text, 0, config('ai.extraction.max_source_chars'));
-                Storage::put("{$dir}/{$i}.txt", $text);
-                $context->addSource(Storage::path("{$dir}/{$i}.txt"), $url, $result['title'] ?? '');
-
-                Log::debug('agent.gatherer.fetch_done', ['index' => $i, 'url' => $url, 'chars' => mb_strlen($text)]);
+                Log::debug('agent.gatherer.fetch_done', ['index' => $i, 'url' => $url, 'chunks' => count($chunks)]);
             } catch (\Throwable $e) {
                 Log::debug('agent.gatherer.fetch_error', ['index' => $i, 'url' => $url, 'error' => $e->getMessage()]);
             }
