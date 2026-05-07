@@ -4,6 +4,7 @@ namespace Tests\Feature\Console;
 
 use App\AI\Contracts\LlmClientContract;
 use App\Models\Nutrient;
+use App\Models\Source;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
@@ -17,6 +18,7 @@ class ClassifyNutrientParentsTest extends TestCase
     {
         parent::setUp();
         Queue::fake();
+        Source::firstOrCreate(['slug' => 'system'], ['name' => 'System']);
     }
 
     protected function tearDown(): void
@@ -30,10 +32,19 @@ class ClassifyNutrientParentsTest extends TestCase
         return Nutrient::withoutEvents(fn () => Nutrient::factory()->create($attrs));
     }
 
-    private function mockLlm(array $classifications): void
+    private function hierarchyNutrient(array $attrs = []): Nutrient
+    {
+        $systemSourceId = Source::where('slug', 'system')->value('id');
+        $nutrient = $this->nutrient(array_merge(['source_id' => $systemSourceId], $attrs));
+        Nutrient::withoutEvents(fn () => $nutrient->update(['parent_id' => $nutrient->id]));
+        return $nutrient;
+    }
+
+    /** Mock the LLM to return {"parent_id": $parentId} for every chat() call. */
+    private function mockLlm(int $parentId): void
     {
         $llm = Mockery::mock(LlmClientContract::class);
-        $llm->shouldReceive('chat')->andReturn(json_encode($classifications));
+        $llm->shouldReceive('chat')->andReturn(json_encode(['parent_id' => $parentId]));
         $this->app->instance(LlmClientContract::class, $llm);
     }
 
@@ -43,10 +54,10 @@ class ClassifyNutrientParentsTest extends TestCase
 
     public function test_assigns_parent_id_and_persists(): void
     {
-        $parent = $this->nutrient(['name' => 'Vitamins']);
+        $parent = $this->hierarchyNutrient(['name' => 'Vitamins']);
         $child  = $this->nutrient(['name' => 'Vitamin C']);
 
-        $this->mockLlm([['id' => $child->id, 'parent_id' => $parent->id]]);
+        $this->mockLlm($parent->id);
 
         $this->artisan('nutrients:classify-parents')->assertSuccessful();
 
@@ -55,10 +66,10 @@ class ClassifyNutrientParentsTest extends TestCase
 
     public function test_outputs_classification_count(): void
     {
-        $parent = $this->nutrient();
+        $parent = $this->hierarchyNutrient();
         $child  = $this->nutrient();
 
-        $this->mockLlm([['id' => $child->id, 'parent_id' => $parent->id]]);
+        $this->mockLlm($parent->id);
 
         $this->artisan('nutrients:classify-parents')
             ->expectsOutputToContain('1')
@@ -85,7 +96,7 @@ class ClassifyNutrientParentsTest extends TestCase
     {
         $child = $this->nutrient();
 
-        $this->mockLlm([['id' => $child->id, 'parent_id' => 99999]]);
+        $this->mockLlm(99999);
 
         $this->artisan('nutrients:classify-parents')->assertSuccessful();
 
@@ -98,10 +109,10 @@ class ClassifyNutrientParentsTest extends TestCase
 
     public function test_dry_run_does_not_persist_changes(): void
     {
-        $parent = $this->nutrient();
+        $parent = $this->hierarchyNutrient();
         $child  = $this->nutrient();
 
-        $this->mockLlm([['id' => $child->id, 'parent_id' => $parent->id]]);
+        $this->mockLlm($parent->id);
 
         $this->artisan('nutrients:classify-parents --dry-run')->assertSuccessful();
 
@@ -110,10 +121,10 @@ class ClassifyNutrientParentsTest extends TestCase
 
     public function test_dry_run_outputs_nutrient_and_proposed_parent_names(): void
     {
-        $parent = $this->nutrient(['name' => 'Vitamins']);
+        $parent = $this->hierarchyNutrient(['name' => 'Vitamins']);
         $child  = $this->nutrient(['name' => 'Vitamin C']);
 
-        $this->mockLlm([['id' => $child->id, 'parent_id' => $parent->id]]);
+        $this->mockLlm($parent->id);
 
         // Each name must appear in a separate doWrite call to satisfy both
         // Mockery expectations independently — see BeautifyIngredientNames for context.
@@ -124,37 +135,17 @@ class ClassifyNutrientParentsTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // Batching
-    // -------------------------------------------------------------------------
-
-    public function test_processes_in_batches_of_20(): void
-    {
-        for ($i = 0; $i < 21; $i++) {
-            $this->nutrient();
-        }
-
-        $llm = Mockery::mock(LlmClientContract::class);
-        $llm->shouldReceive('chat')->twice()->andReturn('[]');
-        $this->app->instance(LlmClientContract::class, $llm);
-
-        $this->artisan('nutrients:classify-parents')->assertSuccessful();
-    }
-
-    // -------------------------------------------------------------------------
     // --id flag
     // -------------------------------------------------------------------------
 
     public function test_id_flag_processes_only_specified_nutrients(): void
     {
-        $parent = $this->nutrient();
+        $parent = $this->hierarchyNutrient();
         $a      = $this->nutrient();
         $b      = $this->nutrient();
         $c      = $this->nutrient();
 
-        $this->mockLlm([
-            ['id' => $a->id, 'parent_id' => $parent->id],
-            ['id' => $b->id, 'parent_id' => $parent->id],
-        ]);
+        $this->mockLlm($parent->id);
 
         $this->artisan("nutrients:classify-parents --id={$a->id} --id={$b->id}")->assertSuccessful();
 
