@@ -10,7 +10,7 @@ return [
     'agent' => [
         'system_prompt' => env(
             'AI_AGENT_SYSTEM_PROMPT',
-            'You are a knowledgeable nutrition assistant. Answer clearly and concisely based on established nutritional science. Format your response in markdown. Do not use emojis.'
+            'You are a knowledgeable nutrition assistant. Answer clearly and concisely based on established nutritional science. Format your response in markdown. Do not use emojis. Do not include a preamble, no introduction paragraph, no overview paragraph before the first section. Do not add disclaimers or closing remarks.'
         ),
     ],
 
@@ -22,12 +22,12 @@ return [
         'system_prompt'    => 'You are an information extractor for a nutrition research tool. Given a source document and a research question, extract only the facts and data points relevant to answering the question. Organise by the provided categories. If a category has no relevant information in this source, omit it. Discard navigation text, boilerplate, and irrelevant content. Be concise and factual.',
         'max_source_chars' => (int) env('AI_EXTRACTION_MAX_SOURCE_CHARS', 24000),
         'categories'       => [
-            'General description',
+            'Overview',
             'Role in the body and metabolism',
             'Health benefits',
             'Recommended intake and dosage',
             'Supplementation',
-            'Dos and don\'ts',
+            'Interactions and contraindications',
         ],
     ],
 

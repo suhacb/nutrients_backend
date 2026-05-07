@@ -145,6 +145,107 @@ class SynthesizerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // System prompt — no emojis / no preamble / no disclaimers
+    // -------------------------------------------------------------------------
+
+    public function test_system_message_forbids_emojis(): void
+    {
+        $captured = null;
+        $ctx      = $this->contextWithExtractions('What does zinc do?', [
+            ['https://a.com', 'Some facts.'],
+        ]);
+
+        (new Synthesizer($this->llmReturning('answer', function ($msgs) use (&$captured) {
+            $captured = $msgs;
+        })))->synthesize($ctx);
+
+        $systemContent = collect($captured)->firstWhere('role', 'system')['content'];
+        $this->assertStringContainsStringIgnoringCase('emoji', $systemContent);
+    }
+
+    public function test_system_message_forbids_preamble(): void
+    {
+        $captured = null;
+        $ctx      = $this->contextWithExtractions('What does zinc do?', [
+            ['https://a.com', 'Some facts.'],
+        ]);
+
+        (new Synthesizer($this->llmReturning('answer', function ($msgs) use (&$captured) {
+            $captured = $msgs;
+        })))->synthesize($ctx);
+
+        $systemContent = collect($captured)->firstWhere('role', 'system')['content'];
+        $this->assertMatchesRegularExpression('/no.*(introduction|overview paragraph|preamble)/i', $systemContent);
+    }
+
+    public function test_system_message_forbids_disclaimers(): void
+    {
+        $captured = null;
+        $ctx      = $this->contextWithExtractions('What does zinc do?', [
+            ['https://a.com', 'Some facts.'],
+        ]);
+
+        (new Synthesizer($this->llmReturning('answer', function ($msgs) use (&$captured) {
+            $captured = $msgs;
+        })))->synthesize($ctx);
+
+        $systemContent = collect($captured)->firstWhere('role', 'system')['content'];
+        $this->assertStringContainsStringIgnoringCase('disclaimer', $systemContent);
+    }
+
+    // -------------------------------------------------------------------------
+    // User message — enforced section structure
+    // -------------------------------------------------------------------------
+
+    public function test_user_message_contains_all_canonical_section_headings(): void
+    {
+        $captured = null;
+        $ctx      = $this->contextWithExtractions('What does zinc do?', [
+            ['https://a.com', 'Some facts.'],
+        ]);
+
+        (new Synthesizer($this->llmReturning('answer', function ($msgs) use (&$captured) {
+            $captured = $msgs;
+        })))->synthesize($ctx);
+
+        $userContent = collect($captured)->firstWhere('role', 'user')['content'];
+        foreach (config('ai.extraction.categories') as $category) {
+            $this->assertStringContainsString("## {$category}", $userContent);
+        }
+    }
+
+    public function test_user_message_instructs_to_start_directly_with_first_section(): void
+    {
+        $captured   = null;
+        $firstCategory = config('ai.extraction.categories')[0];
+        $ctx        = $this->contextWithExtractions('What does zinc do?', [
+            ['https://a.com', 'Some facts.'],
+        ]);
+
+        (new Synthesizer($this->llmReturning('answer', function ($msgs) use (&$captured) {
+            $captured = $msgs;
+        })))->synthesize($ctx);
+
+        $userContent = collect($captured)->firstWhere('role', 'user')['content'];
+        $this->assertMatchesRegularExpression('/start directly with.*##\s*' . preg_quote($firstCategory, '/') . '/i', $userContent);
+    }
+
+    public function test_user_message_instructs_no_closing_remarks(): void
+    {
+        $captured = null;
+        $ctx      = $this->contextWithExtractions('What does zinc do?', [
+            ['https://a.com', 'Some facts.'],
+        ]);
+
+        (new Synthesizer($this->llmReturning('answer', function ($msgs) use (&$captured) {
+            $captured = $msgs;
+        })))->synthesize($ctx);
+
+        $userContent = collect($captured)->firstWhere('role', 'user')['content'];
+        $this->assertMatchesRegularExpression('/no.*(closing|disclaimer)/i', $userContent);
+    }
+
+    // -------------------------------------------------------------------------
     // Fallback (no extractions)
     // -------------------------------------------------------------------------
 

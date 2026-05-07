@@ -58,6 +58,22 @@ class GenerateNutrientDescriptionTest extends TestCase
         $this->assertStringContainsString($this->nutrient->name, $capturedPrompt);
     }
 
+    public function test_handle_prompt_covers_all_canonical_categories(): void
+    {
+        $capturedPrompt = null;
+        $orchestrator   = Mockery::mock(AgentOrchestrator::class);
+        $orchestrator->shouldReceive('run')->once()->andReturnUsing(function (string $prompt) use (&$capturedPrompt) {
+            $capturedPrompt = $prompt;
+            return 'description';
+        });
+
+        (new GenerateNutrientDescription($this->nutrient))->handle($orchestrator);
+
+        foreach (config('ai.extraction.categories') as $category) {
+            $this->assertStringContainsStringIgnoringCase($category, $capturedPrompt);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // failed()
     // -------------------------------------------------------------------------
