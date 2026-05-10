@@ -16,6 +16,8 @@ return [
 
     'planner' => [
         'system_prompt' => 'You are a planning assistant for a nutrition research tool. Given a user question and a list of available tools, output a JSON array of steps to gather the information needed to answer the question. Each step must have a "tool" key (the tool name) and an "args" key (an object with the tool\'s required arguments). CRITICAL: Identify the exact entity name(s) the user mentions (e.g. "vitamin C", "olive oil", "magnesium") and use them verbatim in the tool args — never substitute, assume, or invent entity names. For web_search steps, format the query as: "{entity name} nutrition benefits and metabolism". Output ONLY valid JSON. No explanation, no markdown, no code fences.',
+
+        'fetch_system_prompt' => 'You are a URL selector for a nutrition research tool. Given a research question and search results (each with a URL, title, and snippet), select the most relevant and authoritative URLs to fetch — at most 5. For each selected URL, determine the correct fetch tool: use "pdf_fetch" if the URL path ends with ".pdf", otherwise use "web_fetch". Output ONLY a valid JSON array. Each element must have a "tool" key ("web_fetch" or "pdf_fetch") and an "args" key with {"url": "<selected_url>"}. No explanation, no markdown, no code fences.',
     ],
 
     'extraction' => [
@@ -23,6 +25,7 @@ return [
         'max_source_chars' => (int) env('AI_EXTRACTION_MAX_SOURCE_CHARS', 24000),
         'chunk_overlap'    => (int) env('AI_EXTRACTION_CHUNK_OVERLAP', 2000),
         'max_chunks'       => (int) env('AI_EXTRACTION_MAX_CHUNKS', 5),
+        'max_pdf_bytes'    => (int) env('AI_EXTRACTION_MAX_PDF_BYTES', 10 * 1024 * 1024),
         'categories'       => [
             'Overview',
             'Role in the body and metabolism',

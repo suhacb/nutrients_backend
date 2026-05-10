@@ -58,6 +58,50 @@ class AgentContextTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Search results
+    // -------------------------------------------------------------------------
+
+    public function test_get_search_results_returns_empty_array_by_default(): void
+    {
+        $this->assertSame([], (new AgentContext('prompt'))->getSearchResults());
+    }
+
+    public function test_set_search_results_and_get_round_trips(): void
+    {
+        $context = new AgentContext('prompt');
+        $results = [
+            ['url' => 'https://a.com', 'title' => 'A', 'snippet' => '...'],
+            ['url' => 'https://b.com', 'title' => 'B', 'snippet' => '...'],
+        ];
+
+        $context->setSearchResults($results);
+
+        $this->assertSame($results, $context->getSearchResults());
+    }
+
+    // -------------------------------------------------------------------------
+    // Fetch plan
+    // -------------------------------------------------------------------------
+
+    public function test_get_fetch_plan_returns_empty_array_by_default(): void
+    {
+        $this->assertSame([], (new AgentContext('prompt'))->getFetchPlan());
+    }
+
+    public function test_set_fetch_plan_and_get_round_trips(): void
+    {
+        $context = new AgentContext('prompt');
+        $plan    = [
+            ['tool' => 'web_fetch',  'args' => ['url' => 'https://example.com']],
+            ['tool' => 'pdf_fetch',  'args' => ['url' => 'https://example.com/doc.pdf']],
+        ];
+
+        $context->setFetchPlan($plan);
+
+        $this->assertSame($plan, $context->getFetchPlan());
+    }
+
+    // -------------------------------------------------------------------------
     // Tool results (kept for backward compatibility)
     // -------------------------------------------------------------------------
 

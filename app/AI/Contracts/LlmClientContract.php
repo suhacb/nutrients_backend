@@ -19,4 +19,9 @@ interface LlmClientContract
      * Return true if the LLM service is reachable, false otherwise.
      */
     public function isAvailable(): bool;
+
+    /**
+     * Unload the model from memory (e.g. Ollama VRAM) so the next job starts clean.
+     */
+    public function unload(): void;
 }

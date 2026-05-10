@@ -41,11 +41,11 @@ class GathererTest extends TestCase
         return $tool;
     }
 
-    private function fetchTool(string $name, string $text): ToolContract
+    private function fetchTool(string $name, mixed $response): ToolContract
     {
         $tool = Mockery::mock(ToolContract::class);
         $tool->shouldReceive('name')->andReturn($name);
-        $tool->shouldReceive('run')->andReturn($text);
+        $tool->shouldReceive('run')->andReturn($response);
         return $tool;
     }
 
@@ -56,95 +56,129 @@ class GathererTest extends TestCase
         return $ctx;
     }
 
-    // -------------------------------------------------------------------------
-    // Happy path
-    // -------------------------------------------------------------------------
+    private function contextWithFetchPlan(array $steps): AgentContext
+    {
+        $ctx = new AgentContext('What is zinc?');
+        $ctx->setFetchPlan($steps);
+        return $ctx;
+    }
 
-    public function test_fetches_html_source_and_adds_to_context(): void
+    // =========================================================================
+    // search()
+    // =========================================================================
+
+    public function test_search_stores_results_in_context(): void
     {
         $results = [['url' => 'https://example.com/zinc', 'title' => 'Zinc Facts', 'snippet' => '...']];
+        $ctx     = $this->contextWithSearchPlan();
+
+        (new Gatherer($this->registry($this->searchTool($results))))->search($ctx);
+
+        $this->assertSame($results, $ctx->getSearchResults());
+    }
+
+    public function test_search_does_nothing_when_plan_has_no_search_step(): void
+    {
+        $ctx = new AgentContext('What is zinc?');
+        $ctx->setPlan([['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com']]]);
+
+        (new Gatherer(new ToolRegistry()))->search($ctx);
+
+        $this->assertSame([], $ctx->getSearchResults());
+    }
+
+    public function test_search_handles_failure_gracefully(): void
+    {
+        $searchTool = Mockery::mock(ToolContract::class);
+        $searchTool->shouldReceive('name')->andReturn('web_search');
+        $searchTool->shouldReceive('run')->andThrow(new \RuntimeException('SearXNG unavailable'));
 
         $ctx = $this->contextWithSearchPlan();
+        (new Gatherer($this->registry($searchTool)))->search($ctx);
+
+        $this->assertSame([], $ctx->getSearchResults());
+    }
+
+    // =========================================================================
+    // fetch()
+    // =========================================================================
+
+    public function test_fetch_adds_web_source_to_context(): void
+    {
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/zinc']],
+        ]);
+
         (new Gatherer($this->registry(
-            $this->searchTool($results),
             $this->fetchTool('web_fetch', str_repeat('a', 200)),
-        )))->gather($ctx);
+        )))->fetch($ctx);
 
         $this->assertCount(1, $ctx->getSources());
         $this->assertSame('https://example.com/zinc', $ctx->getSources()[0]['url']);
-        $this->assertSame('Zinc Facts', $ctx->getSources()[0]['title']);
     }
 
-    public function test_uses_pdf_fetch_tool_for_pdf_urls(): void
+    public function test_fetch_uses_pdf_fetch_tool_when_specified(): void
     {
-        $results = [['url' => 'https://example.com/zinc.pdf', 'title' => 'Zinc PDF', 'snippet' => '...']];
-
         $pdfTool = Mockery::mock(ToolContract::class);
         $pdfTool->shouldReceive('name')->andReturn('pdf_fetch');
         $pdfTool->shouldReceive('run')->with(['url' => 'https://example.com/zinc.pdf'])->once()->andReturn(str_repeat('b', 200));
 
-        $ctx = $this->contextWithSearchPlan();
-        (new Gatherer($this->registry(
-            $this->searchTool($results),
-            $pdfTool,
-        )))->gather($ctx);
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'pdf_fetch', 'args' => ['url' => 'https://example.com/zinc.pdf']],
+        ]);
+
+        (new Gatherer($this->registry($pdfTool)))->fetch($ctx);
 
         $this->assertCount(1, $ctx->getSources());
         $this->assertSame('https://example.com/zinc.pdf', $ctx->getSources()[0]['url']);
     }
 
-    public function test_source_text_is_written_to_disk(): void
+    public function test_fetch_writes_source_text_to_disk(): void
     {
-        $text    = str_repeat('x', 200);
-        $results = [['url' => 'https://example.com/zinc', 'title' => 'Zinc', 'snippet' => '...']];
+        $text = str_repeat('x', 200);
+        $ctx  = $this->contextWithFetchPlan([
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/zinc']],
+        ]);
 
-        $ctx = $this->contextWithSearchPlan();
         (new Gatherer($this->registry(
-            $this->searchTool($results),
             $this->fetchTool('web_fetch', $text),
-        )))->gather($ctx);
+        )))->fetch($ctx);
 
         $this->assertSame($text, file_get_contents($ctx->getSources()[0]['path']));
     }
 
-    public function test_stored_text_is_truncated_to_max_source_chars(): void
+    public function test_fetch_truncates_text_to_max_source_chars(): void
     {
         config(['ai.extraction.max_source_chars' => 150]);
-        $results = [['url' => 'https://example.com/zinc', 'title' => 'Zinc', 'snippet' => '...']];
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/zinc']],
+        ]);
 
-        $ctx = $this->contextWithSearchPlan();
         (new Gatherer($this->registry(
-            $this->searchTool($results),
             $this->fetchTool('web_fetch', str_repeat('z', 500)),
-        )))->gather($ctx);
+        )))->fetch($ctx);
 
         $this->assertSame(150, mb_strlen(file_get_contents($ctx->getSources()[0]['path'])));
     }
 
-    public function test_gathers_all_results(): void
+    public function test_fetch_executes_all_steps_in_plan(): void
     {
-        $results = [
-            ['url' => 'https://example.com/a', 'title' => 'A', 'snippet' => '...'],
-            ['url' => 'https://example.com/b', 'title' => 'B', 'snippet' => '...'],
-        ];
-
         $fetchTool = Mockery::mock(ToolContract::class);
         $fetchTool->shouldReceive('name')->andReturn('web_fetch');
         $fetchTool->shouldReceive('run')->twice()->andReturn(str_repeat('c', 200));
 
-        $ctx = $this->contextWithSearchPlan();
-        (new Gatherer($this->registry(
-            $this->searchTool($results),
-            $fetchTool,
-        )))->gather($ctx);
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/a']],
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/b']],
+        ]);
+
+        (new Gatherer($this->registry($fetchTool)))->fetch($ctx);
 
         $this->assertCount(2, $ctx->getSources());
     }
 
-    public function test_pdf_with_multiple_chunks_adds_each_as_separate_source(): void
+    public function test_fetch_adds_each_pdf_chunk_as_separate_source(): void
     {
-        $results = [['url' => 'https://example.com/zinc.pdf', 'title' => 'Zinc PDF', 'snippet' => '...']];
-
         $pdfTool = Mockery::mock(ToolContract::class);
         $pdfTool->shouldReceive('name')->andReturn('pdf_fetch');
         $pdfTool->shouldReceive('run')->andReturn([
@@ -153,19 +187,17 @@ class GathererTest extends TestCase
             str_repeat('c', 200),
         ]);
 
-        $ctx = $this->contextWithSearchPlan();
-        (new Gatherer($this->registry(
-            $this->searchTool($results),
-            $pdfTool,
-        )))->gather($ctx);
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'pdf_fetch', 'args' => ['url' => 'https://example.com/zinc.pdf']],
+        ]);
+
+        (new Gatherer($this->registry($pdfTool)))->fetch($ctx);
 
         $this->assertCount(3, $ctx->getSources());
     }
 
-    public function test_pdf_chunk_sources_all_share_the_same_url(): void
+    public function test_fetch_pdf_chunks_all_share_the_same_url(): void
     {
-        $results = [['url' => 'https://example.com/zinc.pdf', 'title' => 'Zinc PDF', 'snippet' => '...']];
-
         $pdfTool = Mockery::mock(ToolContract::class);
         $pdfTool->shouldReceive('name')->andReturn('pdf_fetch');
         $pdfTool->shouldReceive('run')->andReturn([
@@ -173,79 +205,41 @@ class GathererTest extends TestCase
             str_repeat('b', 200),
         ]);
 
-        $ctx = $this->contextWithSearchPlan();
-        (new Gatherer($this->registry(
-            $this->searchTool($results),
-            $pdfTool,
-        )))->gather($ctx);
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'pdf_fetch', 'args' => ['url' => 'https://example.com/zinc.pdf']],
+        ]);
+
+        (new Gatherer($this->registry($pdfTool)))->fetch($ctx);
 
         foreach ($ctx->getSources() as $source) {
             $this->assertSame('https://example.com/zinc.pdf', $source['url']);
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Filtering
-    // -------------------------------------------------------------------------
-
-    public function test_skips_results_with_too_little_content(): void
+    public function test_fetch_skips_steps_with_too_little_content(): void
     {
-        $results = [['url' => 'https://example.com/empty', 'title' => 'Empty', 'snippet' => '...']];
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/empty']],
+        ]);
 
-        $ctx = $this->contextWithSearchPlan();
         (new Gatherer($this->registry(
-            $this->searchTool($results),
             $this->fetchTool('web_fetch', 'Too short.'),
-        )))->gather($ctx);
+        )))->fetch($ctx);
 
         $this->assertCount(0, $ctx->getSources());
     }
 
-    public function test_skips_results_with_missing_url(): void
-    {
-        $results = [['title' => 'No URL', 'snippet' => '...']];
-
-        $ctx = $this->contextWithSearchPlan();
-        (new Gatherer($this->registry(
-            $this->searchTool($results),
-        )))->gather($ctx);
-
-        $this->assertCount(0, $ctx->getSources());
-    }
-
-    public function test_does_nothing_when_plan_has_no_web_search_step(): void
+    public function test_fetch_does_nothing_when_fetch_plan_is_empty(): void
     {
         $ctx = new AgentContext('What is zinc?');
-        $ctx->setPlan([['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com']]]);
 
-        (new Gatherer(new ToolRegistry()))->gather($ctx);
-
-        $this->assertCount(0, $ctx->getSources());
-    }
-
-    // -------------------------------------------------------------------------
-    // Error handling
-    // -------------------------------------------------------------------------
-
-    public function test_handles_search_failure_gracefully(): void
-    {
-        $searchTool = Mockery::mock(ToolContract::class);
-        $searchTool->shouldReceive('name')->andReturn('web_search');
-        $searchTool->shouldReceive('run')->andThrow(new \RuntimeException('SearXNG unavailable'));
-
-        $ctx = $this->contextWithSearchPlan();
-        (new Gatherer($this->registry($searchTool)))->gather($ctx);
+        (new Gatherer(new ToolRegistry()))->fetch($ctx);
 
         $this->assertCount(0, $ctx->getSources());
     }
 
-    public function test_continues_gathering_after_individual_fetch_failure(): void
+    public function test_fetch_continues_after_individual_step_failure(): void
     {
-        $results = [
-            ['url' => 'https://example.com/bad',  'title' => 'Bad',  'snippet' => '...'],
-            ['url' => 'https://example.com/good', 'title' => 'Good', 'snippet' => '...'],
-        ];
-
         $fetchTool = Mockery::mock(ToolContract::class);
         $fetchTool->shouldReceive('name')->andReturn('web_fetch');
         $fetchTool->shouldReceive('run')
@@ -253,11 +247,12 @@ class GathererTest extends TestCase
         $fetchTool->shouldReceive('run')
             ->with(['url' => 'https://example.com/good'])->once()->andReturn(str_repeat('g', 200));
 
-        $ctx = $this->contextWithSearchPlan();
-        (new Gatherer($this->registry(
-            $this->searchTool($results),
-            $fetchTool,
-        )))->gather($ctx);
+        $ctx = $this->contextWithFetchPlan([
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/bad']],
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/good']],
+        ]);
+
+        (new Gatherer($this->registry($fetchTool)))->fetch($ctx);
 
         $this->assertCount(1, $ctx->getSources());
         $this->assertSame('https://example.com/good', $ctx->getSources()[0]['url']);

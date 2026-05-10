@@ -87,4 +87,16 @@ class OllamaClient implements LlmClientContract
             return false;
         }
     }
+
+    public function unload(): void
+    {
+        try {
+            Http::timeout(10)->post("{$this->baseUrl}/api/generate", [
+                'model'      => $this->model,
+                'keep_alive' => 0,
+            ]);
+        } catch (\Throwable) {
+            // Best-effort — don't fail the job if unload doesn't respond.
+        }
+    }
 }

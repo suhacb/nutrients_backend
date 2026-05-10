@@ -58,6 +58,18 @@ class PdfFetchToolTest extends TestCase
         $this->makeTool()->run(['url' => 'https://example.com/doc.pdf']);
     }
 
+    public function test_throws_runtime_exception_when_pdf_exceeds_size_limit(): void
+    {
+        config(['ai.extraction.max_pdf_bytes' => 100]);
+
+        Http::fake(['https://example.com/doc.pdf' => Http::response(str_repeat('x', 101), 200)]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/exceeds size limit/');
+
+        $this->makeTool()->run(['url' => 'https://example.com/doc.pdf']);
+    }
+
     // -------------------------------------------------------------------------
     // chunkText
     // -------------------------------------------------------------------------

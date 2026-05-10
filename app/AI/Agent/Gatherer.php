@@ -12,7 +12,7 @@ class Gatherer
         private readonly ToolRegistry $registry,
     ) {}
 
-    public function gather(AgentContext $context): void
+    public function search(AgentContext $context): void
     {
         $searchStep = null;
         foreach ($context->getPlan() as $step) {
@@ -31,24 +31,28 @@ class Gatherer
 
         try {
             $results = $this->registry->resolve('web_search')->run($searchStep['args']);
+            $context->setSearchResults($results);
+            Log::debug('agent.gatherer.search_done', ['count' => count($results)]);
         } catch (\Throwable $e) {
             Log::debug('agent.gatherer.search_error', ['error' => $e->getMessage()]);
+        }
+    }
+
+    public function fetch(AgentContext $context): void
+    {
+        $fetchPlan = $context->getFetchPlan();
+
+        if (empty($fetchPlan)) {
+            Log::debug('agent.gatherer.no_fetch_plan');
             return;
         }
-
-        Log::debug('agent.gatherer.search_done', ['count' => count($results)]);
 
         $dir = "agent-runs/{$context->getRunId()}/sources";
         Storage::makeDirectory($dir);
 
-        foreach ($results as $i => $result) {
-            $url = $result['url'] ?? null;
-            if (!$url) {
-                continue;
-            }
-
-            $isPdf    = str_ends_with(strtolower(parse_url($url, PHP_URL_PATH) ?? ''), '.pdf');
-            $toolName = $isPdf ? 'pdf_fetch' : 'web_fetch';
+        foreach ($fetchPlan as $i => $step) {
+            $toolName = $step['tool'];
+            $url      = $step['args']['url'];
 
             Log::debug('agent.gatherer.fetch_start', ['index' => $i, 'url' => $url, 'type' => $toolName]);
 
@@ -66,10 +70,10 @@ class Gatherer
                     }
 
                     Storage::put("{$dir}/{$i}_{$chunkIndex}.txt", $chunkText);
-                    $context->addSource(Storage::path("{$dir}/{$i}_{$chunkIndex}.txt"), $url, $result['title'] ?? '');
+                    $context->addSource(Storage::path("{$dir}/{$i}_{$chunkIndex}.txt"), $url, '');
                 }
 
-                Log::debug('agent.gatherer.fetch_done', ['index' => $i, 'url' => $url, 'chunks' => count($chunks)]);
+                Log::debug('agent.gatherer.fetch_done', ['index' => $i, 'url' => $url]);
             } catch (\Throwable $e) {
                 Log::debug('agent.gatherer.fetch_error', ['index' => $i, 'url' => $url, 'error' => $e->getMessage()]);
             }

@@ -163,4 +163,105 @@ class PlannerTest extends TestCase
         $user = collect($captured)->firstWhere('role', 'user')['content'] ?? '';
         $this->assertStringContainsString('Describe vitamin C', $user);
     }
+
+    // =========================================================================
+    // planFetches()
+    // =========================================================================
+
+    private function validFetchPlanJson(): string
+    {
+        return json_encode([
+            ['tool' => 'web_fetch', 'args' => ['url' => 'https://example.com/zinc']],
+            ['tool' => 'pdf_fetch', 'args' => ['url' => 'https://example.com/zinc.pdf']],
+        ]);
+    }
+
+    private function contextWithSearchResults(): AgentContext
+    {
+        $ctx = new AgentContext('What does zinc do?');
+        $ctx->setSearchResults([
+            ['url' => 'https://example.com/zinc',     'title' => 'Zinc Facts', 'snippet' => '...'],
+            ['url' => 'https://example.com/zinc.pdf', 'title' => 'Zinc Study', 'snippet' => '...'],
+        ]);
+        return $ctx;
+    }
+
+    public function test_plan_fetches_sets_fetch_plan_on_context(): void
+    {
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')->once()->andReturn($this->validFetchPlanJson());
+
+        $context = $this->contextWithSearchResults();
+        (new Planner($llm, $this->makeRegistry()))->planFetches($context);
+
+        $this->assertCount(2, $context->getFetchPlan());
+        $this->assertSame('web_fetch', $context->getFetchPlan()[0]['tool']);
+        $this->assertSame('pdf_fetch', $context->getFetchPlan()[1]['tool']);
+    }
+
+    public function test_plan_fetches_parses_json_in_markdown_fences(): void
+    {
+        $wrapped = "```json\n" . $this->validFetchPlanJson() . "\n```";
+        $llm     = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')->once()->andReturn($wrapped);
+
+        $context = $this->contextWithSearchResults();
+        (new Planner($llm, $this->makeRegistry()))->planFetches($context);
+
+        $this->assertCount(2, $context->getFetchPlan());
+    }
+
+    public function test_plan_fetches_skips_llm_when_search_results_are_empty(): void
+    {
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldNotReceive('chat');
+
+        $context = new AgentContext('What does zinc do?');
+        (new Planner($llm, $this->makeRegistry()))->planFetches($context);
+
+        $this->assertSame([], $context->getFetchPlan());
+    }
+
+    public function test_plan_fetches_sets_empty_plan_on_invalid_json(): void
+    {
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')->once()->andReturn('not valid json');
+
+        $context = $this->contextWithSearchResults();
+        (new Planner($llm, $this->makeRegistry()))->planFetches($context);
+
+        $this->assertSame([], $context->getFetchPlan());
+    }
+
+    public function test_plan_fetches_sets_empty_plan_when_step_missing_url(): void
+    {
+        $invalid = json_encode([['tool' => 'web_fetch', 'args' => []]]);
+        $llm     = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')->once()->andReturn($invalid);
+
+        $context = $this->contextWithSearchResults();
+        (new Planner($llm, $this->makeRegistry()))->planFetches($context);
+
+        $this->assertSame([], $context->getFetchPlan());
+    }
+
+    public function test_plan_fetches_includes_search_results_in_user_message(): void
+    {
+        $captured = null;
+
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')
+            ->once()
+            ->andReturnUsing(function (array $messages) use (&$captured) {
+                $captured = $messages;
+                return $this->validFetchPlanJson();
+            });
+
+        $context = $this->contextWithSearchResults();
+        (new Planner($llm, $this->makeRegistry()))->planFetches($context);
+
+        $user = collect($captured)->firstWhere('role', 'user')['content'] ?? '';
+        $this->assertStringContainsString('https://example.com/zinc', $user);
+        $this->assertStringContainsString('What does zinc do?', $user);
+    }
 }

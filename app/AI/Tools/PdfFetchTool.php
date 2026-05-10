@@ -45,10 +45,17 @@ class PdfFetchTool implements ToolContract
             throw new \RuntimeException("HTTP {$response->status()} fetching {$url}", $response->status());
         }
 
+        $body     = $response->body();
+        $maxBytes = config('ai.extraction.max_pdf_bytes');
+
+        if (strlen($body) > $maxBytes) {
+            throw new \RuntimeException("PDF at {$url} exceeds size limit ({$maxBytes} bytes), skipping");
+        }
+
         $tmp = tempnam(sys_get_temp_dir(), 'pdf_');
 
         try {
-            file_put_contents($tmp, $response->body());
+            file_put_contents($tmp, $body);
             $text = (new Parser())->parseFile($tmp)->getText();
         } finally {
             @unlink($tmp);
