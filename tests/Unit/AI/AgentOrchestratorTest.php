@@ -8,6 +8,7 @@ use App\AI\Agent\Gatherer;
 use App\AI\Agent\Planner;
 use App\AI\Agent\Synthesizer;
 use App\AI\AgentOrchestrator;
+use App\AI\Contracts\LlmClientContract;
 use App\Exceptions\LlmUnavailableException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -28,17 +29,19 @@ class AgentOrchestratorTest extends TestCase
         parent::tearDown();
     }
 
-    private function makePlanner(?\Closure $callback = null): Planner
+    private function makePlanner(?\Closure $planCallback = null): Planner
     {
         $planner = Mockery::mock(Planner::class);
-        $planner->shouldReceive('plan')->once()->andReturnUsing($callback ?? fn () => null);
+        $planner->shouldReceive('plan')->once()->andReturnUsing($planCallback ?? fn () => null);
+        $planner->shouldReceive('planFetches')->once();
         return $planner;
     }
 
     private function makeGatherer(): Gatherer
     {
         $gatherer = Mockery::mock(Gatherer::class);
-        $gatherer->shouldReceive('gather')->once();
+        $gatherer->shouldReceive('search')->once();
+        $gatherer->shouldReceive('fetch')->once();
         return $gatherer;
     }
 
@@ -56,17 +59,26 @@ class AgentOrchestratorTest extends TestCase
         return $synthesizer;
     }
 
+    private function makeLlm(): LlmClientContract
+    {
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('unload')->zeroOrMoreTimes();
+        return $llm;
+    }
+
     private function makeOrchestrator(
         ?Planner $planner = null,
         ?Gatherer $gatherer = null,
         ?Extractor $extractor = null,
         ?Synthesizer $synthesizer = null,
+        ?LlmClientContract $llm = null,
     ): AgentOrchestrator {
         return new AgentOrchestrator(
-            $planner    ?? $this->makePlanner(),
-            $gatherer   ?? $this->makeGatherer(),
-            $extractor  ?? $this->makeExtractor(),
+            $planner     ?? $this->makePlanner(),
+            $gatherer    ?? $this->makeGatherer(),
+            $extractor   ?? $this->makeExtractor(),
             $synthesizer ?? $this->makeSynthesizer('answer'),
+            $llm         ?? $this->makeLlm(),
         );
     }
 
@@ -87,11 +99,15 @@ class AgentOrchestratorTest extends TestCase
 
         $planner = Mockery::mock(Planner::class);
         $planner->shouldReceive('plan')->once()
-            ->andReturnUsing(function () use (&$order) { $order[] = 'planner'; });
+            ->andReturnUsing(function () use (&$order) { $order[] = 'planner.plan'; });
+        $planner->shouldReceive('planFetches')->once()
+            ->andReturnUsing(function () use (&$order) { $order[] = 'planner.planFetches'; });
 
         $gatherer = Mockery::mock(Gatherer::class);
-        $gatherer->shouldReceive('gather')->once()
-            ->andReturnUsing(function () use (&$order) { $order[] = 'gatherer'; });
+        $gatherer->shouldReceive('search')->once()
+            ->andReturnUsing(function () use (&$order) { $order[] = 'gatherer.search'; });
+        $gatherer->shouldReceive('fetch')->once()
+            ->andReturnUsing(function () use (&$order) { $order[] = 'gatherer.fetch'; });
 
         $extractor = Mockery::mock(Extractor::class);
         $extractor->shouldReceive('extract')->once()
@@ -101,9 +117,19 @@ class AgentOrchestratorTest extends TestCase
         $synthesizer->shouldReceive('synthesize')->once()
             ->andReturnUsing(function () use (&$order) { $order[] = 'synthesizer'; return 'answer'; });
 
-        (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer))->run('prompt');
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('unload')->once();
 
-        $this->assertSame(['planner', 'gatherer', 'extractor', 'synthesizer'], $order);
+        (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer, $llm))->run('prompt');
+
+        $this->assertSame([
+            'planner.plan',
+            'gatherer.search',
+            'planner.planFetches',
+            'gatherer.fetch',
+            'extractor',
+            'synthesizer',
+        ], $order);
     }
 
     public function test_plan_is_logged_after_planning(): void
@@ -120,6 +146,7 @@ class AgentOrchestratorTest extends TestCase
         $planner->shouldReceive('plan')->once()->andReturnUsing(function (AgentContext $ctx) {
             $ctx->setPlan([['tool' => 'web_search', 'args' => ['query' => 'zinc']]]);
         });
+        $planner->shouldReceive('planFetches')->once();
 
         $this->makeOrchestrator(planner: $planner)->run('Describe zinc');
 
@@ -142,6 +169,7 @@ class AgentOrchestratorTest extends TestCase
             Storage::makeDirectory("agent-runs/{$runId}");
             Storage::put("agent-runs/{$runId}/test.txt", 'data');
         });
+        $planner->shouldReceive('planFetches')->once();
 
         $this->makeOrchestrator(planner: $planner)->run('prompt');
 
@@ -162,9 +190,11 @@ class AgentOrchestratorTest extends TestCase
         $gatherer    = Mockery::mock(Gatherer::class);
         $extractor   = Mockery::mock(Extractor::class);
         $synthesizer = Mockery::mock(Synthesizer::class);
+        $llm         = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('unload')->once();
 
         try {
-            (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer))->run('prompt');
+            (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer, $llm))->run('prompt');
         } catch (LlmUnavailableException) {
             // expected
         }
@@ -184,9 +214,11 @@ class AgentOrchestratorTest extends TestCase
         $gatherer    = Mockery::mock(Gatherer::class);
         $extractor   = Mockery::mock(Extractor::class);
         $synthesizer = Mockery::mock(Synthesizer::class);
+        $llm         = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('unload')->once();
 
         $this->expectException(LlmUnavailableException::class);
 
-        (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer))->run('prompt');
+        (new AgentOrchestrator($planner, $gatherer, $extractor, $synthesizer, $llm))->run('prompt');
     }
 }

@@ -44,6 +44,8 @@ class GenerateNutrientDescription implements ShouldQueue
 
     private function buildPrompt(string $name): string
     {
-        return "You are a nutritional researcher. Please check trusted internet sources and write a description of {$name} from a nutritionist perspective. Cover: general description, role in the body, health benefits, recommended intake, supplementation, and dos and don'ts. Do not write disclaimers.";
+        $categories = implode(', ', config('ai.extraction.categories', []));
+
+        return "You are a nutritional researcher. Please check trusted internet sources and write a description of {$name} from a nutritionist perspective. Cover: {$categories}. Do not write disclaimers.";
     }
 }

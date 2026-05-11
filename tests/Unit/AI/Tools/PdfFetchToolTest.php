@@ -58,6 +58,67 @@ class PdfFetchToolTest extends TestCase
         $this->makeTool()->run(['url' => 'https://example.com/doc.pdf']);
     }
 
+    public function test_throws_runtime_exception_when_pdf_exceeds_size_limit(): void
+    {
+        config(['ai.extraction.max_pdf_bytes' => 100]);
+
+        Http::fake(['https://example.com/doc.pdf' => Http::response(str_repeat('x', 101), 200)]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/exceeds size limit/');
+
+        $this->makeTool()->run(['url' => 'https://example.com/doc.pdf']);
+    }
+
+    // -------------------------------------------------------------------------
+    // chunkText
+    // -------------------------------------------------------------------------
+
+    public function test_chunk_text_returns_single_chunk_for_text_within_limit(): void
+    {
+        $text = str_repeat('a', 100);
+        $chunks = PdfFetchTool::chunkText($text, 24000, 2000, 5);
+        $this->assertCount(1, $chunks);
+        $this->assertSame($text, $chunks[0]);
+    }
+
+    public function test_chunk_text_returns_single_chunk_for_text_at_exact_limit(): void
+    {
+        $chunks = PdfFetchTool::chunkText(str_repeat('a', 24000), 24000, 2000, 5);
+        $this->assertCount(1, $chunks);
+    }
+
+    public function test_chunk_text_splits_text_that_exceeds_chunk_size(): void
+    {
+        $chunks = PdfFetchTool::chunkText(str_repeat('a', 24001), 24000, 2000, 5);
+        $this->assertCount(2, $chunks);
+    }
+
+    public function test_chunk_text_first_chunk_is_full_chunk_size(): void
+    {
+        $chunks = PdfFetchTool::chunkText(str_repeat('a', 30000), 24000, 2000, 5);
+        $this->assertSame(24000, mb_strlen($chunks[0]));
+    }
+
+    public function test_chunk_text_adjacent_chunks_overlap_by_specified_amount(): void
+    {
+        // First 22000 chars are 'a', next 4000 chars are 'b'
+        $text   = str_repeat('a', 22000) . str_repeat('b', 4000);
+        $chunks = PdfFetchTool::chunkText($text, 24000, 2000, 5);
+
+        // stride = 22000; chunk[1] starts at offset 22000
+        // last 2000 chars of chunk[0] = first 2000 chars of chunk[1] = 'b' repeated
+        $this->assertStringEndsWith(str_repeat('b', 2000), $chunks[0]);
+        $this->assertStringStartsWith(str_repeat('b', 2000), $chunks[1]);
+    }
+
+    public function test_chunk_text_is_capped_at_max_chunks(): void
+    {
+        // stride=22000; need >5 strides: 22000*5+1=110001 chars
+        $chunks = PdfFetchTool::chunkText(str_repeat('a', 200000), 24000, 2000, 5);
+        $this->assertCount(5, $chunks);
+    }
+
     // -------------------------------------------------------------------------
     // Logging
     // -------------------------------------------------------------------------

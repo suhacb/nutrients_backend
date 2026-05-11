@@ -29,8 +29,9 @@ class Synthesizer
             $extractionBlocks[] = '--- Source ' . ($i + 1) . " ({$url}) ---\n" . file_get_contents($path);
         }
 
-        $categories   = config('ai.extraction.categories', []);
-        $categoryList = implode(', ', $categories);
+        $categories    = config('ai.extraction.categories', []);
+        $firstCategory = $categories[0] ?? '';
+        $sectionList   = implode("\n", array_map(fn ($c) => "## {$c}", $categories));
 
         $messages = [
             [
@@ -39,7 +40,7 @@ class Synthesizer
             ],
             [
                 'role'    => 'user',
-                'content' => "Question: {$context->getPrompt()}\n\nCover these aspects: {$categoryList}\n\nResearch extractions from " . count($extractions) . " sources:\n\n" . implode("\n\n", $extractionBlocks) . "\n\nWrite a comprehensive, well-structured markdown answer based on the research above. Do not use emojis.",
+                'content' => "Question: {$context->getPrompt()}\n\nResearch extractions from " . count($extractions) . " sources:\n\n" . implode("\n\n", $extractionBlocks) . "\n\nWrite a comprehensive, well-structured markdown answer using exactly these sections:\n\n{$sectionList}\n\nStart directly with ## {$firstCategory} — no preamble or introduction before it. No closing remarks or disclaimer at the end.",
             ],
         ];
 

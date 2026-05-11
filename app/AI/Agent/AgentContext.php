@@ -5,10 +5,12 @@ namespace App\AI\Agent;
 class AgentContext
 {
     private string $runId;
-    private array  $plan        = [];
-    private array  $toolResults = [];
-    private array  $sources     = [];
-    private array  $extractions = [];
+    private array  $plan          = [];
+    private array  $searchResults = [];
+    private array  $fetchPlan     = [];
+    private array  $toolResults   = [];
+    private array  $sources       = [];
+    private array  $extractions   = [];
 
     public function __construct(
         private readonly string $prompt,
@@ -34,6 +36,26 @@ class AgentContext
     public function getPlan(): array
     {
         return $this->plan;
+    }
+
+    public function setSearchResults(array $results): void
+    {
+        $this->searchResults = $results;
+    }
+
+    public function getSearchResults(): array
+    {
+        return $this->searchResults;
+    }
+
+    public function setFetchPlan(array $plan): void
+    {
+        $this->fetchPlan = $plan;
+    }
+
+    public function getFetchPlan(): array
+    {
+        return $this->fetchPlan;
     }
 
     public function addToolResult(string $tool, array $args, mixed $result): void
