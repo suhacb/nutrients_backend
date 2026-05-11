@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Http;
 
 class OllamaClient implements LlmClientContract
 {
+    private int $lastInputTokens  = 0;
+    private int $lastOutputTokens = 0;
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $model,
@@ -75,6 +78,9 @@ class OllamaClient implements LlmClientContract
             throw new LlmRequestFailedException('Ollama response missing expected "message.content" key.');
         }
 
+        $this->lastInputTokens  = (int) $response->json('prompt_eval_count', 0);
+        $this->lastOutputTokens = (int) $response->json('eval_count', 0);
+
         return $text;
     }
 
@@ -86,6 +92,11 @@ class OllamaClient implements LlmClientContract
         } catch (ConnectionException) {
             return false;
         }
+    }
+
+    public function getLastUsage(): array
+    {
+        return ['input' => $this->lastInputTokens, 'output' => $this->lastOutputTokens];
     }
 
     public function unload(): void

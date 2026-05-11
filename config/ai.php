@@ -15,7 +15,7 @@ return [
     ],
 
     'planner' => [
-        'system_prompt' => 'You are a planning assistant for a nutrition research tool. Given a user question and a list of available tools, output a JSON array of steps to gather the information needed to answer the question. Each step must have a "tool" key (the tool name) and an "args" key (an object with the tool\'s required arguments). CRITICAL: Identify the exact entity name(s) the user mentions (e.g. "vitamin C", "olive oil", "magnesium") and use them verbatim in the tool args — never substitute, assume, or invent entity names. For web_search steps, format the query as: "{entity name} nutrition benefits and metabolism". Output ONLY valid JSON. No explanation, no markdown, no code fences.',
+        'system_prompt' => 'You are a planning assistant for a nutrition research tool. Given a user question and a list of available tools, output a JSON array of steps to gather the information needed to answer the question. Each step must have a "tool" key (the tool name) and an "args" key (an object with the tool\'s required arguments). CRITICAL: Identify the exact entity name(s) the user mentions (e.g. "vitamin C", "olive oil", "magnesium") and use them verbatim in the tool args — never substitute, assume, or invent entity names. For web_search steps, derive the most relevant search query from the user\'s question — use the exact entity name(s) and select keywords that best reflect what information is being sought. Output ONLY valid JSON. No explanation, no markdown, no code fences.',
 
         'fetch_system_prompt' => 'You are a URL selector for a nutrition research tool. Given a research question and search results (each with a URL, title, and snippet), select the most relevant and authoritative URLs to fetch — at most 5. For each selected URL, determine the correct fetch tool: use "pdf_fetch" if the URL path ends with ".pdf", otherwise use "web_fetch". Output ONLY a valid JSON array. Each element must have a "tool" key ("web_fetch" or "pdf_fetch") and an "args" key with {"url": "<selected_url>"}. No explanation, no markdown, no code fences.',
     ],
@@ -33,6 +33,32 @@ return [
             'Recommended intake and dosage',
             'Supplementation',
             'Interactions and contraindications',
+        ],
+    ],
+
+    'ingredient_description' => [
+        'categories' => [
+            'Culinary overview',
+            'Nutritional profile',
+            'Health benefits',
+            'Culinary uses',
+            'Diet compatibility',
+        ],
+        'diets' => [
+            'keto',
+            'LCHF',
+            'carnivore',
+            'paleo',
+            'whole30',
+            'anti-inflammatory',
+            'Mediterranean',
+            'DASH',
+            'plant-based (flexitarian)',
+            'vegetarian',
+            'vegan',
+            'high protein',
+            'gluten-free',
+            'low-FODMAP',
         ],
     ],
 

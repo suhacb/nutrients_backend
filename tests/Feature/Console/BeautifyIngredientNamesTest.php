@@ -3,9 +3,12 @@
 namespace Tests\Feature\Console;
 
 use App\AI\Contracts\LlmClientContract;
+use App\Exceptions\LlmUnavailableException;
 use App\Models\Ingredient;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Tests\MakesUnit;
@@ -42,6 +45,7 @@ class BeautifyIngredientNamesTest extends TestCase
     {
         $llm = Mockery::mock(LlmClientContract::class);
         $llm->shouldReceive('chat')->andReturn(json_encode($beautified));
+        $llm->shouldReceive('getLastUsage')->andReturn(['input' => 10, 'output' => 10]);
         $this->app->instance(LlmClientContract::class, $llm);
     }
 
@@ -116,17 +120,64 @@ class BeautifyIngredientNamesTest extends TestCase
     // Batching
     // -------------------------------------------------------------------------
 
-    public function test_processes_ingredients_in_batches_of_50(): void
+    public function test_processes_ingredients_in_batches_of_20(): void
     {
-        for ($i = 0; $i < 51; $i++) {
+        for ($i = 0; $i < 21; $i++) {
             $this->ingredient("INGREDIENT {$i}");
         }
 
         $llm = Mockery::mock(LlmClientContract::class);
         $llm->shouldReceive('chat')->twice()->andReturn('[]');
+        $llm->shouldReceive('getLastUsage')->andReturn(['input' => 0, 'output' => 0]);
         $this->app->instance(LlmClientContract::class, $llm);
 
         $this->artisan('ingredients:beautify-names')->assertSuccessful();
+    }
+
+    // -------------------------------------------------------------------------
+    // --resume flag
+    // -------------------------------------------------------------------------
+
+    public function test_resume_skips_ingredients_updated_today(): void
+    {
+        $old = $this->ingredient('VITAMIN C');
+        DB::table('ingredients')->where('id', $old->id)->update(['updated_at' => Carbon::yesterday()]);
+
+        $recent = $this->ingredient('OLIVE OIL');
+
+        $this->mockLlm([['id' => $old->id, 'name' => 'Vitamin C']]);
+
+        $this->artisan('ingredients:beautify-names --resume')->assertSuccessful();
+
+        $this->assertSame('Vitamin C', $old->fresh()->name);
+        $this->assertSame('OLIVE OIL', $recent->fresh()->name);
+    }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance
+    // -------------------------------------------------------------------------
+
+    public function test_continues_after_llm_exception(): void
+    {
+        // Fill a full batch of 20 so $b lands in the second batch
+        for ($i = 0; $i < 20; $i++) {
+            $this->ingredient("BATCH ONE {$i}");
+        }
+        $b = $this->ingredient('OLIVE OIL');
+
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')
+            ->once()
+            ->andThrow(new LlmUnavailableException('timeout'));
+        $llm->shouldReceive('chat')
+            ->once()
+            ->andReturn(json_encode([['id' => $b->id, 'name' => 'Olive Oil']]));
+        $llm->shouldReceive('getLastUsage')->once()->andReturn(['input' => 10, 'output' => 10]);
+        $this->app->instance(LlmClientContract::class, $llm);
+
+        $this->artisan('ingredients:beautify-names')->assertSuccessful();
+
+        $this->assertSame('Olive Oil', $b->fresh()->name);
     }
 
     // -------------------------------------------------------------------------
@@ -166,6 +217,7 @@ class BeautifyIngredientNamesTest extends TestCase
 
         $llm = Mockery::mock(LlmClientContract::class);
         $llm->shouldNotReceive('chat');
+        $llm->shouldNotReceive('getLastUsage');
         $this->app->instance(LlmClientContract::class, $llm);
 
         $this->artisan('ingredients:beautify-names')->assertSuccessful();

@@ -354,6 +354,23 @@ class IngredientModelTest extends TestCase
         $this->assertNull(Ingredient::find($ingredient->id)->brand);
     }
 
+    public function test_load_for_search_excludes_nutrient_descriptions(): void
+    {
+        Queue::fake();
+
+        $unit     = $this->makeUnit();
+        $nutrient = Nutrient::factory()->create(['description' => 'A long description that should not appear in the search payload.']);
+
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $unit->id]);
+        $ingredient->nutrients()->attach($nutrient->id, ['amount' => 5, 'amount_unit_id' => $unit->id]);
+
+        $payload = Ingredient::find($ingredient->id)->loadForSearch()->toArray();
+
+        foreach ($payload['nutrients'] as $n) {
+            $this->assertArrayNotHasKey('description', $n);
+        }
+    }
+
     public function test_nutrition_facts_relationship(): void
     {
         $ingredient = Ingredient::factory()->create();

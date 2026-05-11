@@ -119,6 +119,8 @@ class Ingredient extends Model
             $nutrient->pivot->load(['amount_unit']);
         });
 
+        $this->nutrients->makeHidden(['description']);
+
         return $this;
     }
 

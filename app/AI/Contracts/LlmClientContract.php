@@ -24,4 +24,10 @@ interface LlmClientContract
      * Unload the model from memory (e.g. Ollama VRAM) so the next job starts clean.
      */
     public function unload(): void;
+
+    /**
+     * Return token counts from the most recent chat() call.
+     * Keys: 'input' (prompt tokens) and 'output' (completion tokens).
+     */
+    public function getLastUsage(): array;
 }
