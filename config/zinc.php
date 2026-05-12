@@ -8,6 +8,7 @@ return [
     'indices' => [
         'ingredients' => env('ZINC_INDEX_INGREDIENTS', 'ingredients'),
         'nutrients'   => env('ZINC_INDEX_NUTRIENTS', 'nutrients'),
+        'recipes'     => env('ZINC_INDEX_RECIPES', 'recipes'),
     ],
 
     'index_definitions' => [
@@ -66,6 +67,46 @@ return [
                     'created_at'                   => ['type' => 'date'],
                     'updated_at'                   => ['type' => 'date'],
                     'deleted_at'                   => ['type' => 'date', 'index' => false],
+                ],
+            ],
+        ],
+        'recipes' => [
+            'storage_type' => 'disk',
+            'shards'       => 1,
+            'replicas'     => 0,
+            'mappings'     => [
+                'properties' => [
+                    'id'                              => ['type' => 'numeric'],
+                    'name'                            => ['type' => 'text'],
+                    'slug'                            => ['type' => 'keyword'],
+                    'description'                     => ['type' => 'text'],
+                    'instructions'                    => ['type' => 'text', 'index' => false],
+                    'portions'                        => ['type' => 'numeric'],
+                    'source_url'                      => ['type' => 'keyword', 'index' => false],
+                    'sync_status'                     => ['type' => 'keyword', 'index' => false],
+
+                    // diet_tags (array of objects)
+                    'diet_tags.id'                    => ['type' => 'numeric'],
+                    'diet_tags.name'                  => ['type' => 'text'],
+                    'diet_tags.slug'                  => ['type' => 'keyword'],
+
+                    // ingredients (array of objects — core identity fields only)
+                    'ingredients.id'                  => ['type' => 'numeric'],
+                    'ingredients.name'                => ['type' => 'text'],
+                    'ingredients.slug'                => ['type' => 'keyword'],
+                    'ingredients.pivot.amount'        => ['type' => 'numeric'],
+                    'ingredients.pivot.unit_id'       => ['type' => 'numeric'],
+
+                    // nutrient_profile (precomputed array of {nutrient_id, amount, unit_id})
+                    'nutrient_profile.nutrient_id'    => ['type' => 'numeric'],
+                    'nutrient_profile.nutrient_name'  => ['type' => 'text'],
+                    'nutrient_profile.amount'         => ['type' => 'numeric'],
+                    'nutrient_profile.unit_id'        => ['type' => 'numeric'],
+                    'nutrient_profile.unit'           => ['type' => 'keyword'],
+
+                    'created_at'                      => ['type' => 'date'],
+                    'updated_at'                      => ['type' => 'date'],
+                    'deleted_at'                      => ['type' => 'date', 'index' => false],
                 ],
             ],
         ],

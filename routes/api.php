@@ -2,11 +2,15 @@
 
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\BrandsController;
+use App\Http\Controllers\DietTagsController;
 use App\Http\Controllers\IngredientNutrientController;
 use App\Http\Controllers\IngredientsController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\NutrientTagsController;
 use App\Http\Controllers\NutrientsController;
+use App\Http\Controllers\RecipeDietTagController;
+use App\Http\Controllers\RecipeIngredientController;
+use App\Http\Controllers\RecipesController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SourcesController;
 use App\Http\Controllers\UnitsController;
@@ -84,6 +88,39 @@ Route::prefix('sources')->name('sources.')->middleware('verify.frontend')->group
     Route::post('', [SourcesController::class, 'store'])->name('store');
     Route::put('{source}', [SourcesController::class, 'update'])->name('update');
     Route::delete('{source}', [SourcesController::class, 'delete'])->name('delete');
+});
+
+Route::prefix('diet-tags')->name('diet-tags.')->middleware('verify.frontend')->group(function () {
+    Route::get('',             [DietTagsController::class, 'index'])->name('index');
+    Route::get('{dietTag}',    [DietTagsController::class, 'show'])->name('show');
+    Route::post('',            [DietTagsController::class, 'store'])->name('store');
+    Route::put('{dietTag}',    [DietTagsController::class, 'update'])->name('update');
+    Route::delete('{dietTag}', [DietTagsController::class, 'delete'])->name('delete');
+});
+
+Route::prefix('recipes')->name('recipes.')->middleware('verify.frontend')->group(function () {
+    Route::get('',            [RecipesController::class, 'index'])->name('index');
+    Route::post('search',     [RecipesController::class, 'search'])->name('search');
+    Route::get('{recipe}',    [RecipesController::class, 'show'])->name('show');
+    Route::post('',           [RecipesController::class, 'store'])->name('store');
+    Route::put('{recipe}',    [RecipesController::class, 'update'])->name('update');
+    Route::delete('{recipe}', [RecipesController::class, 'delete'])->name('delete');
+
+    Route::get('{recipe}/nutrient-profile', [RecipesController::class, 'nutrientProfile'])->name('nutrient-profile');
+
+    Route::prefix('{recipe}/ingredients')->name('ingredients.')->group(function () {
+        Route::get('',                [RecipeIngredientController::class, 'index'])->name('index');
+        Route::post('attach',         [RecipeIngredientController::class, 'attach'])->name('attach');
+        Route::put('{ingredient}',    [RecipeIngredientController::class, 'updatePivot'])->name('update-pivot');
+        Route::delete('{ingredient}', [RecipeIngredientController::class, 'detach'])->name('detach');
+        Route::delete('',             [RecipeIngredientController::class, 'detachAll'])->name('detach-all');
+    });
+
+    Route::prefix('{recipe}/diet-tags')->name('diet-tags.')->group(function () {
+        Route::post('attach',      [RecipeDietTagController::class, 'attach'])->name('attach');
+        Route::delete('{dietTag}', [RecipeDietTagController::class, 'detach'])->name('detach');
+        Route::delete('',          [RecipeDietTagController::class, 'detachAll'])->name('detach-all');
+    });
 });
 
 Route::prefix('agent')->name('agent.')->middleware('verify.frontend')->group(function () {
