@@ -11,11 +11,11 @@ class DietTagFactory extends Factory
 {
     public function definition(): array
     {
-        $name = fake()->unique()->words(2, true);
+        $name = ucwords(fake()->unique()->words(2, true));
 
         return [
-            'name'        => ucwords($name),
-            'slug'        => str_replace(' ', '-', strtolower($name)),
+            'name'        => $name,
+            'slug'        => \Illuminate\Support\Str::slug($name),
             'description' => fake()->optional()->sentence(),
         ];
     }

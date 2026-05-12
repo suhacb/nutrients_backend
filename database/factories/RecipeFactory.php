@@ -11,8 +11,11 @@ class RecipeFactory extends Factory
 {
     public function definition(): array
     {
+        $name = ucwords(fake()->unique()->words(3, true));
+
         return [
-            'name'         => ucwords(fake()->words(3, true)),
+            'name'         => $name,
+            'slug'         => \Illuminate\Support\Str::slug($name),
             'description'  => fake()->optional()->paragraph(),
             'instructions' => fake()->optional()->paragraphs(3, true),
             'portions'     => fake()->numberBetween(1, 8),

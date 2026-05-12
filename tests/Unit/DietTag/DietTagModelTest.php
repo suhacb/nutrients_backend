@@ -29,7 +29,7 @@ class DietTagModelTest extends TestCase
 
     public function test_slug_is_auto_generated_on_create(): void
     {
-        $tag = DietTag::create(['name' => 'Low Carb']);
+        $tag = DietTag::create(['name' => 'Low Carb', 'slug' => '']);
 
         $this->assertEquals('low-carb', $tag->slug);
     }

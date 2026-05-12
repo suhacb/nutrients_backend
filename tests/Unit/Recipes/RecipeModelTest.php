@@ -48,7 +48,7 @@ class RecipeModelTest extends TestCase
     public function test_slug_is_auto_generated_on_create(): void
     {
         Queue::fake();
-        $recipe = Recipe::factory()->create(['name' => 'Chicken Tikka Masala']);
+        $recipe = Recipe::create(['name' => 'Chicken Tikka Masala', 'portions' => 2]);
 
         $this->assertEquals('chicken-tikka-masala', $recipe->slug);
     }

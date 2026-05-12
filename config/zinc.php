@@ -8,6 +8,7 @@ return [
     'indices' => [
         'ingredients' => env('ZINC_INDEX_INGREDIENTS', 'ingredients'),
         'nutrients'   => env('ZINC_INDEX_NUTRIENTS', 'nutrients'),
+        'recipes'     => env('ZINC_INDEX_RECIPES', 'recipes'),
     ],
 
     'index_definitions' => [
