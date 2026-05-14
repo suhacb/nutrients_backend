@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\E2e;
 
+use App\Models\Brand;
 use App\Models\Ingredient;
+use App\Models\Nutrient;
 use App\Models\Recipe;
 use App\Models\Unit;
 use Database\Seeders\DatabaseSeeder;
@@ -70,5 +72,48 @@ class TestResetControllerTest extends TestCase
         $this->postJson('/api/test/reset')->assertOk();
 
         $this->assertDatabaseHas('ingredients', ['slug' => 'test-chicken-breast', 'deleted_at' => null]);
+    }
+
+    public function test_deletes_non_fixture_brands(): void
+    {
+        Brand::forceCreate([
+            'name'    => 'Non Fixture Brand',
+            'slug'    => 'non-fixture-brand',
+            'owner'   => 'Someone',
+            'country' => 'US',
+        ]);
+
+        $this->postJson('/api/test/reset')->assertOk();
+
+        $this->assertDatabaseMissing('brands', ['slug' => 'non-fixture-brand']);
+    }
+
+    public function test_preserves_fixture_brands(): void
+    {
+        $this->postJson('/api/test/reset')->assertOk();
+
+        $this->assertDatabaseHas('brands', ['slug' => 'test-nature-fresh']);
+        $this->assertDatabaseHas('brands', ['slug' => 'test-golden-harvest']);
+        $this->assertDatabaseHas('brands', ['slug' => 'test-artisan-kitchen']);
+    }
+
+    public function test_restores_soft_deleted_fixture_brands(): void
+    {
+        Brand::where('slug', 'test-nature-fresh')->delete();
+
+        $this->postJson('/api/test/reset')->assertOk();
+
+        $this->assertDatabaseHas('brands', ['slug' => 'test-nature-fresh', 'deleted_at' => null]);
+    }
+
+    public function test_restores_fixture_nutrient_relationships(): void
+    {
+        $chicken = Ingredient::where('slug', 'test-chicken-breast')->first();
+        $chicken->nutrients()->detach();
+
+        $this->postJson('/api/test/reset')->assertOk();
+
+        $chicken->refresh();
+        $this->assertGreaterThan(0, $chicken->nutrients()->count());
     }
 }

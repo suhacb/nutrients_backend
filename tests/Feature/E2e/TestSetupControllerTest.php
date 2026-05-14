@@ -54,6 +54,17 @@ class TestSetupControllerTest extends TestCase
         $this->assertDatabaseHas('ingredients', ['slug' => 'test-white-rice']);
         $this->assertDatabaseHas('ingredients', ['slug' => 'test-olive-oil']);
         $this->assertDatabaseHas('recipes', ['slug' => 'test-grilled-chicken-with-rice']);
+        $this->assertDatabaseHas('brands', ['slug' => 'test-nature-fresh']);
+        $this->assertDatabaseHas('brands', ['slug' => 'test-golden-harvest']);
+        $this->assertDatabaseHas('brands', ['slug' => 'test-artisan-kitchen']);
+
+        $chicken = \App\Models\Ingredient::where('slug', 'test-chicken-breast')->first();
+        $this->assertEquals('test-nature-fresh', $chicken->brand->slug);
+        $this->assertGreaterThan(0, $chicken->nutrients()->count());
+
+        $rice = \App\Models\Ingredient::where('slug', 'test-white-rice')->first();
+        $this->assertEquals('test-golden-harvest', $rice->brand->slug);
+        $this->assertGreaterThan(0, $rice->nutrients()->count());
     }
 
     public function test_is_idempotent(): void
