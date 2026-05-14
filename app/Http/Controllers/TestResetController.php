@@ -1,0 +1,60 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Jobs\SyncIngredientToSearch;
+use App\Jobs\SyncRecipeToSearch;
+use App\Models\Ingredient;
+use App\Models\Recipe;
+use Database\Seeders\TestDataSeeder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+
+class TestResetController extends Controller
+{
+    public function reset(): JsonResponse
+    {
+        // Recipes cascade-delete their pivot rows, so delete them first.
+        Recipe::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($r) => $r->forceDelete());
+
+        // Remove any remaining pivot rows that reference non-fixture ingredients
+        // (e.g. a non-fixture ingredient attached to a fixture recipe during a test).
+        $nonFixtureIds = Ingredient::withTrashed()->where('slug', 'not like', 'test-%')->pluck('id');
+        DB::table('recipe_ingredient')->whereIn('ingredient_id', $nonFixtureIds)->delete();
+
+        Ingredient::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($i) => $i->forceDelete());
+
+        // Restore soft-deleted fixtures so updateOrCreate in the seeder finds them.
+        Ingredient::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore();
+        Recipe::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore();
+
+        Artisan::call('db:seed', ['--class' => TestDataSeeder::class, '--force' => true]);
+
+        $this->syncFixturesToZinc();
+
+        return response()->json(['reset' => true]);
+    }
+
+    private function syncFixturesToZinc(): void
+    {
+        $baseUrl  = config('zinc.base_url');
+        $username = config('zinc.username');
+        $password = config('zinc.password');
+
+        foreach (config('zinc.index_definitions') as $key => $definition) {
+            $name = config("zinc.indices.{$key}");
+            Http::withBasicAuth($username, $password)->delete("{$baseUrl}/api/index/{$name}");
+            Http::withBasicAuth($username, $password)->put("{$baseUrl}/api/index", array_merge(['name' => $name], $definition));
+        }
+
+        Ingredient::where('slug', 'like', 'test-%')->get()->each(function (Ingredient $ingredient) {
+            dispatch(new SyncIngredientToSearch($ingredient->loadForSearch(), 'insert'));
+        });
+
+        Recipe::where('slug', 'like', 'test-%')->get()->each(function (Recipe $recipe) {
+            dispatch(new SyncRecipeToSearch($recipe->loadForSearch(), 'insert'));
+        });
+    }
+}
