@@ -11,9 +11,21 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use OpenApi\Attributes as OA;
 
 class TestResetController extends Controller
 {
+    #[OA\Post(
+        path: '/api/test/reset',
+        summary: 'Reset e2e state: remove non-fixture data, restore and re-seed fixtures, re-sync Zinc (E2E only)',
+        tags: ['E2E'],
+        responses: [
+            new OA\Response(response: 200, description: 'Reset complete', content: new OA\JsonContent(
+                properties: [new OA\Property(property: 'reset', type: 'boolean', example: true)]
+            )),
+            new OA\Response(response: 404, description: 'Not available — APP_TEST_MODE is false'),
+        ]
+    )]
     public function reset(): JsonResponse
     {
         // Recipes cascade-delete their pivot rows, so delete them first.

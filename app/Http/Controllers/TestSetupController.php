@@ -11,9 +11,24 @@ use Database\Seeders\TestDataSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use OpenApi\Attributes as OA;
 
 class TestSetupController extends Controller
 {
+    #[OA\Post(
+        path: '/api/test/setup',
+        summary: 'Initialise e2e environment: fresh migrations, base seed, fixture seed, Zinc sync (E2E only)',
+        tags: ['E2E'],
+        responses: [
+            new OA\Response(response: 200, description: 'Setup complete', content: new OA\JsonContent(
+                properties: [new OA\Property(property: 'setup', type: 'boolean', example: true)]
+            )),
+            new OA\Response(response: 404, description: 'Not available — APP_TEST_MODE is false'),
+            new OA\Response(response: 500, description: 'Setup failed', content: new OA\JsonContent(
+                properties: [new OA\Property(property: 'error', type: 'string')]
+            )),
+        ]
+    )]
     public function setup(): JsonResponse
     {
         try {
