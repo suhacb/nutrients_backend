@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SyncIngredientToSearch;
+use App\Jobs\SyncNutrientToSearch;
 use App\Jobs\SyncRecipeToSearch;
 use App\Models\Ingredient;
+use App\Models\Nutrient;
 use App\Models\Recipe;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\TestDataSeeder;
@@ -61,6 +63,10 @@ class TestSetupController extends Controller
 
     private function syncFixturesToZinc(): void
     {
+        Nutrient::all()->each(function (Nutrient $nutrient) {
+            dispatch(new SyncNutrientToSearch($nutrient, 'insert'));
+        });
+
         Ingredient::where('slug', 'like', 'test-%')->get()->each(function (Ingredient $ingredient) {
             dispatch(new SyncIngredientToSearch($ingredient->loadForSearch(), 'insert'));
         });

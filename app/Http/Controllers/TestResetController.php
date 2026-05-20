@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SyncIngredientToSearch;
+use App\Jobs\SyncNutrientToSearch;
 use App\Jobs\SyncRecipeToSearch;
 use App\Models\Brand;
 use App\Models\Ingredient;
+use App\Models\Nutrient;
 use App\Models\Recipe;
 use Database\Seeders\TestDataSeeder;
 use Illuminate\Http\JsonResponse;
@@ -76,6 +78,10 @@ class TestResetController extends Controller
             Http::withBasicAuth($username, $password)->delete("{$baseUrl}/api/index/{$name}");
             Http::withBasicAuth($username, $password)->put("{$baseUrl}/api/index", array_merge(['name' => $name], $definition));
         }
+
+        Nutrient::all()->each(function (Nutrient $nutrient) {
+            dispatch(new SyncNutrientToSearch($nutrient, 'insert'));
+        });
 
         Ingredient::where('slug', 'like', 'test-%')->get()->each(function (Ingredient $ingredient) {
             dispatch(new SyncIngredientToSearch($ingredient->loadForSearch(), 'insert'));
