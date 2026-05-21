@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Brand;
+use App\Models\DietTag;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Recipe;
@@ -30,6 +31,16 @@ class TestDataSeeder extends Seeder
                 ]
             );
         }
+
+        DietTag::updateOrCreate(
+            ['slug' => 'test-vegan'],
+            ['name' => 'Test Vegan', 'slug' => 'test-vegan']
+        );
+
+        DietTag::updateOrCreate(
+            ['slug' => 'test-gluten-free'],
+            ['name' => 'Test Gluten Free', 'slug' => 'test-gluten-free']
+        );
 
         $gram = Unit::firstOrCreate(
             ['abbreviation' => 'g', 'type' => 'mass'],
@@ -153,6 +164,13 @@ class TestDataSeeder extends Seeder
 
         if (!$recipe->ingredients()->where('ingredient_id', $rice->id)->exists()) {
             $recipe->ingredients()->attach($rice->id, ['amount' => 150, 'unit_id' => $gram->id]);
+        }
+
+        // Sync diet tags to known state so every reset leaves the recipe with exactly
+        // test-vegan attached. This makes the "detaches a diet tag" test independent.
+        $vegan = DietTag::where('slug', 'test-vegan')->first();
+        if ($vegan) {
+            $recipe->dietTags()->sync([$vegan->id]);
         }
     }
 }

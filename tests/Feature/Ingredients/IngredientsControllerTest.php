@@ -539,41 +539,16 @@ class IngredientsControllerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // show — Zinc-first with MySQL fallback
+    // show
     // -------------------------------------------------------------------------
 
-    public function test_show_returns_zinc_document_when_synced(): void
-    {
-        $ingredient   = Ingredient::factory()->create(['name' => 'Olive Oil']);
-        $zincDocument = ['id' => $ingredient->id, 'name' => 'Olive Oil', 'description' => 'A rich oil.'];
-
-        $this->mock(SearchServiceContract::class, function ($mock) use ($ingredient, $zincDocument) {
-            $mock->shouldReceive('get')
-                ->with('ingredients', $ingredient->id)
-                ->once()
-                ->andReturn($zincDocument);
-        });
-
-        $this->withHeaders($this->makeAuthRequestHeader())
-            ->getJson(route('ingredients.show', $ingredient))
-            ->assertStatus(200)
-            ->assertJson($zincDocument);
-    }
-
-    public function test_show_falls_back_to_mysql_when_zinc_returns_null(): void
+    public function test_show_returns_ingredient_from_database(): void
     {
         $unit       = Unit::factory()->create();
         $ingredient = Ingredient::factory()->create([
             'name'                   => 'Olive Oil',
             'default_amount_unit_id' => $unit->id,
         ]);
-
-        $this->mock(SearchServiceContract::class, function ($mock) use ($ingredient) {
-            $mock->shouldReceive('get')
-                ->with('ingredients', $ingredient->id)
-                ->once()
-                ->andReturn(null);
-        });
 
         $this->withHeaders($this->makeAuthRequestHeader())
             ->getJson(route('ingredients.show', $ingredient))

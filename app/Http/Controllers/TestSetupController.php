@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SyncIngredientToSearch;
-use App\Jobs\SyncNutrientToSearch;
-use App\Jobs\SyncRecipeToSearch;
+use App\Http\Resources\IngredientResource;
+use App\Http\Resources\NutrientResource;
+use App\Http\Resources\RecipeResource;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Recipe;
+use App\Services\Search\SearchServiceContract;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\TestDataSeeder;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +18,8 @@ use OpenApi\Attributes as OA;
 
 class TestSetupController extends Controller
 {
+    public function __construct(private SearchServiceContract $search) {}
+
     #[OA\Post(
         path: '/api/test/setup',
         summary: 'Initialise e2e environment: fresh migrations, base seed, fixture seed, Zinc sync (E2E only)',
@@ -63,16 +66,35 @@ class TestSetupController extends Controller
 
     private function syncFixturesToZinc(): void
     {
-        Nutrient::all()->each(function (Nutrient $nutrient) {
-            dispatch(new SyncNutrientToSearch($nutrient, 'insert'));
-        });
+        $nutrients = Nutrient::all()->mapWithKeys(
+            fn (Nutrient $n) => [$n->id => (new NutrientResource($n->loadForSearch()))->resolve()]
+        )->all();
+        $this->search->bulkInsert(config('zinc.indices.nutrients'), $nutrients);
+        $this->waitForSearchable(config('zinc.indices.nutrients'), 'Test Nutrient');
 
-        Ingredient::where('slug', 'like', 'test-%')->get()->each(function (Ingredient $ingredient) {
-            dispatch(new SyncIngredientToSearch($ingredient->loadForSearch(), 'insert'));
-        });
+        $ingredients = Ingredient::where('slug', 'like', 'test-%')->get()->mapWithKeys(
+            fn (Ingredient $i) => [$i->id => (new IngredientResource($i->loadForSearch()))->resolve()]
+        )->all();
+        $this->search->bulkInsert(config('zinc.indices.ingredients'), $ingredients);
+        $this->waitForSearchable(config('zinc.indices.ingredients'), 'Test Chicken');
 
-        Recipe::where('slug', 'like', 'test-%')->get()->each(function (Recipe $recipe) {
-            dispatch(new SyncRecipeToSearch($recipe->loadForSearch(), 'insert'));
-        });
+        $recipes = Recipe::where('slug', 'like', 'test-%')->get()->mapWithKeys(
+            fn (Recipe $r) => [$r->id => (new RecipeResource($r->loadForSearch()))->resolve()]
+        )->all();
+        $this->search->bulkInsert(config('zinc.indices.recipes'), $recipes);
+        $this->waitForSearchable(config('zinc.indices.recipes'), 'Test Grilled');
+    }
+
+    private function waitForSearchable(string $index, string $query, int $attempts = 20, int $delayMs = 250): void
+    {
+        for ($i = 0; $i < $attempts; $i++) {
+            $result = $this->search->search($index, $query, 1, 1);
+            if ($result->total > 0) {
+                return;
+            }
+            usleep($delayMs * 1000);
+        }
+
+        throw new \RuntimeException("Zinc index '{$index}' not searchable after {$attempts} attempts ({$query})");
     }
 }

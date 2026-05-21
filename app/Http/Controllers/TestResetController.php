@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SyncIngredientToSearch;
-use App\Jobs\SyncNutrientToSearch;
-use App\Jobs\SyncRecipeToSearch;
+use App\Http\Resources\IngredientResource;
+use App\Http\Resources\NutrientResource;
+use App\Http\Resources\RecipeResource;
 use App\Models\Brand;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Recipe;
+use App\Services\Search\SearchServiceContract;
 use Database\Seeders\TestDataSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Artisan;
@@ -18,6 +19,8 @@ use OpenApi\Attributes as OA;
 
 class TestResetController extends Controller
 {
+    public function __construct(private SearchServiceContract $search) {}
+
     #[OA\Post(
         path: '/api/test/reset',
         summary: 'Reset e2e state: remove non-fixture data, restore and re-seed fixtures, re-sync Zinc (E2E only)',
@@ -31,8 +34,11 @@ class TestResetController extends Controller
     )]
     public function reset(): JsonResponse
     {
-        // Recipes cascade-delete their pivot rows, so delete them first.
-        Recipe::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($r) => $r->forceDelete());
+        // Suppress model events during cleanup so forceDelete() does not trigger
+        // Zinc sync jobs against an empty index (we re-sync everything below).
+        Recipe::withoutEvents(function () {
+            Recipe::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($r) => $r->forceDelete());
+        });
 
         // Null out brand_id on any ingredients that reference a non-fixture brand,
         // so those brands can be force-deleted without hitting BrandHasIngredientsException.
@@ -44,10 +50,14 @@ class TestResetController extends Controller
         $nonFixtureIngredientIds = Ingredient::withTrashed()->where('slug', 'not like', 'test-%')->pluck('id');
         DB::table('recipe_ingredient')->whereIn('ingredient_id', $nonFixtureIngredientIds)->delete();
 
-        Ingredient::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($i) => $i->forceDelete());
+        Ingredient::withoutEvents(function () {
+            Ingredient::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($i) => $i->forceDelete());
+        });
 
-        // Remove non-fixture brands (no ingredients attached at this point).
-        Brand::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($b) => $b->forceDelete());
+        Brand::withoutEvents(function () {
+            // Remove non-fixture brands (no ingredients attached at this point).
+            Brand::withTrashed()->where('slug', 'not like', 'test-%')->get()->each(fn($b) => $b->forceDelete());
+        });
 
         // Detach all nutrients from fixture ingredients so the seeder can re-attach
         // them in a clean state (handles the case where a test removed a relationship).
@@ -56,9 +66,12 @@ class TestResetController extends Controller
             ->delete();
 
         // Restore soft-deleted fixtures so updateOrCreate in the seeder finds them.
-        Brand::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore();
-        Ingredient::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore();
-        Recipe::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore();
+        // Suppress model events: the restored event would dispatch inline Zinc sync
+        // jobs (in test mode the queue is sync), but those syncs are wasted because
+        // syncFixturesToZinc() recreates and refills the indices immediately after.
+        Brand::withoutEvents(fn () => Brand::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore());
+        Ingredient::withoutEvents(fn () => Ingredient::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore());
+        Recipe::withoutEvents(fn () => Recipe::withTrashed()->where('slug', 'like', 'test-%')->whereNotNull('deleted_at')->restore());
 
         Artisan::call('db:seed', ['--class' => TestDataSeeder::class, '--force' => true]);
 
@@ -79,16 +92,35 @@ class TestResetController extends Controller
             Http::withBasicAuth($username, $password)->put("{$baseUrl}/api/index", array_merge(['name' => $name], $definition));
         }
 
-        Nutrient::all()->each(function (Nutrient $nutrient) {
-            dispatch(new SyncNutrientToSearch($nutrient, 'insert'));
-        });
+        $nutrients = Nutrient::all()->mapWithKeys(
+            fn (Nutrient $n) => [$n->id => (new NutrientResource($n->loadForSearch()))->resolve()]
+        )->all();
+        $this->search->bulkInsert(config('zinc.indices.nutrients'), $nutrients);
+        $this->waitForSearchable(config('zinc.indices.nutrients'), 'Test Nutrient');
 
-        Ingredient::where('slug', 'like', 'test-%')->get()->each(function (Ingredient $ingredient) {
-            dispatch(new SyncIngredientToSearch($ingredient->loadForSearch(), 'insert'));
-        });
+        $ingredients = Ingredient::where('slug', 'like', 'test-%')->get()->mapWithKeys(
+            fn (Ingredient $i) => [$i->id => (new IngredientResource($i->loadForSearch()))->resolve()]
+        )->all();
+        $this->search->bulkInsert(config('zinc.indices.ingredients'), $ingredients);
+        $this->waitForSearchable(config('zinc.indices.ingredients'), 'Test Chicken');
 
-        Recipe::where('slug', 'like', 'test-%')->get()->each(function (Recipe $recipe) {
-            dispatch(new SyncRecipeToSearch($recipe->loadForSearch(), 'insert'));
-        });
+        $recipes = Recipe::where('slug', 'like', 'test-%')->get()->mapWithKeys(
+            fn (Recipe $r) => [$r->id => (new RecipeResource($r->loadForSearch()))->resolve()]
+        )->all();
+        $this->search->bulkInsert(config('zinc.indices.recipes'), $recipes);
+        $this->waitForSearchable(config('zinc.indices.recipes'), 'Test Grilled');
+    }
+
+    private function waitForSearchable(string $index, string $query, int $attempts = 20, int $delayMs = 250): void
+    {
+        for ($i = 0; $i < $attempts; $i++) {
+            $result = $this->search->search($index, $query, 1, 1);
+            if ($result->total > 0) {
+                return;
+            }
+            usleep($delayMs * 1000);
+        }
+
+        throw new \RuntimeException("Zinc index '{$index}' not searchable after {$attempts} attempts ({$query})");
     }
 }

@@ -5,7 +5,6 @@ use App\Exceptions\NutrientHasChildrenException;
 use App\Exceptions\SourceHasNutrientsException;
 use App\Http\Middleware\EnsureTestMode;
 use App\Http\Middleware\EnsureUserFromToken;
-use App\Http\Middleware\HandleTestMode;
 use App\Http\Middleware\VerifyFrontend;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,7 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->prependToGroup('api', HandleTestMode::class);
         $middleware->alias([
             'verify.frontend'       => VerifyFrontend::class,
             'ensure.user.from.token' => EnsureUserFromToken::class,

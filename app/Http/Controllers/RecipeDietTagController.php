@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\DietTagResource;
 use App\Jobs\SyncRecipeToSearch;
 use App\Models\DietTag;
 use App\Models\Recipe;
@@ -43,7 +44,7 @@ class RecipeDietTagController extends Controller
 
         SyncRecipeToSearch::dispatch($recipe, 'update')->onQueue('recipes');
 
-        return response()->json($recipe->dietTags()->get(), 200);
+        return response()->json(DietTagResource::collection($recipe->dietTags()->get()), 200);
     }
 
     #[OA\Delete(

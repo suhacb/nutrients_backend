@@ -53,7 +53,7 @@ class SearchController extends Controller
     {
         $data = $request->validated();
         $query = $data['query'];
-        $index = $data['index'];
+        $index = config("zinc.indices.{$data['index']}", $data['index']);
         $page = $request->page();
         $userId = $request->user()->id ?? 0;
 

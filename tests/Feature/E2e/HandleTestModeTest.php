@@ -30,7 +30,7 @@ class HandleTestModeTest extends TestCase
         ];
     }
 
-    public function test_record_persists_without_header(): void
+    public function test_mutations_persist_in_test_mode(): void
     {
         $this->withHeaders($this->testHeaders())
             ->postJson(route('ingredients.store'), $this->ingredientPayload)
@@ -39,27 +39,23 @@ class HandleTestModeTest extends TestCase
         $this->assertDatabaseHas('ingredients', ['name' => 'E2E HandleTestMode Ingredient']);
     }
 
-    public function test_record_is_rolled_back_with_header(): void
+    public function test_mutations_persist_regardless_of_x_test_mode_header(): void
     {
-        $this->withHeaders($this->testModeHeaders())
+        // X-Test-Mode header is no longer special — mutations always persist so that
+        // E2E flows (create → navigate → view/edit) work correctly across requests.
+        $this->withHeaders(array_merge($this->testHeaders(), ['X-Test-Mode' => 'true']))
             ->postJson(route('ingredients.store'), $this->ingredientPayload)
             ->assertCreated();
 
-        $this->assertDatabaseMissing('ingredients', ['name' => 'E2E HandleTestMode Ingredient']);
+        $this->assertDatabaseHas('ingredients', ['name' => 'E2E HandleTestMode Ingredient']);
     }
 
-    public function test_middleware_is_no_op_when_test_mode_disabled(): void
+    public function test_returns_401_when_test_mode_disabled(): void
     {
         config(['app.test_mode' => false]);
 
-        // Without test mode, the test token in VerifyFrontend will fail auth, returning 401.
-        // The important thing is that no rollback magic happens — if auth were somehow bypassed,
-        // a record created would persist. We verify this by confirming the middleware doesn't
-        // interfere when test_mode is false (401 is the expected response here).
-        $this->withHeaders($this->testModeHeaders())
+        $this->withHeaders($this->testHeaders())
             ->postJson(route('ingredients.store'), $this->ingredientPayload)
             ->assertUnauthorized();
-
-        $this->assertDatabaseMissing('ingredients', ['name' => 'E2E HandleTestMode Ingredient']);
     }
 }

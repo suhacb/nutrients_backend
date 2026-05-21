@@ -47,15 +47,41 @@ class ZincSearchService implements SearchServiceContract
         return $response->successful();
     }
 
+    public function bulkInsert(string $index, array $documents): void
+    {
+        if (empty($documents)) {
+            return;
+        }
+
+        $lines = [];
+        foreach ($documents as $id => $payload) {
+            $lines[] = json_encode(['index' => ['_id' => (string) $id]]);
+            $lines[] = json_encode($payload);
+        }
+        $ndjson = implode("\n", $lines) . "\n";
+
+        $response = Http::withBasicAuth($this->username, $this->password)
+            ->withBody($ndjson, 'application/x-ndjson')
+            ->post("{$this->baseUri}/api/{$index}/_bulk");
+
+        if (!$response->successful()) {
+            throw new Exception("Zinc bulk insert into '{$index}' failed ({$response->status()}): " . $response->body());
+        }
+    }
+
     public function delete(string $index, string|int $id): bool
     {
         $response = Http::withBasicAuth($this->username, $this->password)->delete("{$this->baseUri}/api/{$index}/_doc/{$id}");
-        
+
+        if ($response->status() === 404) {
+            return true;
+        }
+
         if (!$response->successful()) {
             throw new Exception("Search service unavailable");
         }
 
-        return $response->successful();
+        return true;
     }
 
     public function search(string $index, string $query, int $limit = 10, int $page = 1): SearchServiceResponse
@@ -115,15 +141,21 @@ class ZincSearchService implements SearchServiceContract
 
     public function get(string $index, string|int $id): ?array
     {
-        $response = Http::withBasicAuth($this->username, $this->password)
-            ->get("{$this->baseUri}/api/{$index}/_doc/{$id}");
+        try {
+            $response = Http::withBasicAuth($this->username, $this->password)
+                ->get("{$this->baseUri}/api/{$index}/_doc/{$id}");
+        } catch (\Throwable $e) {
+            logger()->warning("Zinc get failed for {$index}/{$id}: " . $e->getMessage());
+            return null;
+        }
 
         if ($response->status() === 404) {
             return null;
         }
 
         if (!$response->successful()) {
-            throw new Exception("Search service unavailable");
+            logger()->warning("Zinc get returned {$response->status()} for {$index}/{$id}");
+            return null;
         }
 
         return $response->json('_source');

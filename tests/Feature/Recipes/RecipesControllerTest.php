@@ -72,16 +72,38 @@ class RecipesControllerTest extends TestCase
         $tag = DietTag::factory()->create();
         $recipe->dietTags()->attach($tag->id);
 
-        $response = $this->withHeaders($this->makeAuthRequestHeader())
+        $json = $this->withHeaders($this->makeAuthRequestHeader())
             ->getJson(route('recipes.show', $recipe))
-            ->assertStatus(200);
+            ->assertStatus(200)
+            ->json();
 
-        $json = $response->json();
         $this->assertEquals($recipe->id, $json['id']);
         $this->assertEquals('Pasta Bolognese', $json['name']);
         $this->assertEquals(4, $json['portions']);
         $this->assertArrayHasKey('diet_tags', $json);
         $this->assertArrayHasKey('ingredients', $json);
+        $this->assertArrayHasKey('nutrient_profile', $json);
+        $this->assertIsArray($json['nutrient_profile']);
+    }
+
+    public function test_show_includes_ingredient_pivot_with_unit(): void
+    {
+        $gram       = Unit::create(['name' => 'gram', 'abbreviation' => 'g', 'type' => 'mass']);
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $gram->id]);
+        $recipe     = Recipe::factory()->create(['portions' => 2]);
+        $recipe->ingredients()->attach($ingredient->id, ['amount' => 150.0, 'unit_id' => $gram->id]);
+
+        $json = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('recipes.show', $recipe))
+            ->assertStatus(200)
+            ->json();
+
+        $this->assertCount(1, $json['ingredients']);
+        $ing = $json['ingredients'][0];
+        $this->assertEquals($ingredient->id, $ing['id']);
+        $this->assertEquals(150.0, $ing['pivot']['amount']);
+        $this->assertEquals(1, $ing['pivot']['unit_id']);
+        $this->assertEquals('g', $ing['pivot']['unit']['abbreviation']);
     }
 
     public function test_show_returns_404_for_nonexistent_recipe(): void

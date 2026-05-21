@@ -52,12 +52,6 @@ class NutrientsController extends Controller
     )]
     public function show(Nutrient $nutrient): JsonResponse
     {
-        $document = $this->search->get('nutrients', $nutrient->id);
-
-        if ($document !== null) {
-            return response()->json($document, 200);
-        }
-
         return response()->json(new NutrientResource($nutrient->loadForSearch()), 200);
     }
 
@@ -179,7 +173,7 @@ class NutrientsController extends Controller
     )]
     public function search(ResourceSearchRequest $request): JsonResponse
     {
-        $result = $this->search->search('nutrients', $request->input('query'), 25, $request->page());
+        $result = $this->search->search(config('zinc.indices.nutrients'), $request->input('query'), 25, $request->page());
         return response()->json($result->toArray(), 200);
     }
 }

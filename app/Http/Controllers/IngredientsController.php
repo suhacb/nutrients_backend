@@ -53,12 +53,6 @@ class IngredientsController extends Controller
     )]
     public function show(Ingredient $ingredient): JsonResponse
     {
-        $document = $this->search->get('ingredients', $ingredient->id);
-
-        if ($document !== null) {
-            return response()->json($document, 200);
-        }
-
         return response()->json(new IngredientResource($ingredient->loadForSearch()), 200);
     }
 
@@ -178,7 +172,7 @@ class IngredientsController extends Controller
     )]
     public function search(ResourceSearchRequest $request): JsonResponse
     {
-        $result = $this->search->search('ingredients', $request->input('query'), 25, $request->page());
+        $result = $this->search->search(config('zinc.indices.ingredients'), $request->input('query'), 25, $request->page());
         return response()->json($result->toArray(), 200);
     }
 }

@@ -701,37 +701,12 @@ class NutrientsControllerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // show — Zinc-first with MySQL fallback
+    // show
     // -------------------------------------------------------------------------
 
-    public function test_show_returns_zinc_document_when_synced(): void
-    {
-        $nutrient     = Nutrient::factory()->create(['name' => 'Magnesium']);
-        $zincDocument = ['id' => $nutrient->id, 'name' => 'Magnesium', 'description' => 'An essential mineral.'];
-
-        $this->mock(SearchServiceContract::class, function ($mock) use ($nutrient, $zincDocument) {
-            $mock->shouldReceive('get')
-                ->with('nutrients', $nutrient->id)
-                ->once()
-                ->andReturn($zincDocument);
-        });
-
-        $this->withHeaders($this->makeAuthRequestHeader())
-            ->getJson(route('nutrients.show', $nutrient))
-            ->assertStatus(200)
-            ->assertJson($zincDocument);
-    }
-
-    public function test_show_falls_back_to_mysql_when_zinc_returns_null(): void
+    public function test_show_returns_nutrient_from_database(): void
     {
         $nutrient = Nutrient::factory()->create(['name' => 'Magnesium']);
-
-        $this->mock(SearchServiceContract::class, function ($mock) use ($nutrient) {
-            $mock->shouldReceive('get')
-                ->with('nutrients', $nutrient->id)
-                ->once()
-                ->andReturn(null);
-        });
 
         $this->withHeaders($this->makeAuthRequestHeader())
             ->getJson(route('nutrients.show', $nutrient))

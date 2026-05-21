@@ -121,7 +121,7 @@ Route::prefix('recipes')->name('recipes.')->middleware('verify.frontend')->group
 
     Route::prefix('{recipe}/ingredients')->name('ingredients.')->group(function () {
         Route::get('',                [RecipeIngredientController::class, 'index'])->name('index');
-        Route::post('attach',         [RecipeIngredientController::class, 'attach'])->name('attach');
+        Route::post('',               [RecipeIngredientController::class, 'attach'])->name('attach');
         Route::put('{ingredient}',    [RecipeIngredientController::class, 'updatePivot'])->name('update-pivot');
         Route::delete('{ingredient}', [RecipeIngredientController::class, 'detach'])->name('detach');
         Route::delete('',             [RecipeIngredientController::class, 'detachAll'])->name('detach-all');
