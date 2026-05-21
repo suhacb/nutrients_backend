@@ -721,13 +721,14 @@ class NutrientsControllerTest extends TestCase
 
     public function test_search_delegates_to_zinc_and_returns_results(): void
     {
-        $this->mock(SearchServiceContract::class, function ($mock) {
+        $index = config('zinc.indices.nutrients');
+        $this->mock(SearchServiceContract::class, function ($mock) use ($index) {
             $mock->shouldReceive('search')
-                ->with('nutrients', 'magnesium', 25, 1)
+                ->with($index, 'magnesium', 25, 1)
                 ->once()
                 ->andReturn(new SearchServiceResponse(
                     query: 'magnesium',
-                    index: 'nutrients',
+                    index: $index,
                     total: 1,
                     perPage: 25,
                     results: [['id' => 1, 'name' => 'Magnesium', 'description' => null, 'score' => 0.9]],

@@ -563,13 +563,14 @@ class IngredientsControllerTest extends TestCase
 
     public function test_search_delegates_to_zinc_and_returns_results(): void
     {
-        $this->mock(SearchServiceContract::class, function ($mock) {
+        $index = config('zinc.indices.ingredients');
+        $this->mock(SearchServiceContract::class, function ($mock) use ($index) {
             $mock->shouldReceive('search')
-                ->with('ingredients', 'olive', 25, 1)
+                ->with($index, 'olive', 25, 1)
                 ->once()
                 ->andReturn(new SearchServiceResponse(
                     query: 'olive',
-                    index: 'ingredients',
+                    index: $index,
                     total: 1,
                     perPage: 25,
                     results: [['id' => 1, 'name' => 'Olive Oil', 'description' => null, 'score' => 0.9]],
