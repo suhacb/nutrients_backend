@@ -128,7 +128,7 @@ Route::prefix('recipes')->name('recipes.')->middleware('verify.frontend')->group
     });
 
     Route::prefix('{recipe}/diet-tags')->name('diet-tags.')->group(function () {
-        Route::post('attach',      [RecipeDietTagController::class, 'attach'])->name('attach');
+        Route::post('',            [RecipeDietTagController::class, 'attach'])->name('attach');
         Route::delete('{dietTag}', [RecipeDietTagController::class, 'detach'])->name('detach');
         Route::delete('',          [RecipeDietTagController::class, 'detachAll'])->name('detach-all');
     });
