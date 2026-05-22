@@ -154,8 +154,7 @@ class ZincSearchService implements SearchServiceContract
         }
 
         if (!$response->successful()) {
-            logger()->warning("Zinc get returned {$response->status()} for {$index}/{$id}");
-            return null;
+            throw new Exception("Search service unavailable");
         }
 
         return $response->json('_source');
