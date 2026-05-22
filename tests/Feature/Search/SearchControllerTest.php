@@ -61,7 +61,7 @@ class SearchControllerTest extends TestCase
             ]
         ])->assertJson([
             'query' => 'protein bar',
-            'index' => 'ingredients',
+            'index' => config('zinc.indices.ingredients'),
             'page' => 1,
             'per_page' => 25,
         ]);

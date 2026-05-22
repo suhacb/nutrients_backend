@@ -27,7 +27,15 @@ class TestResetControllerTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->seed(TestDataSeeder::class);
 
-        Http::fake([config('zinc.base_url') . '/*' => Http::response(['message' => 'OK'], 200)]);
+        Http::fake([
+            config('zinc.base_url') . '/api/*/_search' => Http::response([
+                'hits' => [
+                    'total' => 1,
+                    'hits'  => [['_source' => ['id' => 1, 'name' => 'Test Nutrient 01', 'description' => null], '_score' => 1.0]],
+                ],
+            ], 200),
+            config('zinc.base_url') . '/*' => Http::response(['message' => 'OK'], 200),
+        ]);
     }
 
     public function test_returns_404_when_test_mode_disabled(): void

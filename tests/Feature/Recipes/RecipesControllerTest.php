@@ -102,7 +102,7 @@ class RecipesControllerTest extends TestCase
         $ing = $json['ingredients'][0];
         $this->assertEquals($ingredient->id, $ing['id']);
         $this->assertEquals(150.0, $ing['pivot']['amount']);
-        $this->assertEquals(1, $ing['pivot']['unit_id']);
+        $this->assertEquals($gram->id, $ing['pivot']['unit_id']);
         $this->assertEquals('g', $ing['pivot']['unit']['abbreviation']);
     }
 
