@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Nutrient;
-use App\Models\Source;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -13,62 +12,59 @@ class NutrientsTableSeeder extends Seeder
 
     public function run(): void
     {
-        $system = Source::where('slug', 'system')->firstOrFail();
-
         // ── Root categories ───────────────────────────────────────────────────────
-        $macro   = $this->seed($system, null, 'Macronutrients');
-        $micro   = $this->seed($system, null, 'Micronutrients');
-        $aminos  = $this->seed($system, null, 'Amino Acids');
-        $fatty   = $this->seed($system, null, 'Fatty Acids');
+        $macro   = $this->seed(null, 'Macronutrients');
+        $micro   = $this->seed(null, 'Micronutrients');
+        $aminos  = $this->seed(null, 'Amino Acids');
+        $fatty   = $this->seed(null, 'Fatty Acids');
 
         // ── Macronutrients ────────────────────────────────────────────────────────
-        $this->seed($system, $macro, 'Energy');
-        $this->seed($system, $macro, 'Protein');
-        $this->seed($system, $macro, 'Water');
+        $this->seed($macro, 'Energy');
+        $this->seed($macro, 'Protein');
+        $this->seed($macro, 'Water');
 
-        $fat   = $this->seed($system, $macro, 'Fat');
-        $carbs = $this->seed($system, $macro, 'Carbohydrates');
+        $fat   = $this->seed($macro, 'Fat');
+        $carbs = $this->seed($macro, 'Carbohydrates');
 
         // ── Fat sub-categories ────────────────────────────────────────────────────
-        $this->seed($system, $fat, 'Saturated Fat');
-        $this->seed($system, $fat, 'Trans Fat');
-        $this->seed($system, $fat, 'Cholesterol');
+        $this->seed($fat, 'Saturated Fat');
+        $this->seed($fat, 'Trans Fat');
+        $this->seed($fat, 'Cholesterol');
 
-        $unsat = $this->seed($system, $fat, 'Unsaturated Fat');
-        $this->seed($system, $unsat, 'Monounsaturated Fat');
-        $this->seed($system, $unsat, 'Polyunsaturated Fat');
+        $unsat = $this->seed($fat, 'Unsaturated Fat');
+        $this->seed($unsat, 'Monounsaturated Fat');
+        $this->seed($unsat, 'Polyunsaturated Fat');
 
         // ── Carbohydrate sub-categories ───────────────────────────────────────────
-        $this->seed($system, $carbs, 'Dietary Fiber');
-        $this->seed($system, $carbs, 'Sugars');
+        $this->seed($carbs, 'Dietary Fiber');
+        $this->seed($carbs, 'Sugars');
 
         // ── Micronutrients ────────────────────────────────────────────────────────
-        $vitams = $this->seed($system, $micro, 'Vitamins');
-        $minrls = $this->seed($system, $micro, 'Minerals');
+        $vitams = $this->seed($micro, 'Vitamins');
+        $minrls = $this->seed($micro, 'Minerals');
 
-        $this->seed($system, $vitams, 'Fat-soluble Vitamins');
-        $this->seed($system, $vitams, 'Water-soluble Vitamins');
+        $this->seed($vitams, 'Fat-soluble Vitamins');
+        $this->seed($vitams, 'Water-soluble Vitamins');
 
-        $this->seed($system, $minrls, 'Macrominerals');
-        $this->seed($system, $minrls, 'Trace Minerals');
+        $this->seed($minrls, 'Macrominerals');
+        $this->seed($minrls, 'Trace Minerals');
 
         // ── Fatty Acids ───────────────────────────────────────────────────────────
-        $this->seed($system, $fatty, 'Omega-3 Fatty Acids');
-        $this->seed($system, $fatty, 'Omega-6 Fatty Acids');
-        $this->seed($system, $fatty, 'Omega-9 Fatty Acids');
+        $this->seed($fatty, 'Omega-3 Fatty Acids');
+        $this->seed($fatty, 'Omega-6 Fatty Acids');
+        $this->seed($fatty, 'Omega-9 Fatty Acids');
 
         // ── Amino Acids ───────────────────────────────────────────────────────────
-        $this->seed($system, $aminos, 'Essential Amino Acids');
-        $this->seed($system, $aminos, 'Non-essential Amino Acids');
+        $this->seed($aminos, 'Essential Amino Acids');
+        $this->seed($aminos, 'Non-essential Amino Acids');
     }
 
-    private function seed(Source $source, ?Nutrient $parent, string $name): Nutrient
+    private function seed(?Nutrient $parent, string $name): Nutrient
     {
-        $nutrient = Nutrient::where([
-            'source_id'   => $source->id,
-            'external_id' => null,
-            'name'        => $name,
-        ])->first();
+        // Canonical hierarchy nutrients have no source mappings.
+        $nutrient = Nutrient::where('name', $name)
+            ->whereDoesntHave('sourceMappings')
+            ->first();
 
         if ($nutrient) {
             if ($nutrient->parent_id === null && $parent !== null) {
@@ -78,11 +74,9 @@ class NutrientsTableSeeder extends Seeder
         }
 
         return Nutrient::create([
-            'source_id'   => $source->id,
-            'external_id' => null,
-            'name'        => $name,
-            'slug'        => Nutrient::generateUniqueSlug($name, 'nutrients'),
-            'parent_id'   => $parent?->id,
+            'name'      => $name,
+            'slug'      => Nutrient::generateUniqueSlug($name, 'nutrients'),
+            'parent_id' => $parent?->id,
         ]);
     }
 }

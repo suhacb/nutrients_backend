@@ -406,7 +406,6 @@ class NutrientsControllerTest extends TestCase
         $tag      = NutrientTag::factory()->create();
         $parent   = Nutrient::factory()->create(['name' => 'Macronutrients']);
         $nutrient = Nutrient::factory()->create([
-            'source_id'         => $this->source->id,
             'parent_id'         => $parent->id,
             'canonical_unit_id' => $unit->id,
         ]);
@@ -443,7 +442,6 @@ class NutrientsControllerTest extends TestCase
         $unit    = $this->makeUnit();
         $parent  = Nutrient::factory()->create();
         $nutrient = Nutrient::factory()->create([
-            'source_id'         => $this->source->id,
             'canonical_unit_id' => $unit->id,
             'parent_id'         => $parent->id,
         ]);

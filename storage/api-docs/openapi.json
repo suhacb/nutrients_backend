@@ -1838,22 +1838,12 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "source_id",
                                     "name"
                                 ],
                                 "properties": {
-                                    "source_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
                                     "name": {
                                         "type": "string",
                                         "example": "Vitamin C"
-                                    },
-                                    "external_id": {
-                                        "type": "string",
-                                        "example": "1004",
-                                        "nullable": true
                                     },
                                     "description": {
                                         "type": "string",
@@ -1981,15 +1971,8 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
-                                    "source_id": {
-                                        "type": "integer"
-                                    },
                                     "name": {
                                         "type": "string"
-                                    },
-                                    "external_id": {
-                                        "type": "string",
-                                        "nullable": true
                                     },
                                     "description": {
                                         "type": "string",
@@ -4205,11 +4188,6 @@
                         "type": "integer",
                         "example": 1
                     },
-                    "external_id": {
-                        "type": "string",
-                        "example": "1004",
-                        "nullable": true
-                    },
                     "name": {
                         "type": "string",
                         "example": "Vitamin C"
@@ -4242,13 +4220,11 @@
                         "type": "string",
                         "example": "synced"
                     },
-                    "source": {
-                        "oneOf": [
-                            {
-                                "$ref": "#/components/schemas/Source"
-                            }
-                        ],
-                        "nullable": true
+                    "source_mappings": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NutrientSourcePivot"
+                        }
                     },
                     "canonical_unit": {
                         "oneOf": [
@@ -4289,6 +4265,27 @@
                     "deleted_at": {
                         "type": "string",
                         "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "NutrientSourcePivot": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "example": "1004"
+                    },
+                    "source": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Source"
+                            }
+                        ],
                         "nullable": true
                     }
                 },

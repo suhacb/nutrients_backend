@@ -7,7 +7,6 @@ use App\Models\DietTag;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Recipe;
-use App\Models\Source;
 use App\Models\Unit;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -18,16 +17,13 @@ class TestDataSeeder extends Seeder
 
     public function run(): void
     {
-        $system = Source::where('slug', 'system')->firstOrFail();
-
         for ($i = 1; $i <= 50; $i++) {
             $label = str_pad($i, 2, '0', STR_PAD_LEFT);
             Nutrient::updateOrCreate(
                 ['slug' => "test-nutrient-{$label}"],
                 [
-                    'source_id' => $system->id,
-                    'name'      => "Test Nutrient {$label}",
-                    'slug'      => "test-nutrient-{$label}",
+                    'name' => "Test Nutrient {$label}",
+                    'slug' => "test-nutrient-{$label}",
                 ]
             );
         }
