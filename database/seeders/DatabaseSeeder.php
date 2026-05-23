@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UnitsTableSeeder::class,
+            UnitConversionFactorSeeder::class,
             SourcesTableSeeder::class,
             NutrientsTableSeeder::class,
         ]);
