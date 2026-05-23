@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             UnitConversionFactorSeeder::class,
             SourcesTableSeeder::class,
             NutrientsTableSeeder::class,
+            CanonicalNutrientsSeeder::class,
         ]);
     }
 }
