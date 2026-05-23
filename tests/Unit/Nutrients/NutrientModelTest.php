@@ -9,7 +9,6 @@ use App\Jobs\SyncNutrientToSearch;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\NutrientTag;
-use App\Models\Source;
 use App\Models\Unit;
 use App\Traits\GeneratesSlug;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,8 +49,6 @@ class NutrientModelTest extends TestCase
     public function test_fillable_fields(): void
     {
         $expectedFillable = [
-            'source_id',
-            'external_id',
             'name',
             'description',
             'parent_id',
@@ -222,11 +219,9 @@ class NutrientModelTest extends TestCase
         Bus::fake();
 
         $unit     = Unit::create(['name' => 'gram', 'abbreviation' => 'g', 'type' => 'mass']);
-        $source   = Source::factory()->create();
         $tag      = NutrientTag::factory()->create();
         $parent   = Nutrient::factory()->create(['name' => 'Macronutrients']);
         $nutrient = Nutrient::factory()->create([
-            'source_id'         => $source->id,
             'parent_id'         => $parent->id,
             'canonical_unit_id' => $unit->id,
         ]);
@@ -236,13 +231,12 @@ class NutrientModelTest extends TestCase
         $fresh = Nutrient::find($nutrient->id);
         $fresh->loadForSearch();
 
-        $this->assertTrue($fresh->relationLoaded('source'));
+        $this->assertTrue($fresh->relationLoaded('sourceMappings'));
         $this->assertTrue($fresh->relationLoaded('canonicalUnit'));
         $this->assertTrue($fresh->relationLoaded('parent'));
         $this->assertTrue($fresh->relationLoaded('children'));
         $this->assertTrue($fresh->relationLoaded('tags'));
 
-        $this->assertEquals($source->id, $fresh->source->id);
         $this->assertEquals($unit->id, $fresh->canonicalUnit->id);
         $this->assertEquals($parent->id, $fresh->parent->id);
         $this->assertCount(1, $fresh->children);

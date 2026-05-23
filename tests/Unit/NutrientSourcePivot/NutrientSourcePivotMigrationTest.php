@@ -87,7 +87,7 @@ class NutrientSourcePivotMigrationTest extends TestCase
     public function test_unique_constraint_on_source_id_and_external_id(): void
     {
         $sourceId   = $this->insertSource();
-        $nutrientId = $this->insertNutrient($sourceId);
+        $nutrientId = $this->insertNutrient();
 
         DB::table('nutrient_source_mappings')->insert([
             'nutrient_id' => $nutrientId,
@@ -111,7 +111,7 @@ class NutrientSourcePivotMigrationTest extends TestCase
     public function test_same_nutrient_and_source_can_have_multiple_external_ids(): void
     {
         $sourceId   = $this->insertSource();
-        $nutrientId = $this->insertNutrient($sourceId);
+        $nutrientId = $this->insertNutrient();
 
         DB::table('nutrient_source_mappings')->insert([
             'nutrient_id' => $nutrientId,
@@ -135,7 +135,7 @@ class NutrientSourcePivotMigrationTest extends TestCase
     public function test_deleting_nutrient_cascades_to_mappings(): void
     {
         $sourceId   = $this->insertSource();
-        $nutrientId = $this->insertNutrient($sourceId);
+        $nutrientId = $this->insertNutrient();
 
         DB::table('nutrient_source_mappings')->insert([
             'nutrient_id' => $nutrientId,
@@ -152,21 +152,20 @@ class NutrientSourcePivotMigrationTest extends TestCase
 
     public function test_deleting_source_cascades_to_mappings(): void
     {
-        $nutrientSourceId = $this->insertSource();
-        $nutrientId       = $this->insertNutrient($nutrientSourceId);
-        $mappingSourceId  = $this->insertSource();
+        $sourceId   = $this->insertSource();
+        $nutrientId = $this->insertNutrient();
 
         DB::table('nutrient_source_mappings')->insert([
             'nutrient_id' => $nutrientId,
-            'source_id'   => $mappingSourceId,
+            'source_id'   => $sourceId,
             'external_id' => '1001',
             'created_at'  => now(),
             'updated_at'  => now(),
         ]);
 
-        DB::table('sources')->where('id', $mappingSourceId)->delete();
+        DB::table('sources')->where('id', $sourceId)->delete();
 
-        $this->assertEquals(0, DB::table('nutrient_source_mappings')->where('source_id', $mappingSourceId)->count());
+        $this->assertEquals(0, DB::table('nutrient_source_mappings')->where('source_id', $sourceId)->count());
     }
 
     public function test_migration_rolls_back_cleanly(): void
@@ -193,10 +192,9 @@ class NutrientSourcePivotMigrationTest extends TestCase
         ]);
     }
 
-    private function insertNutrient(int $sourceId): int
+    private function insertNutrient(): int
     {
         return DB::table('nutrients')->insertGetId([
-            'source_id'  => $sourceId,
             'name'       => 'Protein',
             'created_at' => now(),
             'updated_at' => now(),

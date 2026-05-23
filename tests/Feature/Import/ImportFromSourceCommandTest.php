@@ -59,7 +59,8 @@ class ImportFromSourceCommandTest extends TestCase
 
         $this->assertDatabaseHas('ingredients', ['external_id' => '321358', 'name' => 'Hummus, commercial']);
         $this->assertDatabaseHas('ingredients', ['external_id' => '171705', 'name' => 'Whole Milk']);
-        $this->assertDatabaseHas('nutrients',   ['external_id' => '203',    'name' => 'Protein']);
+        $this->assertDatabaseHas('nutrients',              ['name' => 'Protein']);
+        $this->assertDatabaseHas('nutrient_source_mappings', ['external_id' => '203']);
         $this->assertDatabaseCount('ingredients', 2);
         $this->assertDatabaseCount('nutrients', 2);
     }

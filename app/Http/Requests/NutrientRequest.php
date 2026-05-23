@@ -14,18 +14,6 @@ class NutrientRequest extends DynamicRequest
     protected function rulesForStore(): array
     {
         return [
-            'source_id'              => ['required', 'integer', 'exists:sources,id'],
-            'external_id'            => ['sometimes', 'nullable', 'string', 'max:255',
-                function ($_, $value, $fail) {
-                    $exists = \App\Models\Nutrient::where('source_id', $this->input('source_id'))
-                        ->where('external_id', $value)
-                        ->where('name', $this->input('name'))
-                        ->exists();
-                    if ($exists) {
-                        $fail('The combination of source, external_id, and name must be unique.');
-                    }
-                },
-            ],
             'name'                   => ['required', 'string', 'max:255'],
             'description'            => ['sometimes', 'nullable', 'string'],
             'parent_id'              => ['sometimes', 'nullable', 'integer', 'exists:nutrients,id'],
@@ -42,20 +30,6 @@ class NutrientRequest extends DynamicRequest
         $nutrient = $this->route('nutrient');
 
         return [
-            'source_id'              => ['sometimes', 'integer', 'exists:sources,id'],
-            'external_id'            => ['sometimes', 'nullable', 'string', 'max:255',
-                function ($_, $value, $fail) {
-                    $sourceId = $this->input('source_id', $this->route('nutrient')?->source_id);
-                    $exists = \App\Models\Nutrient::where('source_id', $sourceId)
-                        ->where('external_id', $value)
-                        ->where('name', $this->input('name', $this->route('nutrient')?->name))
-                        ->where('id', '!=', $this->route('nutrient')?->id)
-                        ->exists();
-                    if ($exists) {
-                        $fail('The combination of source, external_id, and name must be unique.');
-                    }
-                },
-            ],
             'name'                   => ['sometimes', 'string', 'max:255'],
             'description'            => ['sometimes', 'nullable', 'string'],
             'parent_id'              => ['sometimes', 'nullable', 'integer', 'exists:nutrients,id'],
@@ -70,13 +44,6 @@ class NutrientRequest extends DynamicRequest
     protected function messagesForStore(): array
     {
         return [
-            'source_id.required' => 'A source is required.',
-            'source_id.integer'  => 'The source must be a numeric ID.',
-            'source_id.exists'   => 'The selected source does not exist.',
-
-            'external_id.string' => 'The external ID must be a string.',
-            'external_id.max'    => 'The external ID may not exceed 255 characters.',
-
             'name.required' => 'The nutrient name is required.',
             'name.string'   => 'The nutrient name must be a string.',
             'name.max'      => 'The nutrient name may not exceed 255 characters.',
@@ -105,12 +72,6 @@ class NutrientRequest extends DynamicRequest
     protected function messagesForUpdate(): array
     {
         return [
-            'source_id.integer' => 'The source must be a numeric ID.',
-            'source_id.exists'  => 'The selected source does not exist.',
-
-            'external_id.string' => 'The external ID must be a string.',
-            'external_id.max'    => 'The external ID may not exceed 255 characters.',
-
             'name.string' => 'The nutrient name must be a string.',
             'name.max'    => 'The nutrient name may not exceed 255 characters.',
 

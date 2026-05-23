@@ -81,14 +81,14 @@ class BatchPersistorTest extends TestCase
         $this->assertDatabaseHas('ingredient_categories', ['name' => 'Legumes and Legume Products']);
     }
 
-    public function test_persists_nutrients_with_source_id(): void
+    public function test_persists_nutrients_with_source_mapping(): void
     {
         (new BatchPersistor())->persist([$this->makeBatch()], $this->source);
 
-        $this->assertDatabaseHas('nutrients', [
+        $this->assertDatabaseHas('nutrients', ['name' => 'Protein']);
+        $this->assertDatabaseHas('nutrient_source_mappings', [
             'source_id'   => $this->source->id,
             'external_id' => '203',
-            'name'        => 'Protein',
         ]);
     }
 
@@ -116,7 +116,7 @@ class BatchPersistorTest extends TestCase
         (new BatchPersistor())->persist([$this->makeBatch()], $this->source);
 
         $ingredient = Ingredient::where('external_id', '321358')->first();
-        $nutrient   = Nutrient::where('external_id', '203')->first();
+        $nutrient   = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
 
         $this->assertDatabaseHas('ingredient_nutrient', [
             'ingredient_id' => $ingredient->id,
@@ -145,7 +145,7 @@ class BatchPersistorTest extends TestCase
     {
         (new BatchPersistor())->persist([$this->makeBatch()], $this->source);
 
-        $nutrient = Nutrient::where('external_id', '203')->first();
+        $nutrient = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
         $this->assertNotNull($nutrient->slug);
     }
 

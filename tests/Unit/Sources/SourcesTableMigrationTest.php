@@ -174,13 +174,19 @@ class SourcesTableMigrationTest extends TestCase
     {
         $this->assertTrue(Schema::hasTable('sources'), "Table 'sources' should exist before rollback");
 
-        // The change_name_to_text migration dropped the (source_id, external_id, name) unique index,
-        // so it must be rolled back before replace_source_with_source_id can roll back cleanly.
+        // 1. Restore source_id/external_id to nutrients (data migration reverse).
+        $dataMigration = include database_path('migrations/2026_05_23_000002_migrate_source_columns_to_nutrient_source_mappings.php');
+        $dataMigration->down();
+
+        // 2. Drop nutrient_source_mappings (its source_id FK would block sources drop).
+        $pivotMigration = include database_path('migrations/2026_05_23_000001_create_nutrient_source_mappings_table.php');
+        $pivotMigration->down();
+
+        // 3. Roll back change_name_to_text (it holds the (source_id, external_id) unique index).
         $changeNameMigration = include database_path('migrations/2026_04_27_104914_change_name_to_text_on_nutrients_table.php');
         $changeNameMigration->down();
 
-        // The replace_source_with_source_id migration adds a FK from nutrients.source_id
-        // to sources, so it must be rolled back before sources can be dropped.
+        // 4. Roll back replace_source_with_source_id (drops the nutrients.source_id FK to sources).
         $dependentMigration = include database_path('migrations/2026_04_17_074226_replace_source_with_source_id_on_nutrients_table.php');
         $dependentMigration->down();
 
@@ -195,6 +201,8 @@ class SourcesTableMigrationTest extends TestCase
 
         $dependentMigration->up();
         $changeNameMigration->up();
+        $pivotMigration->up();
+        $dataMigration->up();
     }
 
     /**

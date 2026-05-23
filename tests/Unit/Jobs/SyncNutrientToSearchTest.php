@@ -35,11 +35,11 @@ class SyncNutrientToSearchTest extends TestCase
                 config('zinc.indices.nutrients'),
                 $this->nutrient->id,
                 Mockery::on(fn($payload) =>
-                    array_key_exists('source',         $payload) &&
-                    array_key_exists('canonical_unit', $payload) &&
-                    array_key_exists('parent',         $payload) &&
-                    array_key_exists('children',       $payload) &&
-                    array_key_exists('tags',           $payload)
+                    array_key_exists('source_mappings', $payload) &&
+                    array_key_exists('canonical_unit',  $payload) &&
+                    array_key_exists('parent',          $payload) &&
+                    array_key_exists('children',        $payload) &&
+                    array_key_exists('tags',            $payload)
                 )
             );
 
@@ -57,11 +57,11 @@ class SyncNutrientToSearchTest extends TestCase
                 config('zinc.indices.nutrients'),
                 $this->nutrient->id,
                 Mockery::on(fn($payload) =>
-                    array_key_exists('source',         $payload) &&
-                    array_key_exists('canonical_unit', $payload) &&
-                    array_key_exists('parent',         $payload) &&
-                    array_key_exists('children',       $payload) &&
-                    array_key_exists('tags',           $payload)
+                    array_key_exists('source_mappings', $payload) &&
+                    array_key_exists('canonical_unit',  $payload) &&
+                    array_key_exists('parent',          $payload) &&
+                    array_key_exists('children',        $payload) &&
+                    array_key_exists('tags',            $payload)
                 )
             );
 

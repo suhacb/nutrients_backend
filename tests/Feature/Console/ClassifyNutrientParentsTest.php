@@ -4,6 +4,7 @@ namespace Tests\Feature\Console;
 
 use App\AI\Contracts\LlmClientContract;
 use App\Models\Nutrient;
+use App\Models\NutrientSourcePivot;
 use App\Models\Source;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -14,11 +15,14 @@ class ClassifyNutrientParentsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected Source $externalSource;
+
     protected function setUp(): void
     {
         parent::setUp();
         Queue::fake();
         Source::firstOrCreate(['slug' => 'system'], ['name' => 'System']);
+        $this->externalSource = Source::factory()->create(['slug' => 'usda', 'name' => 'USDA']);
     }
 
     protected function tearDown(): void
@@ -27,15 +31,22 @@ class ClassifyNutrientParentsTest extends TestCase
         parent::tearDown();
     }
 
+    /** Creates an external (non-canonical) nutrient with a source mapping — eligible for classification. */
     private function nutrient(array $attrs = []): Nutrient
     {
-        return Nutrient::withoutEvents(fn () => Nutrient::factory()->create($attrs));
+        $nutrient = Nutrient::withoutEvents(fn () => Nutrient::factory()->create($attrs));
+        NutrientSourcePivot::create([
+            'nutrient_id' => $nutrient->id,
+            'source_id'   => $this->externalSource->id,
+            'external_id' => (string) $nutrient->id,
+        ]);
+        return $nutrient;
     }
 
+    /** Creates a canonical hierarchy nutrient (no source mapping) — used as a valid parent. */
     private function hierarchyNutrient(array $attrs = []): Nutrient
     {
-        $systemSourceId = Source::where('slug', 'system')->value('id');
-        $nutrient = $this->nutrient(array_merge(['source_id' => $systemSourceId], $attrs));
+        $nutrient = Nutrient::withoutEvents(fn () => Nutrient::factory()->create($attrs));
         Nutrient::withoutEvents(fn () => $nutrient->update(['parent_id' => $nutrient->id]));
         return $nutrient;
     }
@@ -161,7 +172,13 @@ class ClassifyNutrientParentsTest extends TestCase
     public function test_skips_soft_deleted_nutrients(): void
     {
         Nutrient::withoutEvents(function () {
-            Nutrient::factory()->create(['parent_id' => null])->delete();
+            $n = Nutrient::factory()->create(['parent_id' => null]);
+            NutrientSourcePivot::create([
+                'nutrient_id' => $n->id,
+                'source_id'   => $this->externalSource->id,
+                'external_id' => (string) $n->id,
+            ]);
+            $n->delete();
         });
 
         $llm = Mockery::mock(LlmClientContract::class);
