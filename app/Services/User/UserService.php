@@ -3,6 +3,7 @@ namespace App\Services\User;
 
 use App\Classes\User\TokenParser;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class UserService {
     public function __construct(protected TokenParser $parser) {}
@@ -15,17 +16,19 @@ class UserService {
             throw new \InvalidArgumentException('Invalid token claims');
         }
 
-        $user = User::firstOrCreate(
-            ['external_id' => $claims['sub']],
-            [
-                'external_id' => $claims['sub'],
-                'username' => $claims['preferred_username'],
-                'name' => $claims['name'],
-                'fname' => $claims['given_name'] ?? null,
-                'lname' => $claims['family_name'] ?? null,
-                'email' => $claims['email'],
-            ]
-        );
+        $user = DB::transaction(function () use ($claims) {
+            return User::firstOrCreate(
+                ['external_id' => $claims['sub']],
+                [
+                    'external_id' => $claims['sub'],
+                    'username' => $claims['preferred_username'],
+                    'name' => $claims['name'],
+                    'fname' => $claims['given_name'] ?? null,
+                    'lname' => $claims['family_name'] ?? null,
+                    'email' => $claims['email'],
+                ]
+            );
+        }, 3);
 
         return $user;
     }

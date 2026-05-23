@@ -17,6 +17,8 @@ return [
 
     'api_version' => env('API_VERSION', '1.0.0'),
 
+    'test_mode' => (bool) env('APP_TEST_MODE', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\AgentController;
+use App\Http\Controllers\TestLoginController;
+use App\Http\Controllers\TestSetupController;
+use App\Http\Controllers\TestTeardownController;
+use App\Http\Controllers\TestResetController;
 use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\DietTagsController;
 use App\Http\Controllers\IngredientNutrientController;
@@ -24,6 +28,13 @@ Route::prefix('auth')->name('auth.')->group(function () {
     Route::post('login', [LoginController::class, 'login'])->name('login');
     Route::get('validate-access-token', [LoginController::class, 'validateAccessToken'])->name('validate-access-token')->middleware('ensure.user.from.token');
     Route::post('logout', [LoginController::class, 'logout'])->name('logout')->middleware('verify.frontend');
+    Route::post('test-login', [TestLoginController::class, 'login'])->name('test-login')->middleware('ensure.test.mode');
+});
+
+Route::prefix('test')->name('test.')->middleware('ensure.test.mode')->group(function () {
+    Route::post('setup',    [TestSetupController::class,    'setup'])->name('setup');
+    Route::post('teardown', [TestTeardownController::class, 'teardown'])->name('teardown');
+    Route::post('reset',    [TestResetController::class,    'reset'])->name('reset');
 });
 
 Route::prefix('nutrients')->name('nutrients.')->middleware('verify.frontend')->group(function() {
@@ -110,14 +121,14 @@ Route::prefix('recipes')->name('recipes.')->middleware('verify.frontend')->group
 
     Route::prefix('{recipe}/ingredients')->name('ingredients.')->group(function () {
         Route::get('',                [RecipeIngredientController::class, 'index'])->name('index');
-        Route::post('attach',         [RecipeIngredientController::class, 'attach'])->name('attach');
+        Route::post('',               [RecipeIngredientController::class, 'attach'])->name('attach');
         Route::put('{ingredient}',    [RecipeIngredientController::class, 'updatePivot'])->name('update-pivot');
         Route::delete('{ingredient}', [RecipeIngredientController::class, 'detach'])->name('detach');
         Route::delete('',             [RecipeIngredientController::class, 'detachAll'])->name('detach-all');
     });
 
     Route::prefix('{recipe}/diet-tags')->name('diet-tags.')->group(function () {
-        Route::post('attach',      [RecipeDietTagController::class, 'attach'])->name('attach');
+        Route::post('',            [RecipeDietTagController::class, 'attach'])->name('attach');
         Route::delete('{dietTag}', [RecipeDietTagController::class, 'detach'])->name('detach');
         Route::delete('',          [RecipeDietTagController::class, 'detachAll'])->name('detach-all');
     });

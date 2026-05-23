@@ -52,13 +52,12 @@ class RecipesController extends Controller
     )]
     public function show(Recipe $recipe): JsonResponse
     {
-        $document = $this->search->get(config('zinc.indices.recipes'), $recipe->id);
+        $recipe->loadForSearch();
 
-        if ($document !== null) {
-            return response()->json($document, 200);
-        }
-
-        return response()->json(new RecipeResource($recipe->loadForSearch()), 200);
+        return response()->json(
+            (new RecipeResource($recipe))->withNutrientProfile($recipe->computeNutrientProfile()),
+            200
+        );
     }
 
     #[OA\Post(

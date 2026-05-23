@@ -2,6 +2,7 @@
 namespace App\Jobs;
 
 use App\Enums\SyncStatus;
+use App\Http\Resources\IngredientResource;
 use App\Models\Ingredient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
@@ -48,7 +49,7 @@ class SyncIngredientToSearch implements ShouldQueue {
                 // Try the model instance first, fallback to DB query
                 $ingredient = $this->ingredient ?? Ingredient::find($this->id);
                 if ($ingredient) {
-                    $payload = $ingredient->loadForSearch()->toArray();
+                    $payload = (new IngredientResource($ingredient->loadForSearch()))->resolve();
                     $this->action === 'insert'
                         ? $search->insert($index, $this->id, $payload)
                         : $search->update($index, $this->id, $payload);

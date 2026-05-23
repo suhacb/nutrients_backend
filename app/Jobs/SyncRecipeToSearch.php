@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\SyncStatus;
+use App\Http\Resources\RecipeResource;
 use App\Models\Recipe;
 use App\Services\Search\SearchServiceContract;
 use Illuminate\Bus\Queueable;
@@ -42,10 +43,10 @@ class SyncRecipeToSearch implements ShouldQueue
             case 'update':
                 $recipe = $this->recipe ?? Recipe::find($this->id);
                 if ($recipe) {
-                    $payload = array_merge(
-                        $recipe->loadForSearch()->toArray(),
-                        ['nutrient_profile' => $recipe->computeNutrientProfile()]
-                    );
+                    $recipe->loadForSearch();
+                    $payload = (new RecipeResource($recipe))
+                        ->withNutrientProfile($recipe->computeNutrientProfile())
+                        ->resolve();
                     $this->action === 'insert'
                         ? $search->insert($index, $this->id, $payload)
                         : $search->update($index, $this->id, $payload);

@@ -61,7 +61,7 @@ class SearchControllerTest extends TestCase
             ]
         ])->assertJson([
             'query' => 'protein bar',
-            'index' => 'ingredients',
+            'index' => config('zinc.indices.ingredients'),
             'page' => 1,
             'per_page' => 25,
         ]);
@@ -69,9 +69,10 @@ class SearchControllerTest extends TestCase
 
     public function test_it_uses_cache_when_available(): void
     {
+        $index = config('zinc.indices.ingredients');
         $userId = $this->user->id;
         $page = 1;
-        $cacheKey = "search:{$userId}:ingredients:" . md5('protein bar') . ":page:$page";
+        $cacheKey = "search:{$userId}:{$index}:" . md5('protein bar') . ":page:$page";
 
         $cachedData = [
             'query' => 'protein bar',
@@ -119,85 +120,49 @@ class SearchControllerTest extends TestCase
 
     public function test_it_caches_pages_separately_and_clears_on_query_change(): void
     {
-        // Create a single mock instance that handles all three calls
-        $this->mock(SearchServiceContract::class, function ($mock) {
-            // Apple page 1
-            $mock->shouldReceive('search')
-                ->with('ingredients', 'apple', 25, 1)
-                ->once()
-                ->andReturn(
-                    new SearchServiceResponse(
-                        query: 'apple',
-                        index: 'ingredients',
-                        total: 50,
-                        perPage: 25,
-                        results: array_map(fn($i) => [
-                            'id' => $i,
-                            'name' => "Apple $i",
-                            'description' => "Desc $i",
-                            'score' => 1.0,
-                        ], range(1, 25))
-                    )
-                );
+        $index = config('zinc.indices.ingredients');
 
-            // Apple page 2
+        $this->mock(SearchServiceContract::class, function ($mock) use ($index) {
             $mock->shouldReceive('search')
-                ->with('ingredients', 'apple', 25, 2)
+                ->with($index, 'apple', 25, 1)
                 ->once()
-                ->andReturn(
-                    new SearchServiceResponse(
-                        query: 'apple',
-                        index: 'ingredients',
-                        total: 50,
-                        perPage: 25,
-                        results: array_map(fn($i) => [
-                            'id' => $i,
-                            'name' => "Apple $i",
-                            'description' => "Desc $i",
-                            'score' => 1.0,
-                        ], range(26, 50))
-                    )
-                );
+                ->andReturn(new SearchServiceResponse(
+                    query: 'apple', index: $index, total: 50, perPage: 25,
+                    results: array_map(fn($i) => ['id' => $i, 'name' => "Apple $i", 'description' => "Desc $i", 'score' => 1.0], range(1, 25))
+                ));
 
-            // Banana (new query)
             $mock->shouldReceive('search')
-                ->with('ingredients', 'banana', 25, 1)
+                ->with($index, 'apple', 25, 2)
                 ->once()
-                ->andReturn(
-                    new SearchServiceResponse(
-                        query: 'banana',
-                        index: 'ingredients',
-                        total: 20,
-                        perPage: 25,
-                        results: array_map(fn($i) => [
-                            'id' => $i,
-                            'name' => "Banana $i",
-                            'description' => "Desc $i",
-                            'score' => 0.9,
-                        ], range(1, 20))
-                    )
-                );
+                ->andReturn(new SearchServiceResponse(
+                    query: 'apple', index: $index, total: 50, perPage: 25,
+                    results: array_map(fn($i) => ['id' => $i, 'name' => "Apple $i", 'description' => "Desc $i", 'score' => 1.0], range(26, 50))
+                ));
+
+            $mock->shouldReceive('search')
+                ->with($index, 'banana', 25, 1)
+                ->once()
+                ->andReturn(new SearchServiceResponse(
+                    query: 'banana', index: $index, total: 20, perPage: 25,
+                    results: array_map(fn($i) => ['id' => $i, 'name' => "Banana $i", 'description' => "Desc $i", 'score' => 0.9], range(1, 20))
+                ));
         });
 
-        // Page 1
-        $response1 = $this->withHeaders($this->makeAuthRequestHeader())
-            ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 1]);
-        $response1->assertOk()->assertJson(['page' => 1]);
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 1])
+            ->assertOk()->assertJson(['page' => 1]);
 
-        // Page 2
-        $response2 = $this->withHeaders($this->makeAuthRequestHeader())
-            ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 2]);
-        $response2->assertOk()->assertJson(['page' => 2]);
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('search'), ['query' => 'apple', 'index' => 'ingredients', 'page' => 2])
+            ->assertOk()->assertJson(['page' => 2]);
 
-        // Both cache keys should exist
-        $userId = Auth::user()->id;
-        $page1Key = "search:{$userId}:ingredients:" . md5('apple') . ":page:1";
-        $page2Key = "search:{$userId}:ingredients:" . md5('apple') . ":page:2";
+        $userId    = Auth::user()->id;
+        $page1Key  = "search:{$userId}:{$index}:" . md5('apple') . ":page:1";
+        $page2Key  = "search:{$userId}:{$index}:" . md5('apple') . ":page:2";
 
         $this->assertTrue(Cache::has($page1Key));
         $this->assertTrue(Cache::has($page2Key));
 
-        // Now change query → old pages should be cleared
         $this->withHeaders($this->makeAuthRequestHeader())
             ->postJson(route('search'), ['query' => 'banana', 'index' => 'ingredients', 'page' => 1]);
 
@@ -207,14 +172,15 @@ class SearchControllerTest extends TestCase
 
     public function test_it_handles_multiple_keywords_and_case_insensitive_search(): void
     {
-        $this->mock(SearchServiceContract::class, function ($mock) {
+        $index = config('zinc.indices.ingredients');
+        $this->mock(SearchServiceContract::class, function ($mock) use ($index) {
             $mock->shouldReceive('search')
-                ->with('ingredients', 'Protein Bar', 25, 1)
+                ->with($index, 'Protein Bar', 25, 1)
                 ->once()
                 ->andReturn(
                     new SearchServiceResponse(
                         query: 'Protein Bar',
-                        index: 'ingredients',
+                        index: $index,
                         total: 2,
                         perPage: 25,
                         results: [
@@ -233,15 +199,16 @@ class SearchControllerTest extends TestCase
 
     public function test_it_returns_correct_from_to_metadata(): void
     {
-        $this->mock(SearchServiceContract::class, function ($mock) {
+        $index = config('zinc.indices.ingredients');
+        $this->mock(SearchServiceContract::class, function ($mock) use ($index) {
             $mock->shouldReceive('search')
-                ->with('ingredients', 'apple', 25, 2)
+                ->with($index, 'apple', 25, 2)
                 ->once()
                 ->andReturn(
                     new SearchServiceResponse(
                         query: 'apple',
-                        index: 'ingredients',
-                        total: 50,  // enough to have a page 2
+                        index: $index,
+                        total: 50,
                         perPage: 25,
                         results: array_map(fn($i) => [
                             'id' => $i,
@@ -261,6 +228,29 @@ class SearchControllerTest extends TestCase
             'to' => 50,
             'current_page' => 2,
         ]);
+    }
+
+    public function test_search_maps_request_index_name_through_config(): void
+    {
+        Config::set('zinc.indices.ingredients', 'custom_ingredients_index');
+
+        $this->mock(SearchServiceContract::class, function ($mock) {
+            $mock->shouldReceive('search')
+                ->with('custom_ingredients_index', 'olive', 25, 1)
+                ->once()
+                ->andReturn(new SearchServiceResponse(
+                    query: 'olive',
+                    index: 'custom_ingredients_index',
+                    total: 1,
+                    perPage: 25,
+                    results: [['id' => 1, 'name' => 'Olive Oil', 'description' => null, 'score' => 1.0]],
+                ));
+        });
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+            ->postJson(route('search'), ['query' => 'olive', 'index' => 'ingredients', 'page' => 1])
+            ->assertOk()
+            ->assertJson(['index' => 'custom_ingredients_index']);
     }
 
     protected function tearDown(): void

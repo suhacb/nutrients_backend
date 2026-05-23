@@ -3,6 +3,7 @@
 use App\Exceptions\NutrientAttachedException;
 use App\Exceptions\NutrientHasChildrenException;
 use App\Exceptions\SourceHasNutrientsException;
+use App\Http\Middleware\EnsureTestMode;
 use App\Http\Middleware\EnsureUserFromToken;
 use App\Http\Middleware\VerifyFrontend;
 use Illuminate\Foundation\Application;
@@ -18,8 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'verify.frontend' => VerifyFrontend::class,
-            'ensure.user.from.token' => EnsureUserFromToken::class
+            'verify.frontend'       => VerifyFrontend::class,
+            'ensure.user.from.token' => EnsureUserFromToken::class,
+            'ensure.test.mode'      => EnsureTestMode::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

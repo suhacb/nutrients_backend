@@ -224,4 +224,56 @@ class ZincSearchServiceTest extends TestCase
 
         $this->service->get($this->index, $id);
     }
+
+    // -------------------------------------------------------------------------
+    // bulkInsert()
+    // -------------------------------------------------------------------------
+
+    public function test_bulk_insert_sends_ndjson_body_and_succeeds(): void
+    {
+        Http::fake([
+            "{$this->baseUri}/api/{$this->index}/_bulk" => Http::response([], 200),
+        ]);
+
+        $this->service->bulkInsert($this->index, [
+            1 => ['name' => 'Magnesium', 'description' => 'A mineral'],
+            2 => ['name' => 'Zinc',      'description' => 'A trace element'],
+        ]);
+
+        Http::assertSent(function ($request) {
+            if ($request->url() !== "{$this->baseUri}/api/{$this->index}/_bulk") {
+                return false;
+            }
+            if ($request->method() !== 'POST') {
+                return false;
+            }
+            $lines = explode("\n", trim($request->body()));
+            // 2 documents → 4 lines (action + payload per doc)
+            if (count($lines) !== 4) {
+                return false;
+            }
+            $action  = json_decode($lines[0], true);
+            $payload = json_decode($lines[1], true);
+            return ($action['index']['_id'] === '1') && ($payload['name'] === 'Magnesium');
+        });
+    }
+
+    public function test_bulk_insert_skips_http_when_documents_empty(): void
+    {
+        $this->service->bulkInsert($this->index, []);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_bulk_insert_throws_exception_on_non_200_response(): void
+    {
+        Http::fake([
+            "{$this->baseUri}/api/{$this->index}/_bulk" => Http::response('error body', 500),
+        ]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessageMatches("/Zinc bulk insert into '{$this->index}' failed \(500\)/");
+
+        $this->service->bulkInsert($this->index, [1 => ['name' => 'Calcium']]);
+    }
 }

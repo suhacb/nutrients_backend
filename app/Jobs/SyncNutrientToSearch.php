@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\SyncStatus;
+use App\Http\Resources\NutrientResource;
 use App\Models\Nutrient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\SerializesModels;
@@ -39,7 +40,7 @@ class SyncNutrientToSearch implements ShouldQueue
         switch ($this->action) {
             case 'insert':
             case 'update':
-                $payload = $this->nutrient->loadForSearch()->toArray();
+                $payload = (new NutrientResource($this->nutrient->loadForSearch()))->resolve();
                 $this->action === 'insert'
                     ? $search->insert($index, $id, $payload)
                     : $search->update($index, $id, $payload);

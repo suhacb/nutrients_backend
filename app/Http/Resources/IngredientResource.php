@@ -55,8 +55,8 @@ class IngredientResource extends JsonResource
             'description'    => $this->description,
             'default_amount' => $this->default_amount,
             'sync_status'    => $this->sync_status,
-            'brand'               => $this->whenLoaded('brand', fn () => new BrandResource($this->brand)),
-            'default_amount_unit' => $this->whenLoaded('default_amount_unit', fn () => new UnitResource($this->default_amount_unit)),
+            'brand'               => $this->whenLoaded('brand', fn () => $this->brand ? new BrandResource($this->brand) : null),
+            'default_amount_unit' => $this->whenLoaded('default_amount_unit', fn () => $this->default_amount_unit ? new UnitResource($this->default_amount_unit) : null),
             'nutrients'       => $this->whenLoaded('nutrients', function () {
                 return $this->nutrients->map(fn ($nutrient) => array_merge(
                     (new NutrientResource($nutrient))->resolve(request()),

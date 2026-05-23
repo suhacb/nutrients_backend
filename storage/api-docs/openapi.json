@@ -352,6 +352,276 @@
                 ]
             }
         },
+        "/api/diet-tags": {
+            "get": {
+                "tags": [
+                    "Diet Tags"
+                ],
+                "summary": "List diet tags (paginated)",
+                "operationId": "0971447f97ef718562436dba3dc7be0e",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of diet tags",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/DietTag"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 50
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 25
+                                        },
+                                        "last_page": {
+                                            "type": "integer",
+                                            "example": 2
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Diet Tags"
+                ],
+                "summary": "Create a new diet tag",
+                "operationId": "7be9e5f6903bfeccd57dabf1871565d9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Ketogenic"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "ketogenic",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "High fat, very low carbohydrate diet.",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DietTag"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/diet-tags/{dietTag}": {
+            "get": {
+                "tags": [
+                    "Diet Tags"
+                ],
+                "summary": "Get a single diet tag",
+                "operationId": "0605dc8cfb53d938190af85576fac36a",
+                "parameters": [
+                    {
+                        "name": "dietTag",
+                        "in": "path",
+                        "description": "Diet tag ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Diet tag resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DietTag"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Diet Tags"
+                ],
+                "summary": "Update a diet tag",
+                "operationId": "e2fe03b09ac80604ded7a7d1fd7480b3",
+                "parameters": [
+                    {
+                        "name": "dietTag",
+                        "in": "path",
+                        "description": "Diet tag ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Ketogenic"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "ketogenic",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "High fat, very low carbohydrate diet.",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DietTag"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Diet Tags"
+                ],
+                "summary": "Delete a diet tag",
+                "operationId": "9672e1e0ab60fcffaa13d860b0551a74",
+                "parameters": [
+                    {
+                        "name": "dietTag",
+                        "in": "path",
+                        "description": "Diet tag ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
         "/api/ingredients/{ingredient}/nutrients": {
             "get": {
                 "tags": [
@@ -1888,6 +2158,894 @@
                 ]
             }
         },
+        "/api/recipes/{recipe}/diet-tags": {
+            "post": {
+                "tags": [
+                    "Recipe Diet Tags"
+                ],
+                "summary": "Attach a diet tag to a recipe",
+                "operationId": "b78f2cecbd103f73906d7e315578484c",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "diet_tag_id"
+                                ],
+                                "properties": {
+                                    "diet_tag_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated diet tag list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DietTag"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Recipe not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Recipe Diet Tags"
+                ],
+                "summary": "Remove all diet tags from a recipe",
+                "operationId": "923b3c0e5584f9b568c26a7ea684b234",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "All detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Recipe not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/recipes/{recipe}/diet-tags/{dietTag}": {
+            "delete": {
+                "tags": [
+                    "Recipe Diet Tags"
+                ],
+                "summary": "Remove a single diet tag from a recipe",
+                "operationId": "677295ab8180be1a8607d788cb639c7b",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "dietTag",
+                        "in": "path",
+                        "description": "Diet tag ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/recipes/{recipe}/ingredients": {
+            "get": {
+                "tags": [
+                    "Recipe Ingredients"
+                ],
+                "summary": "List ingredients attached to a recipe",
+                "operationId": "87b584fed8ffbf9e2ec145dcae1bf0da",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of ingredients with pivot data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Recipe not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Recipe Ingredients"
+                ],
+                "summary": "Attach an ingredient to a recipe",
+                "operationId": "6eb2ef798c6defffe55f0d89f6b2c33d",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ingredient_id",
+                                    "amount",
+                                    "unit_id"
+                                ],
+                                "properties": {
+                                    "ingredient_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 200
+                                    },
+                                    "unit_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated ingredient list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Recipe not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Recipe Ingredients"
+                ],
+                "summary": "Remove all ingredients from a recipe",
+                "operationId": "d116739fbd18c26330003a40c0e6ae57",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "All detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Recipe not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/recipes/{recipe}/ingredients/{ingredient}": {
+            "put": {
+                "tags": [
+                    "Recipe Ingredients"
+                ],
+                "summary": "Update the pivot data for an attached ingredient",
+                "operationId": "10244487ab82c5c7b759316506c1c6b0",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "description": "Ingredient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 150
+                                    },
+                                    "unit_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated ingredient list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Recipe Ingredients"
+                ],
+                "summary": "Remove a single ingredient from a recipe",
+                "operationId": "e66134118ebfda14089e2dc487bcaf0f",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "ingredient",
+                        "in": "path",
+                        "description": "Ingredient ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Detached"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/recipes": {
+            "get": {
+                "tags": [
+                    "Recipes"
+                ],
+                "summary": "List recipes (paginated)",
+                "operationId": "9f35874df90f336283f6abdd10f7db53",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of recipes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Recipe"
+                                            }
+                                        },
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 100
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 25
+                                        },
+                                        "last_page": {
+                                            "type": "integer",
+                                            "example": 4
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Recipes"
+                ],
+                "summary": "Create a new recipe",
+                "operationId": "78bef8ac8bd327da401c198a198300dd",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "portions"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Pasta Bolognese"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "pasta-bolognese",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "A classic Italian dish.",
+                                        "nullable": true
+                                    },
+                                    "instructions": {
+                                        "type": "string",
+                                        "example": "## Method\n1. Cook pasta.",
+                                        "nullable": true
+                                    },
+                                    "portions": {
+                                        "type": "integer",
+                                        "example": 4
+                                    },
+                                    "source_url": {
+                                        "type": "string",
+                                        "example": "https://example.com/pasta",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Recipe"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/recipes/{recipe}": {
+            "get": {
+                "tags": [
+                    "Recipes"
+                ],
+                "summary": "Get a single recipe with all relationships",
+                "operationId": "abd16e8afc2dd42f60982ea487cc62e4",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Recipe resource",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Recipe"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Recipes"
+                ],
+                "summary": "Update a recipe",
+                "operationId": "2dfe2c493ddadd49cf2f869f8ce713bc",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Pasta Bolognese"
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "example": "pasta-bolognese",
+                                        "nullable": true
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "A classic Italian dish.",
+                                        "nullable": true
+                                    },
+                                    "instructions": {
+                                        "type": "string",
+                                        "example": "## Method\n1. Cook pasta.",
+                                        "nullable": true
+                                    },
+                                    "portions": {
+                                        "type": "integer",
+                                        "example": 4
+                                    },
+                                    "source_url": {
+                                        "type": "string",
+                                        "example": "https://example.com/pasta",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Recipe"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Recipes"
+                ],
+                "summary": "Soft-delete a recipe",
+                "operationId": "0359d94677f6533c33193152d15c8aab",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/recipes/search": {
+            "post": {
+                "tags": [
+                    "Recipes"
+                ],
+                "summary": "Full-text search recipes",
+                "operationId": "a4aefa16833f47b4399018ee6907c826",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "query"
+                                ],
+                                "properties": {
+                                    "query": {
+                                        "type": "string",
+                                        "example": "pasta"
+                                    },
+                                    "page": {
+                                        "type": "integer",
+                                        "example": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Search results",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "total": {
+                                            "type": "integer",
+                                            "example": 3
+                                        },
+                                        "current_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "last_page": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "per_page": {
+                                            "type": "integer",
+                                            "example": 25
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/recipes/{recipe}/nutrient-profile": {
+            "get": {
+                "tags": [
+                    "Recipes"
+                ],
+                "summary": "Get computed nutrient profile for a recipe",
+                "operationId": "def8edf7c441e950ed82b3a5cd0fe0e1",
+                "parameters": [
+                    {
+                        "name": "recipe",
+                        "in": "path",
+                        "description": "Recipe ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Nutrient profile",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "total": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "nutrient_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "nutrient_name": {
+                                                        "type": "string",
+                                                        "example": "Protein"
+                                                    },
+                                                    "amount": {
+                                                        "type": "number",
+                                                        "format": "float",
+                                                        "example": 20
+                                                    },
+                                                    "unit_id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "unit": {
+                                                        "type": "string",
+                                                        "example": "g"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "per_portion": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "portions": {
+                                            "type": "integer",
+                                            "example": 4
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
         "/api/search": {
             "post": {
                 "tags": [
@@ -2233,6 +3391,182 @@
                 ]
             }
         },
+        "/api/auth/test-login": {
+            "post": {
+                "tags": [
+                    "E2E"
+                ],
+                "summary": "Generate a test JWT (E2E only — unavailable when APP_TEST_MODE is false)",
+                "operationId": "0e4c8456cc1e21f89c9810a195f413ec",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "role": {
+                                        "description": "Role to embed in the token claims (defaults to \"admin\")",
+                                        "type": "string",
+                                        "example": "admin"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Keycloak-shaped token response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "access_token": {
+                                            "type": "string"
+                                        },
+                                        "refresh_token": {
+                                            "type": "string"
+                                        },
+                                        "id_token": {
+                                            "type": "string"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "Bearer"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "example": 86400
+                                        },
+                                        "session_state": {
+                                            "type": "string"
+                                        },
+                                        "scope": {
+                                            "type": "string"
+                                        },
+                                        "not-before-policy": {
+                                            "type": "integer"
+                                        },
+                                        "refresh_expires_in": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not available — APP_TEST_MODE is false"
+                    }
+                }
+            }
+        },
+        "/api/test/reset": {
+            "post": {
+                "tags": [
+                    "E2E"
+                ],
+                "summary": "Reset e2e state: remove non-fixture data, restore and re-seed fixtures, re-sync Zinc (E2E only)",
+                "operationId": "997d9340a80a20b73a9b1d14ce618dc2",
+                "responses": {
+                    "200": {
+                        "description": "Reset complete",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "reset": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not available — APP_TEST_MODE is false"
+                    }
+                }
+            }
+        },
+        "/api/test/setup": {
+            "post": {
+                "tags": [
+                    "E2E"
+                ],
+                "summary": "Initialise e2e environment: fresh migrations, base seed, fixture seed, Zinc sync (E2E only)",
+                "operationId": "02b87a011becca04916315791a9ddbbc",
+                "responses": {
+                    "200": {
+                        "description": "Setup complete",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "setup": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not available — APP_TEST_MODE is false"
+                    },
+                    "500": {
+                        "description": "Setup failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/test/teardown": {
+            "post": {
+                "tags": [
+                    "E2E"
+                ],
+                "summary": "Wipe e2e environment: drop all data, clear Zinc indices (E2E only)",
+                "operationId": "17084a2c9e9bd928c567d0c1f144388f",
+                "responses": {
+                    "200": {
+                        "description": "Teardown complete",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "teardown": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not available — APP_TEST_MODE is false"
+                    }
+                }
+            }
+        },
         "/api/units": {
             "get": {
                 "tags": [
@@ -2540,6 +3874,36 @@
                     "description": {
                         "type": "string",
                         "example": null,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "DietTag": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Ketogenic"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "ketogenic"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "High fat, very low carbohydrate diet.",
                         "nullable": true
                     },
                     "created_at": {
@@ -2875,6 +4239,156 @@
                 },
                 "type": "object"
             },
+            "Recipe": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Pasta Bolognese"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "example": "pasta-bolognese"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "A classic Italian dish.",
+                        "nullable": true
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "example": "## Method\n1. Cook pasta.",
+                        "nullable": true
+                    },
+                    "portions": {
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "source_url": {
+                        "type": "string",
+                        "example": "https://example.com/pasta",
+                        "nullable": true
+                    },
+                    "sync_status": {
+                        "type": "string",
+                        "example": "synced",
+                        "enum": [
+                            "pending",
+                            "synced",
+                            "failed"
+                        ]
+                    },
+                    "diet_tags": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DietTag"
+                        }
+                    },
+                    "ingredients": {
+                        "type": "array",
+                        "items": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/Ingredient"
+                                },
+                                {
+                                    "properties": {
+                                        "pivot": {
+                                            "properties": {
+                                                "recipe_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "ingredient_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "amount": {
+                                                    "type": "number",
+                                                    "format": "float",
+                                                    "example": 200
+                                                },
+                                                "unit_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "unit": {
+                                                    "oneOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/Unit"
+                                                        }
+                                                    ],
+                                                    "nullable": true
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "updated_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "nullable": true
+                    },
+                    "nutrient_profile": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "nutrient_id": {
+                                    "type": "integer",
+                                    "example": 1
+                                },
+                                "nutrient_name": {
+                                    "type": "string",
+                                    "example": "Protein"
+                                },
+                                "amount": {
+                                    "type": "number",
+                                    "format": "float",
+                                    "example": 62
+                                },
+                                "unit_id": {
+                                    "type": "integer",
+                                    "example": 1,
+                                    "nullable": true
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "example": "g",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deleted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "Source": {
                 "properties": {
                     "id": {
@@ -2970,6 +4484,10 @@
             "description": "Brands"
         },
         {
+            "name": "Diet Tags",
+            "description": "Diet Tags"
+        },
+        {
             "name": "IngredientNutrients",
             "description": "IngredientNutrients"
         },
@@ -2990,12 +4508,28 @@
             "description": "Nutrients"
         },
         {
+            "name": "Recipe Diet Tags",
+            "description": "Recipe Diet Tags"
+        },
+        {
+            "name": "Recipe Ingredients",
+            "description": "Recipe Ingredients"
+        },
+        {
+            "name": "Recipes",
+            "description": "Recipes"
+        },
+        {
             "name": "Search",
             "description": "Search"
         },
         {
             "name": "Sources",
             "description": "Sources"
+        },
+        {
+            "name": "E2E",
+            "description": "E2E"
         },
         {
             "name": "Units",

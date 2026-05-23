@@ -12,7 +12,8 @@ class TokenParser {
         }
 
         [$header, $payload, $signature] = $parts;
-        $decoded = json_decode(base64_decode($payload), true);
+        $padded  = $payload . str_repeat('=', (4 - strlen($payload) % 4) % 4);
+        $decoded = json_decode(base64_decode(strtr($padded, '-_', '+/')), true);
 
         if (!is_array($decoded)) {
             throw new InvalidArgumentException('Invalid token payload.');
