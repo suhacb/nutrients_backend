@@ -17,6 +17,7 @@ use App\Http\Controllers\RecipeIngredientController;
 use App\Http\Controllers\RecipesController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SourcesController;
+use App\Http\Controllers\UnitConversionController;
 use App\Http\Controllers\UnitsController;
 use Illuminate\Support\Facades\Route;
 
@@ -86,11 +87,12 @@ Route::prefix('brands')->name('brands.')->middleware('verify.frontend')->group(f
 });
 
 Route::prefix('units')->name('units.')->middleware('verify.frontend')->group(function() {
-    Route::get('', [UnitsController::class, 'index'])->name('index');
-    Route::get('{unit}', [UnitsController::class, 'show'])->name('show');
-    Route::post('', [UnitsController::class, 'store'])->name('store');
-    Route::put('{unit}', [UnitsController::class, 'update'])->name('update');
+    Route::get('',        [UnitsController::class, 'index'])->name('index');
+    Route::get('{unit}',  [UnitsController::class, 'show'])->name('show');
+    Route::post('',       [UnitsController::class, 'store'])->name('store');
+    Route::put('{unit}',  [UnitsController::class, 'update'])->name('update');
     Route::delete('{unit}', [UnitsController::class, 'delete'])->name('delete');
+    Route::post('convert', [UnitConversionController::class, 'convert'])->name('convert');
 });
 
 Route::prefix('sources')->name('sources.')->middleware('verify.frontend')->group(function() {

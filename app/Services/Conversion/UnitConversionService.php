@@ -8,7 +8,7 @@ use App\Exceptions\UnsupportedUnitException;
 use App\Models\Nutrient;
 use App\Models\Unit;
 
-class UnitConversionService
+class UnitConversionService implements UnitConversionServiceContract
 {
     public function convert(float $value, Unit $from, Unit $to): float
     {
@@ -45,5 +45,14 @@ class UnitConversionService
             value: round($value * $nutrient->iu_to_canonical_factor, 6),
             unit:  $nutrient->canonicalUnit,
         );
+    }
+
+    public function canConvert(Unit $from, Unit $to): bool
+    {
+        if ($from->to_base_factor === null || $to->to_base_factor === null) {
+            return false;
+        }
+
+        return $from->type === $to->type;
     }
 }

@@ -183,4 +183,28 @@ class UnitConversionServiceTest extends TestCase
 
         $this->service->convertFromIU(400, $nutrient);
     }
+
+    public function test_can_convert_returns_true_for_same_type(): void
+    {
+        $gram      = $this->unit('mass', 1.0);
+        $kilogram  = $this->unit('mass', 1000.0);
+
+        $this->assertTrue($this->service->canConvert($gram, $kilogram));
+    }
+
+    public function test_can_convert_returns_false_for_different_types(): void
+    {
+        $gram       = $this->unit('mass', 1.0);
+        $milliliter = $this->unit('volume', 1.0);
+
+        $this->assertFalse($this->service->canConvert($gram, $milliliter));
+    }
+
+    public function test_can_convert_returns_false_when_factor_missing(): void
+    {
+        $gram = $this->unit('mass', 1.0);
+        $iu   = new Unit(['type' => 'other', 'to_base_factor' => null]);
+
+        $this->assertFalse($this->service->canConvert($gram, $iu));
+    }
 }
