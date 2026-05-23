@@ -227,4 +227,39 @@ class BatchPersistorTest extends TestCase
         $ingredient2 = Ingredient::where('external_id', '9999999')->first();
         $this->assertEquals($ingredient1->brand_id, $ingredient2->brand_id);
     }
+
+    public function test_flush_new_nutrient_ids_returns_inserted_ids(): void
+    {
+        $persistor = new BatchPersistor();
+        $persistor->persist([$this->makeBatch()], $this->source);
+
+        $ids = $persistor->flushNewNutrientIds();
+
+        $this->assertCount(1, $ids);
+        $nutrient = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
+        $this->assertContains($nutrient->id, $ids);
+    }
+
+    public function test_flush_new_nutrient_ids_is_empty_for_existing_nutrients(): void
+    {
+        $persistor = new BatchPersistor();
+        $persistor->persist([$this->makeBatch()], $this->source);
+        $persistor->flushNewNutrientIds(); // consume first run
+
+        $persistor->persist([$this->makeBatch()], $this->source);
+
+        $this->assertEmpty($persistor->flushNewNutrientIds());
+    }
+
+    public function test_flush_clears_ids_on_each_call(): void
+    {
+        $persistor = new BatchPersistor();
+        $persistor->persist([$this->makeBatch()], $this->source);
+
+        $first  = $persistor->flushNewNutrientIds();
+        $second = $persistor->flushNewNutrientIds();
+
+        $this->assertNotEmpty($first);
+        $this->assertEmpty($second);
+    }
 }

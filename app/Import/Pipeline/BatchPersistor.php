@@ -13,11 +13,12 @@ use Illuminate\Support\Str;
 
 class BatchPersistor {
 
-    private array $categoryMap    = [];
-    private array $brandMap       = [];
-    private array $nutrientMap    = [];
-    private array $ingredientMap  = [];
-    private ?int  $defaultUnitId  = null;
+    private array $categoryMap      = [];
+    private array $brandMap         = [];
+    private array $nutrientMap      = [];
+    private array $ingredientMap    = [];
+    private array $newNutrientIds   = [];
+    private ?int  $defaultUnitId    = null;
 
     public function persist(array $batches, Source $source): void
     {
@@ -29,6 +30,13 @@ class BatchPersistor {
             $this->upsertPivots($batches);
             $this->upsertNutritionFacts($batches);
         });
+    }
+
+    public function flushNewNutrientIds(): array
+    {
+        $ids = $this->newNutrientIds;
+        $this->newNutrientIds = [];
+        return $ids;
     }
 
     private function upsertCategories(array $batches): void
@@ -158,7 +166,8 @@ class BatchPersistor {
                 continue;
             }
             $nutrientId = DB::table('nutrients')->insertGetId($row);
-            $this->nutrientMap[$externalId] = $nutrientId;
+            $this->nutrientMap[$externalId]  = $nutrientId;
+            $this->newNutrientIds[]          = $nutrientId;
             $mappingRows[] = [
                 'nutrient_id' => $nutrientId,
                 'source_id'   => $source->id,

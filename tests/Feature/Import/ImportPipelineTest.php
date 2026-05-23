@@ -10,13 +10,14 @@ use App\Import\Sources\USDA\UsdaIngredientTransformer;
 use App\Import\Sources\USDA\UsdaNutrientTransformer;
 use App\Import\Sources\USDA\UsdaNutritionFactTransformer;
 use App\Import\Sources\USDA\UsdaPivotTransformer;
+use App\Jobs\DeduplicateNutrient;
 use App\Jobs\SyncSourceToSearch;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Source;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
 class ImportPipelineTest extends TestCase
@@ -30,7 +31,7 @@ class ImportPipelineTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Queue::fake();
+        Bus::fake();
 
         $this->fixture = base_path('tests/fixtures/usda_sample.json');
 
@@ -119,7 +120,29 @@ class ImportPipelineTest extends TestCase
     {
         $this->makePipeline()->run($this->fixture);
 
-        Queue::assertPushed(SyncSourceToSearch::class);
+        Bus::assertDispatched(SyncSourceToSearch::class);
+    }
+
+    public function test_pipeline_dispatches_deduplicate_batch_for_new_nutrients(): void
+    {
+        $this->makePipeline()->run($this->fixture);
+
+        Bus::assertBatched(function (\Illuminate\Bus\PendingBatch $batch) {
+            return collect($batch->jobs)->contains(fn ($job) => $job instanceof DeduplicateNutrient);
+        });
+    }
+
+    public function test_pipeline_does_not_dispatch_deduplicate_for_existing_nutrients(): void
+    {
+        // First run creates nutrients
+        $this->makePipeline()->run($this->fixture);
+
+        Bus::fake(); // reset batch assertions
+
+        // Second run: nutrients already exist, no new ones inserted
+        $this->makePipeline()->run($this->fixture);
+
+        Bus::assertNothingBatched();
     }
 
     public function test_pipeline_fails_fast_when_source_not_seeded(): void
