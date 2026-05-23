@@ -110,6 +110,11 @@ class Nutrient extends Model
             ->withTimestamps();
     }
 
+    public function sourceMappings(): HasMany
+    {
+        return $this->hasMany(NutrientSourcePivot::class);
+    }
+
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(NutrientTag::class, 'nutrient_nutrient_tag');

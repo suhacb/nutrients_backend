@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\Unit\NutrientSourceMapping;
+namespace Tests\Unit\NutrientSourcePivot;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-class NutrientSourceMappingMigrationTest extends TestCase
+class NutrientSourcePivotMigrationTest extends TestCase
 {
     use RefreshDatabase;
 
