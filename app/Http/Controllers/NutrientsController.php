@@ -62,11 +62,9 @@ class NutrientsController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['source_id', 'name'],
+                required: ['name'],
                 properties: [
-                    new OA\Property(property: 'source_id', type: 'integer', example: 1),
                     new OA\Property(property: 'name', type: 'string', example: 'Vitamin C'),
-                    new OA\Property(property: 'external_id', type: 'string', nullable: true, example: '1004'),
                     new OA\Property(property: 'description', type: 'string', nullable: true),
                     new OA\Property(property: 'parent_id', type: 'integer', nullable: true),
                     new OA\Property(property: 'slug', type: 'string', nullable: true, example: 'vitamin-c'),
@@ -98,9 +96,7 @@ class NutrientsController extends Controller
             required: true,
             content: new OA\JsonContent(
                 properties: [
-                    new OA\Property(property: 'source_id', type: 'integer'),
                     new OA\Property(property: 'name', type: 'string'),
-                    new OA\Property(property: 'external_id', type: 'string', nullable: true),
                     new OA\Property(property: 'description', type: 'string', nullable: true),
                     new OA\Property(property: 'parent_id', type: 'integer', nullable: true),
                     new OA\Property(property: 'slug', type: 'string', nullable: true),

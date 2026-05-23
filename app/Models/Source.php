@@ -6,6 +6,7 @@ use App\Exceptions\SourceHasNutrientsException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Source extends Model
 {
@@ -21,14 +22,19 @@ class Source extends Model
     protected static function booted(): void
     {
         static::deleting(function (Source $source) {
-            if ($source->nutrients()->exists()) {
+            if ($source->sourceMappings()->exists()) {
                 throw new SourceHasNutrientsException();
             }
         });
     }
 
-    public function nutrients(): HasMany
+    public function sourceMappings(): HasMany
     {
-        return $this->hasMany(Nutrient::class);
+        return $this->hasMany(NutrientSourcePivot::class);
+    }
+
+    public function nutrients(): HasManyThrough
+    {
+        return $this->hasManyThrough(Nutrient::class, NutrientSourcePivot::class, 'source_id', 'id', 'id', 'nutrient_id');
     }
 }

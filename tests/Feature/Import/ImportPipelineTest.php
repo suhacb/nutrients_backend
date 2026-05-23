@@ -67,8 +67,10 @@ class ImportPipelineTest extends TestCase
     {
         $this->makePipeline()->run($this->fixture);
 
-        $this->assertDatabaseHas('nutrients', ['external_id' => '203', 'name' => 'Protein']);
-        $this->assertDatabaseHas('nutrients', ['external_id' => '204', 'name' => 'Total lipid (fat)']);
+        $this->assertDatabaseHas('nutrients', ['name' => 'Protein']);
+        $this->assertDatabaseHas('nutrients', ['name' => 'Total lipid (fat)']);
+        $this->assertDatabaseHas('nutrient_source_mappings', ['external_id' => '203']);
+        $this->assertDatabaseHas('nutrient_source_mappings', ['external_id' => '204']);
         $this->assertDatabaseCount('nutrients', 2);
     }
 
@@ -87,8 +89,8 @@ class ImportPipelineTest extends TestCase
 
         $hummus  = Ingredient::where('external_id', '321358')->first();
         $milk    = Ingredient::where('external_id', '171705')->first();
-        $protein = Nutrient::where('external_id', '203')->first();
-        $fat     = Nutrient::where('external_id', '204')->first();
+        $protein = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
+        $fat     = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '204'))->first();
 
         $this->assertDatabaseHas('ingredient_nutrient', ['ingredient_id' => $hummus->id, 'nutrient_id' => $protein->id, 'amount' => 7.9]);
         $this->assertDatabaseHas('ingredient_nutrient', ['ingredient_id' => $hummus->id, 'nutrient_id' => $fat->id,     'amount' => 5.5]);

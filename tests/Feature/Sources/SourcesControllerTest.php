@@ -390,8 +390,13 @@ class SourcesControllerTest extends TestCase
     public function test_cannot_delete_source_with_nutrients(): void
     {
         Queue::fake();
-        $source = Source::factory()->create();
-        Nutrient::factory()->create(['source_id' => $source->id]);
+        $source  = Source::factory()->create();
+        $nutrient = Nutrient::factory()->create();
+        \App\Models\NutrientSourcePivot::create([
+            'nutrient_id' => $nutrient->id,
+            'source_id'   => $source->id,
+            'external_id' => '1001',
+        ]);
 
         $this->withHeaders($this->makeAuthRequestHeader())
             ->deleteJson(route('sources.delete', $source))

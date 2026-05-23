@@ -107,8 +107,6 @@ class NutrientsControllerTest extends TestCase
     public function test_store_creates_nutrient(): void
     {
         $payload = [
-            'source_id'   => $this->source->id,
-            'external_id' => '101',
             'name'        => 'Protein',
             'description' => 'Test nutrient',
         ];
@@ -194,14 +192,11 @@ class NutrientsControllerTest extends TestCase
      * Unprocessable Entity response with validation errors for both the
      * required `name` and `source` fields.
      */
-    public function test_store_requires_name_and_source_id(): void
+    public function test_store_requires_name(): void
     {
         $response = $this->withHeaders($this->makeAuthRequestHeader())->postJson(route('nutrients.store'), []);
 
-        $response->assertStatus(422)->assertJsonValidationErrors([
-            'source_id',
-            'name',
-        ]);
+        $response->assertStatus(422)->assertJsonValidationErrors(['name']);
     }
 
     /**
@@ -411,7 +406,6 @@ class NutrientsControllerTest extends TestCase
         $tag      = NutrientTag::factory()->create();
         $parent   = Nutrient::factory()->create(['name' => 'Macronutrients']);
         $nutrient = Nutrient::factory()->create([
-            'source_id'         => $this->source->id,
             'parent_id'         => $parent->id,
             'canonical_unit_id' => $unit->id,
         ]);
@@ -422,7 +416,6 @@ class NutrientsControllerTest extends TestCase
             ->getJson(route('nutrients.show', $nutrient))
             ->assertStatus(200);
 
-        $response->assertJsonPath('source.id', $this->source->id);
         $response->assertJsonPath('canonical_unit.id', $unit->id);
         $response->assertJsonPath('parent.id', $parent->id);
         $response->assertJsonStructure(['children' => [['id', 'name']]]);
@@ -449,7 +442,6 @@ class NutrientsControllerTest extends TestCase
         $unit    = $this->makeUnit();
         $parent  = Nutrient::factory()->create();
         $nutrient = Nutrient::factory()->create([
-            'source_id'         => $this->source->id,
             'canonical_unit_id' => $unit->id,
             'parent_id'         => $parent->id,
         ]);

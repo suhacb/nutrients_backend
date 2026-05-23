@@ -102,10 +102,14 @@ class BatchPersistor {
             ->unique()
             ->all();
 
-        $existingSlugs = Nutrient::where('source_id', $source->id)
-            ->whereIn('external_id', $allExternalIds)
-            ->pluck('slug', 'external_id')
-            ->all();
+        // Look up existing nutrients via source mappings
+        $existingByExternalId = DB::table('nutrient_source_mappings')
+            ->where('nutrient_source_mappings.source_id', $source->id)
+            ->whereIn('nutrient_source_mappings.external_id', $allExternalIds)
+            ->join('nutrients', 'nutrients.id', '=', 'nutrient_source_mappings.nutrient_id')
+            ->select('nutrient_source_mappings.external_id', 'nutrient_source_mappings.nutrient_id', 'nutrients.slug')
+            ->get()
+            ->keyBy('external_id');
 
         foreach ($batches as $batch) {
             foreach ($batch->nutrients as $record) {
@@ -113,18 +117,17 @@ class BatchPersistor {
                     continue;
                 }
 
-                $slug = $existingSlugs[$record->externalId]
+                $existing = $existingByExternalId->get($record->externalId);
+                $slug = $existing?->slug
                     ?? $this->allocateSlug($record->name, 'nutrients', $usedSlugs);
 
                 $rows[$record->externalId] = [
-                    'source_id'        => $source->id,
-                    'external_id'      => $record->externalId,
-                    'name'             => $record->name,
-                    'description'      => $record->description,
-                    'canonical_unit_id'=> $record->canonicalUnitId,
-                    'slug'             => $slug,
-                    'created_at'       => $now,
-                    'updated_at'       => $now,
+                    'name'              => $record->name,
+                    'description'       => $record->description,
+                    'canonical_unit_id' => $record->canonicalUnitId,
+                    'slug'              => $slug,
+                    'created_at'        => $now,
+                    'updated_at'        => $now,
                 ];
             }
         }
@@ -133,16 +136,41 @@ class BatchPersistor {
             return;
         }
 
-        Nutrient::upsert(
-            array_values($rows),
-            ['source_id', 'external_id'],
-            ['name', 'description', 'canonical_unit_id', 'updated_at']
-        );
+        // Update existing nutrients
+        foreach ($existingByExternalId as $externalId => $existing) {
+            if (!isset($rows[$externalId])) {
+                continue;
+            }
+            $row = $rows[$externalId];
+            DB::table('nutrients')->where('id', $existing->nutrient_id)->update([
+                'name'              => $row['name'],
+                'description'       => $row['description'],
+                'canonical_unit_id' => $row['canonical_unit_id'],
+                'updated_at'        => $row['updated_at'],
+            ]);
+            $this->nutrientMap[$externalId] = $existing->nutrient_id;
+        }
 
-        $this->nutrientMap = Nutrient::where('source_id', $source->id)
-            ->whereIn('external_id', array_keys($rows))
-            ->pluck('id', 'external_id')
-            ->all();
+        // Insert new nutrients and their source mappings
+        $mappingRows = [];
+        foreach ($rows as $externalId => $row) {
+            if ($existingByExternalId->has($externalId)) {
+                continue;
+            }
+            $nutrientId = DB::table('nutrients')->insertGetId($row);
+            $this->nutrientMap[$externalId] = $nutrientId;
+            $mappingRows[] = [
+                'nutrient_id' => $nutrientId,
+                'source_id'   => $source->id,
+                'external_id' => $externalId,
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ];
+        }
+
+        if (!empty($mappingRows)) {
+            DB::table('nutrient_source_mappings')->insertOrIgnore($mappingRows);
+        }
     }
 
     private function upsertIngredients(array $batches, Source $source): void

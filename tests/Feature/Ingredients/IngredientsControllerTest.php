@@ -110,7 +110,6 @@ class IngredientsControllerTest extends TestCase
                 'nutrients' => [
                     [
                         'id'          => $nutrient->id,
-                        'external_id' => $nutrient->external_id,
                         'name'        => $nutrient->name,
                         'description' => $nutrient->description,
                         'pivot' => [
