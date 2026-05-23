@@ -3567,6 +3567,91 @@
                 }
             }
         },
+        "/api/units/convert": {
+            "post": {
+                "tags": [
+                    "Units"
+                ],
+                "summary": "Convert a value between units of the same type",
+                "operationId": "8031f81174644ff41429bb4ba393b9c0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "value",
+                                    "from_unit_id"
+                                ],
+                                "properties": {
+                                    "value": {
+                                        "type": "number",
+                                        "example": 100
+                                    },
+                                    "from_unit_id": {
+                                        "type": "integer",
+                                        "example": 2
+                                    },
+                                    "to_unit_id": {
+                                        "description": "Required unless from_unit is IU",
+                                        "type": "integer",
+                                        "example": 7,
+                                        "nullable": true
+                                    },
+                                    "nutrient_id": {
+                                        "description": "Required when from_unit is IU",
+                                        "type": "integer",
+                                        "example": 5,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Converted value with unit context",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "value": {
+                                            "type": "number",
+                                            "example": 3.5274
+                                        },
+                                        "from_unit": {
+                                            "$ref": "#/components/schemas/Unit"
+                                        },
+                                        "to_unit": {
+                                            "$ref": "#/components/schemas/Unit"
+                                        },
+                                        "nutrient_id": {
+                                            "type": "integer",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Incompatible units, missing factor, or validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
         "/api/units": {
             "get": {
                 "tags": [
