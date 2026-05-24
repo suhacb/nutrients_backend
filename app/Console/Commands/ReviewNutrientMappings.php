@@ -2,10 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\IngredientNutrientPivot;
 use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
+use App\Models\NutrientSourcePivot;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class ReviewNutrientMappings extends Command
 {
@@ -48,12 +49,10 @@ class ReviewNutrientMappings extends Command
         $imported  = $review->nutrient;
         $canonical = $review->suggestedCanonical;
 
-        DB::table('ingredient_nutrient')
-            ->where('nutrient_id', $imported->id)
+        IngredientNutrientPivot::where('nutrient_id', $imported->id)
             ->update(['nutrient_id' => $canonical->id]);
 
-        DB::table('nutrient_source_mappings')
-            ->where('nutrient_id', $imported->id)
+        NutrientSourcePivot::where('nutrient_id', $imported->id)
             ->update(['nutrient_id' => $canonical->id]);
 
         Nutrient::withoutEvents(fn () => $imported->forceDelete());

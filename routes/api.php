@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgentController;
+use App\Http\Controllers\NutrientMappingReviewsController;
 use App\Http\Controllers\TestLoginController;
 use App\Http\Controllers\TestSetupController;
 use App\Http\Controllers\TestTeardownController;
@@ -134,6 +135,11 @@ Route::prefix('recipes')->name('recipes.')->middleware('verify.frontend')->group
         Route::delete('{dietTag}', [RecipeDietTagController::class, 'detach'])->name('detach');
         Route::delete('',          [RecipeDietTagController::class, 'detachAll'])->name('detach-all');
     });
+});
+
+Route::prefix('nutrient-mapping-reviews')->name('nutrient-mapping-reviews.')->middleware('verify.frontend')->group(function () {
+    Route::get('',                           [NutrientMappingReviewsController::class, 'index'])->name('index');
+    Route::patch('{nutrientMappingReview}',  [NutrientMappingReviewsController::class, 'resolve'])->name('resolve');
 });
 
 Route::prefix('agent')->name('agent.')->middleware('verify.frontend')->group(function () {

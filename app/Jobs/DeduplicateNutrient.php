@@ -3,15 +3,16 @@
 namespace App\Jobs;
 
 use App\AI\Contracts\LlmClientContract;
+use App\Models\IngredientNutrientPivot;
 use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
+use App\Models\NutrientSourcePivot;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class DeduplicateNutrient implements ShouldQueue
@@ -99,12 +100,10 @@ class DeduplicateNutrient implements ShouldQueue
 
     private function merge(Nutrient $canonical): void
     {
-        DB::table('ingredient_nutrient')
-            ->where('nutrient_id', $this->nutrient->id)
+        IngredientNutrientPivot::where('nutrient_id', $this->nutrient->id)
             ->update(['nutrient_id' => $canonical->id]);
 
-        DB::table('nutrient_source_mappings')
-            ->where('nutrient_id', $this->nutrient->id)
+        NutrientSourcePivot::where('nutrient_id', $this->nutrient->id)
             ->update(['nutrient_id' => $canonical->id]);
 
         Nutrient::withoutEvents(fn () => $this->nutrient->forceDelete());
