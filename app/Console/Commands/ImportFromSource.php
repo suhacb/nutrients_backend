@@ -13,6 +13,8 @@ use App\Import\Sources\USDA\UsdaNutritionFactTransformer;
 use App\Import\Sources\USDA\UsdaPivotTransformer;
 use App\Models\Unit;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class ImportFromSource extends Command
@@ -21,6 +23,7 @@ class ImportFromSource extends Command
                             {source            : Source name (supported: usda)}
                             {file              : Absolute or storage-relative path to the import file}
                             {--backup=         : Path where a pre-import database dump will be saved}
+                            {--rebuild-zinc    : Drop and recreate all Zinc indices before importing}
                             {--batchSize=100   : Number of records per processing batch}';
 
     protected $description = 'Import nutritional data from a named source into the database';
@@ -51,6 +54,17 @@ class ImportFromSource extends Command
                 return self::FAILURE;
             }
             $this->info('Backup created.');
+        }
+
+        if ($this->option('rebuild-zinc')) {
+            $this->info('Rebuilding Zinc indices...');
+            if (!$this->rebuildZincIndices()) {
+                $this->error('Zinc index rebuild failed. Aborting import.');
+                return self::FAILURE;
+            }
+            $this->info('Zinc indices rebuilt.');
+            Artisan::call('app:queue-pending-sync', ['--model' => 'nutrients'], $this->output);
+            $this->info('Seeded nutrients queued for sync.');
         }
 
         try {
@@ -95,6 +109,31 @@ class ImportFromSource extends Command
         }
 
         return Storage::disk('local')->path($path);
+    }
+
+    private function rebuildZincIndices(): bool
+    {
+        $baseUri  = config('zinc.base_url');
+        $user     = config('zinc.username');
+        $password = config('zinc.password');
+
+        foreach (config('zinc.indices') as $key => $name) {
+            $this->line("  Deleting index: {$name}");
+            Http::withBasicAuth($user, $password)->delete("{$baseUri}/api/index/{$name}");
+
+            $this->line("  Creating index: {$name}");
+            $create = Http::withBasicAuth($user, $password)->put("{$baseUri}/api/index", array_merge(
+                ['name' => $name],
+                config("zinc.index_definitions.{$key}", [])
+            ));
+
+            if (!$create->successful()) {
+                $this->error("Failed to create Zinc index '{$name}': {$create->body()}");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function dumpDatabase(string $path): bool

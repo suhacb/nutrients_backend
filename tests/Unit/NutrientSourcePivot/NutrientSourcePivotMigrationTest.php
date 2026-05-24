@@ -15,6 +15,7 @@ class NutrientSourcePivotMigrationTest extends TestCase
         'nutrient_id' => ['type' => 'bigint',    'nullable' => false],
         'source_id'   => ['type' => 'bigint',    'nullable' => false],
         'external_id' => ['type' => 'varchar',   'nullable' => false],
+        'source_name' => ['type' => 'varchar',   'nullable' => true],
         'created_at'  => ['type' => 'timestamp', 'nullable' => true],
         'updated_at'  => ['type' => 'timestamp', 'nullable' => true],
     ];

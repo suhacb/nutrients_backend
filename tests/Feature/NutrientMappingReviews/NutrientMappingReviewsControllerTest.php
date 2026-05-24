@@ -274,6 +274,148 @@ class NutrientMappingReviewsControllerTest extends TestCase
         $this->assertNotNull($fresh->resolved_at);
     }
 
+    // -------------------------------------------------------------------------
+    // Parent classification
+    // -------------------------------------------------------------------------
+
+    public function test_resolve_parent_sets_parent_id_on_nutrient(): void
+    {
+        $imported  = Nutrient::factory()->create();
+        $canonical = Nutrient::factory()->create(['is_canonical' => true]);
+
+        $review = NutrientMappingReview::create([
+            'nutrient_id'            => $imported->id,
+            'suggested_canonical_id' => $canonical->id,
+            'confidence'             => 80,
+            'decision_type'          => 'parent',
+            'reasoning'              => 'Specific form.',
+            'status'                 => 'pending',
+        ]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'parent'])
+             ->assertStatus(200);
+
+        $this->assertDatabaseHas('nutrients', [
+            'id'        => $imported->id,
+            'parent_id' => $canonical->id,
+        ]);
+    }
+
+    public function test_resolve_parent_does_not_delete_nutrient(): void
+    {
+        $imported  = Nutrient::factory()->create();
+        $canonical = Nutrient::factory()->create(['is_canonical' => true]);
+
+        $review = NutrientMappingReview::create([
+            'nutrient_id'            => $imported->id,
+            'suggested_canonical_id' => $canonical->id,
+            'confidence'             => 80,
+            'decision_type'          => 'parent',
+            'reasoning'              => 'Specific form.',
+            'status'                 => 'pending',
+        ]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'parent'])
+             ->assertStatus(200);
+
+        $this->assertDatabaseHas('nutrients', ['id' => $imported->id, 'deleted_at' => null]);
+    }
+
+    public function test_resolve_parent_marks_review_approved(): void
+    {
+        $imported  = Nutrient::factory()->create();
+        $canonical = Nutrient::factory()->create(['is_canonical' => true]);
+
+        $review = NutrientMappingReview::create([
+            'nutrient_id'            => $imported->id,
+            'suggested_canonical_id' => $canonical->id,
+            'confidence'             => 80,
+            'decision_type'          => 'parent',
+            'reasoning'              => 'Specific form.',
+            'status'                 => 'pending',
+        ]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'parent'])
+             ->assertStatus(200);
+
+        $fresh = $review->fresh();
+        $this->assertEquals('approved', $fresh->status);
+        $this->assertEquals('parent',   $fresh->decision_type);
+        $this->assertNotNull($fresh->resolved_at);
+    }
+
+    // -------------------------------------------------------------------------
+    // canonical_id override
+    // -------------------------------------------------------------------------
+
+    public function test_resolve_merge_with_canonical_id_override_uses_specified_canonical(): void
+    {
+        $unit       = $this->makeUnit();
+        $imported   = Nutrient::factory()->create();
+        $suggested  = Nutrient::factory()->create(['is_canonical' => true]);
+        $override   = Nutrient::factory()->create(['is_canonical' => true]);
+        $ingredient = Ingredient::factory()->create();
+        $ingredient->nutrients()->attach($imported->id, ['amount' => 3.0, 'amount_unit_id' => $unit->id]);
+
+        $review = NutrientMappingReview::create([
+            'nutrient_id'            => $imported->id,
+            'suggested_canonical_id' => $suggested->id,
+            'confidence'             => 80,
+            'decision_type'          => 'merge',
+            'reasoning'              => 'Similar.',
+            'status'                 => 'pending',
+        ]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), [
+                 'decision'     => 'merge',
+                 'canonical_id' => $override->id,
+             ])
+             ->assertStatus(200);
+
+        $this->assertDatabaseHas('ingredient_nutrient', [
+            'ingredient_id' => $ingredient->id,
+            'nutrient_id'   => $override->id,
+        ]);
+        $this->assertDatabaseMissing('nutrients', ['id' => $imported->id]);
+    }
+
+    public function test_resolve_returns_422_when_canonical_id_is_not_a_canonical_nutrient(): void
+    {
+        $review     = $this->makeReview();
+        $nonCanonical = Nutrient::factory()->create(['is_canonical' => false]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), [
+                 'decision'     => 'merge',
+                 'canonical_id' => $nonCanonical->id,
+             ])
+             ->assertStatus(422)
+             ->assertJsonFragment(['message' => 'The specified nutrient is not a canonical nutrient.']);
+    }
+
+    public function test_resolve_returns_422_for_merge_when_no_suggestion_and_no_canonical_id(): void
+    {
+        $imported = Nutrient::factory()->create();
+
+        $review = NutrientMappingReview::create([
+            'nutrient_id'            => $imported->id,
+            'suggested_canonical_id' => null,
+            'confidence'             => 0,
+            'decision_type'          => 'merge',
+            'reasoning'              => 'Search failed.',
+            'status'                 => 'pending',
+        ]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'merge'])
+             ->assertStatus(422)
+             ->assertJsonFragment(['message' => 'This review has no suggested canonical. Provide canonical_id.']);
+    }
+
     public function test_resolve_returns_review_resource(): void
     {
         $review = $this->makeReview();

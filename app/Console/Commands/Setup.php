@@ -59,10 +59,11 @@ class Setup extends Command
         $this->zincUser     = config('zinc.username');
         $this->zincPassword = config('zinc.password');
 
-        if (!$this->step('Refreshing database',    fn() => $this->refreshDatabase())) return self::FAILURE;
-        if (!$this->step('Seeding database',       fn() => $this->seedDatabase()))    return self::FAILURE;
+        if (!$this->step('Refreshing database',     fn() => $this->refreshDatabase())) return self::FAILURE;
+        if (!$this->step('Seeding database',        fn() => $this->seedDatabase()))    return self::FAILURE;
         if (!$this->step('Rebuilding Zinc indices', fn() => $this->rebuildZincIndices())) return self::FAILURE;
-        if (!$this->step('Importing USDA data',    fn() => $this->runImport($files, (int) $this->option('batchSize'), $persistor))) return self::FAILURE;
+        if (!$this->step('Queuing seeded nutrients for sync', fn() => $this->queueSeededForSync())) return self::FAILURE;
+        if (!$this->step('Importing USDA data',     fn() => $this->runImport($files, (int) $this->option('batchSize'), $persistor))) return self::FAILURE;
 
         $this->info('Setup complete.');
         return self::SUCCESS;
@@ -80,17 +81,18 @@ class Setup extends Command
         return true;
     }
 
+    private function queueSeededForSync(): bool
+    {
+        Artisan::call('app:queue-pending-sync', ['--model' => 'nutrients'], $this->output);
+        return true;
+    }
+
     private function rebuildZincIndices(): bool
     {
         foreach (config('zinc.indices') as $key => $name) {
             $this->line("  Deleting index: {$name}");
-            $response = Http::withBasicAuth($this->zincUser, $this->zincPassword)
+            Http::withBasicAuth($this->zincUser, $this->zincPassword)
                 ->delete("{$this->zincBaseUri}/api/index/{$name}");
-
-            if (!$response->successful() && $response->status() !== 404) {
-                $this->error("Failed to delete Zinc index '{$name}': {$response->body()}");
-                return false;
-            }
 
             $this->line("  Creating index: {$name}");
             $response = Http::withBasicAuth($this->zincUser, $this->zincPassword)

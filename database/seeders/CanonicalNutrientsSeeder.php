@@ -50,7 +50,9 @@ class CanonicalNutrientsSeeder extends Seeder
         $this->seed($fatSol, 'Vitamin A', 'µg', true, 200, 0.3);
         $this->seed($fatSol, 'Vitamin D', 'µg', true, 210, 0.025);
         $this->seed($fatSol, 'Vitamin E', 'mg', true, 220, 0.67);
-        $this->seed($fatSol, 'Vitamin K', 'µg', true, 230);
+        $vitaminK = $this->seed($fatSol, 'Vitamin K', 'µg', true, 230);
+        $this->seed($vitaminK, 'Vitamin K1', 'µg', false, 231);
+        $this->seed($vitaminK, 'Vitamin K2', 'µg', false, 232);
 
         // ── Water-soluble Vitamins ────────────────────────────────────────────────
         $waterSol = $this->findParent('Water-soluble Vitamins');
@@ -149,6 +151,7 @@ class CanonicalNutrientsSeeder extends Seeder
                 'is_label_standard'      => $isLabelStandard,
                 'display_order'          => $displayOrder,
                 'iu_to_canonical_factor' => $iuFactor,
+                'is_canonical'           => true,
             ]);
 
             return $nutrient;
@@ -161,6 +164,7 @@ class CanonicalNutrientsSeeder extends Seeder
             'is_label_standard'      => $isLabelStandard,
             'display_order'          => $displayOrder,
             'iu_to_canonical_factor' => $iuFactor,
+            'is_canonical'           => true,
         ]);
     }
 
@@ -171,6 +175,7 @@ class CanonicalNutrientsSeeder extends Seeder
             ->update([
                 'is_label_standard' => $isLabelStandard,
                 'display_order'     => $displayOrder,
+                'is_canonical'      => true,
             ]);
     }
 

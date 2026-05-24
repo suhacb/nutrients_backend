@@ -61,6 +61,9 @@ class UsdaImportSource implements \App\Import\Contracts\ImportSourceContract {
         $pivots    = [];
 
         foreach ($raw['foodNutrients'] as $foodNutrient) {
+            if (!array_key_exists('amount', $foodNutrient) || $foodNutrient['amount'] == 0) {
+                continue;
+            }
             $nutrients[] = $this->nutrientTransformer->transform($foodNutrient['nutrient']);
             $pivots[]    = $this->pivotTransformer->transform($foodNutrient, $ingredientExternalId);
         }

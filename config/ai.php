@@ -4,7 +4,7 @@ return [
     'ollama' => [
         'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434'),
         'model'    => env('OLLAMA_MODEL', 'gemma4:e4b'),
-        'timeout'  => (int) env('OLLAMA_TIMEOUT', 60),
+        'timeout'  => (int) env('OLLAMA_TIMEOUT', 300),
         'models'   => [
             'fast'  => env('OLLAMA_MODEL_FAST', 'gemma4:e4b'),
             'smart' => env('OLLAMA_MODEL_SMART', 'gemma4:26b'),
@@ -69,6 +69,7 @@ return [
     'searxng' => [
         'base_url' => env('SEARXNG_BASE_URL', 'http://localhost:8080'),
         'limit'    => (int) env('SEARXNG_RESULT_LIMIT', 10),
+        'timeout'  => (int) env('SEARXNG_TIMEOUT', 60),
     ],
 
     'sources' => [],

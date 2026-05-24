@@ -26,15 +26,19 @@ class AiServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->singleton(ToolRegistry::class, function () {
-            $registry = new ToolRegistry();
-
-            $registry->register(new WebSearchTool(
+        $this->app->singleton(WebSearchTool::class, function () {
+            return new WebSearchTool(
                 baseUrl: config('ai.searxng.base_url'),
                 limit:   config('ai.searxng.limit'),
                 sources: config('ai.sources', []),
-            ));
+                timeout: config('ai.searxng.timeout'),
+            );
+        });
 
+        $this->app->singleton(ToolRegistry::class, function () {
+            $registry = new ToolRegistry();
+
+            $registry->register($this->app->make(WebSearchTool::class));
             $registry->register(new WebFetchTool());
             $registry->register(new PdfFetchTool());
 

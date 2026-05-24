@@ -12,7 +12,8 @@ class NutrientMappingReviewRequest extends DynamicRequest
     protected function rulesForResolve(): array
     {
         return [
-            'decision' => ['required', 'string', 'in:merge,keep,reject'],
+            'decision'     => ['required', 'string', 'in:merge,parent,keep,reject'],
+            'canonical_id' => ['nullable', 'integer', 'exists:nutrients,id'],
         ];
     }
 
@@ -20,7 +21,8 @@ class NutrientMappingReviewRequest extends DynamicRequest
     {
         return [
             'decision.required' => 'A decision is required.',
-            'decision.in'       => 'Decision must be one of: merge, keep, reject.',
+            'decision.in'       => 'Decision must be one of: merge, parent, keep, reject.',
+            'canonical_id.exists' => 'The specified canonical nutrient does not exist.',
         ];
     }
 }

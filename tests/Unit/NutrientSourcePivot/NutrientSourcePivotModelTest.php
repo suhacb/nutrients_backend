@@ -14,7 +14,7 @@ class NutrientSourcePivotModelTest extends TestCase
 
     public function test_fillable_fields(): void
     {
-        $expected = ['nutrient_id', 'source_id', 'external_id'];
+        $expected = ['nutrient_id', 'source_id', 'external_id', 'source_name'];
 
         $this->assertEquals($expected, (new NutrientSourcePivot())->getFillable());
     }

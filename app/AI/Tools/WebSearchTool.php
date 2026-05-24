@@ -13,6 +13,7 @@ class WebSearchTool implements ToolContract
         private readonly string $baseUrl,
         private readonly int    $limit,
         private readonly array  $sources = [],
+        private readonly int    $timeout = 30,
     ) {}
 
     public function name(): string
@@ -43,7 +44,7 @@ class WebSearchTool implements ToolContract
         }
 
         try {
-            $response = Http::get("{$this->baseUrl}/search", [
+            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/search", [
                 'q'      => $query,
                 'format' => 'json',
             ]);
@@ -64,13 +65,15 @@ class WebSearchTool implements ToolContract
             return [];
         }
 
+        $limit = $args['limit'] ?? $this->limit;
+
         return array_map(
             fn ($result) => [
                 'url'     => $result['url'],
                 'title'   => $result['title'],
                 'snippet' => $result['content'],
             ],
-            array_slice($results, 0, $this->limit)
+            array_slice($results, 0, $limit)
         );
     }
 }

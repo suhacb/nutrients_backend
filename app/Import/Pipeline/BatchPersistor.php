@@ -172,6 +172,7 @@ class BatchPersistor {
                 'nutrient_id' => $nutrientId,
                 'source_id'   => $source->id,
                 'external_id' => $externalId,
+                'source_name' => $rows[$externalId]['name'],
                 'created_at'  => $now,
                 'updated_at'  => $now,
             ];

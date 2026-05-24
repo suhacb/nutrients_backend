@@ -67,16 +67,19 @@ class NutrientsTableSeeder extends Seeder
             ->first();
 
         if ($nutrient) {
+            $updates = ['is_canonical' => true];
             if ($nutrient->parent_id === null && $parent !== null) {
-                $nutrient->update(['parent_id' => $parent->id]);
+                $updates['parent_id'] = $parent->id;
             }
+            $nutrient->update($updates);
             return $nutrient;
         }
 
         return Nutrient::create([
-            'name'      => $name,
-            'slug'      => Nutrient::generateUniqueSlug($name, 'nutrients'),
-            'parent_id' => $parent?->id,
+            'name'         => $name,
+            'slug'         => Nutrient::generateUniqueSlug($name, 'nutrients'),
+            'parent_id'    => $parent?->id,
+            'is_canonical' => true,
         ]);
     }
 }

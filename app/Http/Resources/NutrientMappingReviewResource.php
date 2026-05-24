@@ -20,10 +20,10 @@ class NutrientMappingReviewResource extends JsonResource
                 ? ['id' => $this->nutrient->id, 'name' => $this->nutrient->name]
                 : null
             ),
-            'suggested_canonical' => $this->whenLoaded('suggestedCanonical', fn () => [
-                'id'   => $this->suggestedCanonical->id,
-                'name' => $this->suggestedCanonical->name,
-            ]),
+            'suggested_canonical' => $this->whenLoaded('suggestedCanonical', fn () => $this->suggestedCanonical
+                ? ['id' => $this->suggestedCanonical->id, 'name' => $this->suggestedCanonical->name]
+                : null
+            ),
         ];
     }
 }

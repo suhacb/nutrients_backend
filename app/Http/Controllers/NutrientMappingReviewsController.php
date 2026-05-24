@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\NutrientMappingReviewRequest;
 use App\Http\Resources\NutrientMappingReviewResource;
+use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class NutrientMappingReviewsController extends Controller
                             new OA\Property(property: 'reasoning',           type: 'string'),
                             new OA\Property(property: 'resolved_at',         type: 'string', nullable: true),
                             new OA\Property(property: 'nutrient',            type: 'object', nullable: true),
-                            new OA\Property(property: 'suggested_canonical', type: 'object'),
+                            new OA\Property(property: 'suggested_canonical', type: 'object', nullable: true),
                         ],
                         type: 'object'
                     )),
@@ -59,7 +60,8 @@ class NutrientMappingReviewsController extends Controller
             content: new OA\JsonContent(
                 required: ['decision'],
                 properties: [
-                    new OA\Property(property: 'decision', type: 'string', enum: ['merge', 'keep', 'reject']),
+                    new OA\Property(property: 'decision',     type: 'string', enum: ['merge', 'parent', 'keep', 'reject']),
+                    new OA\Property(property: 'canonical_id', type: 'integer', nullable: true, description: 'Override the suggested canonical. Required when the review has no suggestion.'),
                 ]
             )
         ),
@@ -81,8 +83,23 @@ class NutrientMappingReviewsController extends Controller
             return response()->json(['message' => 'This review has already been resolved.'], 409);
         }
 
-        match ($request->input('decision')) {
-            'merge'  => $nutrientMappingReview->executeMerge(),
+        $decision  = $request->input('decision');
+        $canonical = null;
+
+        if (in_array($decision, ['merge', 'parent'])) {
+            if ($request->filled('canonical_id')) {
+                $canonical = Nutrient::where('is_canonical', true)->find($request->integer('canonical_id'));
+                if (!$canonical) {
+                    return response()->json(['message' => 'The specified nutrient is not a canonical nutrient.'], 422);
+                }
+            } elseif (!$nutrientMappingReview->suggested_canonical_id) {
+                return response()->json(['message' => 'This review has no suggested canonical. Provide canonical_id.'], 422);
+            }
+        }
+
+        match ($decision) {
+            'merge'  => $nutrientMappingReview->executeMerge($canonical),
+            'parent' => $nutrientMappingReview->executeParent($canonical),
             'keep'   => $nutrientMappingReview->executeKeep(),
             'reject' => $nutrientMappingReview->executeReject(),
         };

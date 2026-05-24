@@ -1372,6 +1372,159 @@
                 ]
             }
         },
+        "/api/nutrient-mapping-reviews": {
+            "get": {
+                "tags": [
+                    "NutrientMappingReviews"
+                ],
+                "summary": "List nutrient mapping reviews",
+                "operationId": "be6e4c4bff5a13522918d8a070f0141b",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "pending",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of reviews",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "status": {
+                                                        "type": "string"
+                                                    },
+                                                    "confidence": {
+                                                        "type": "integer"
+                                                    },
+                                                    "decision_type": {
+                                                        "type": "string"
+                                                    },
+                                                    "reasoning": {
+                                                        "type": "string"
+                                                    },
+                                                    "resolved_at": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "nutrient": {
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    },
+                                                    "suggested_canonical": {
+                                                        "type": "object",
+                                                        "nullable": true
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
+        "/api/nutrient-mapping-reviews/{nutrientMappingReview}": {
+            "patch": {
+                "tags": [
+                    "NutrientMappingReviews"
+                ],
+                "summary": "Resolve a nutrient mapping review",
+                "operationId": "7c013713db14a1016e8933a9ba5b3cbc",
+                "parameters": [
+                    {
+                        "name": "nutrientMappingReview",
+                        "in": "path",
+                        "description": "Review ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "decision"
+                                ],
+                                "properties": {
+                                    "decision": {
+                                        "type": "string",
+                                        "enum": [
+                                            "merge",
+                                            "parent",
+                                            "keep",
+                                            "reject"
+                                        ]
+                                    },
+                                    "canonical_id": {
+                                        "description": "Override the suggested canonical. Required when the review has no suggestion.",
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Resolved review"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not found"
+                    },
+                    "409": {
+                        "description": "Already resolved"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "frontend": []
+                    }
+                ]
+            }
+        },
         "/api/nutrient-tags": {
             "get": {
                 "tags": [
@@ -4580,6 +4733,10 @@
         {
             "name": "Auth",
             "description": "Auth"
+        },
+        {
+            "name": "NutrientMappingReviews",
+            "description": "NutrientMappingReviews"
         },
         {
             "name": "NutrientTags",

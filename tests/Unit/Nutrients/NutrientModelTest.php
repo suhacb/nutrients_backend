@@ -56,6 +56,7 @@ class NutrientModelTest extends TestCase
             'canonical_unit_id',
             'iu_to_canonical_factor',
             'is_label_standard',
+            'is_canonical',
             'display_order',
         ];
 
@@ -78,6 +79,7 @@ class NutrientModelTest extends TestCase
             'updated_at'             => 'datetime',
             'deleted_at'             => 'datetime',
             'is_label_standard'      => 'boolean',
+            'is_canonical'           => 'boolean',
             'iu_to_canonical_factor' => 'decimal:6',
             'sync_status'            => SyncStatus::class,
         ];

@@ -22,14 +22,14 @@ class SyncSourceToSearch implements ShouldQueue
         Ingredient::where('source', $this->source->name)
             ->chunk(500, function ($ingredients) {
                 $ingredients->each(fn(Ingredient $ingredient) =>
-                    SyncIngredientToSearch::dispatch($ingredient, 'upsert')->onQueue('ingredients')
+                    SyncIngredientToSearch::dispatch($ingredient, 'update')->onQueue('ingredients')
                 );
             });
 
-        Nutrient::where('source_id', $this->source->id)
+        Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('source_id', $this->source->id))
             ->chunk(500, function ($nutrients) {
                 $nutrients->each(fn(Nutrient $nutrient) =>
-                    SyncNutrientToSearch::dispatch($nutrient, 'upsert')->onQueue('nutrients')
+                    SyncNutrientToSearch::dispatch($nutrient, 'update')->onQueue('nutrients')
                 );
             });
     }

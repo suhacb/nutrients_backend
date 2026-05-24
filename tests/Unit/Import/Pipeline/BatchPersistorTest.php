@@ -89,6 +89,7 @@ class BatchPersistorTest extends TestCase
         $this->assertDatabaseHas('nutrient_source_mappings', [
             'source_id'   => $this->source->id,
             'external_id' => '203',
+            'source_name' => 'Protein',
         ]);
     }
 

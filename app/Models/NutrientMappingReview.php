@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Services\NutrientMergeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 class NutrientMappingReview extends Model
 {
     protected $fillable = [
@@ -32,24 +34,32 @@ class NutrientMappingReview extends Model
         return $this->belongsTo(Nutrient::class, 'suggested_canonical_id');
     }
 
-    public function executeMerge(): void
+    public function executeMerge(?Nutrient $overrideCanonical = null): void
     {
-        $importedId   = $this->nutrient_id;
-        $canonicalId  = $this->suggested_canonical_id;
+        $canonical = $overrideCanonical ?? $this->suggestedCanonical;
 
-        IngredientNutrientPivot::where('nutrient_id', $importedId)
-            ->update(['nutrient_id' => $canonicalId]);
-
-        NutrientSourcePivot::where('nutrient_id', $importedId)
-            ->update(['nutrient_id' => $canonicalId]);
-
-        $nutrient = $this->nutrient;
-        Nutrient::withoutEvents(fn () => $nutrient->forceDelete());
+        NutrientMergeService::merge($this->nutrient, $canonical);
 
         $this->update([
-            'decision_type' => 'merge',
-            'status'        => 'approved',
-            'resolved_at'   => now(),
+            'suggested_canonical_id' => $canonical->id,
+            'decision_type'          => 'merge',
+            'status'                 => 'approved',
+            'resolved_at'            => now(),
+        ]);
+    }
+
+    public function executeParent(?Nutrient $overrideCanonical = null): void
+    {
+        $canonical = $overrideCanonical ?? $this->suggestedCanonical;
+        $nutrient  = $this->nutrient;
+
+        Nutrient::withoutEvents(fn () => $nutrient->update(['parent_id' => $canonical->id]));
+
+        $this->update([
+            'suggested_canonical_id' => $canonical->id,
+            'decision_type'          => 'parent',
+            'status'                 => 'approved',
+            'resolved_at'            => now(),
         ]);
     }
 
