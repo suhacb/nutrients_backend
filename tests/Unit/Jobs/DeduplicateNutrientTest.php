@@ -3,6 +3,7 @@
 namespace Tests\Unit\Jobs;
 
 use App\AI\Contracts\LlmClientContract;
+use App\AI\Tools\WebSearchTool;
 use App\Jobs\DeduplicateNutrient;
 use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
@@ -30,12 +31,10 @@ class DeduplicateNutrientTest extends TestCase
 
         $this->source = Source::factory()->create(['slug' => 'usda', 'name' => 'USDA']);
 
-        // Canonical nutrient: no source mappings
         $this->canonical = Nutrient::withoutEvents(
             fn () => Nutrient::factory()->create(['name' => 'Vitamin D'])
         );
 
-        // Imported nutrient: has a source mapping
         $this->imported = Nutrient::withoutEvents(
             fn () => Nutrient::factory()->create(['name' => 'Vitamin D (D2+D3)'])
         );
@@ -55,9 +54,24 @@ class DeduplicateNutrientTest extends TestCase
     private function mockLlm(string $json): LlmClientContract
     {
         $llm = Mockery::mock(LlmClientContract::class);
-        $llm->shouldReceive('chat')->once()->andReturn($json);
+        $llm->shouldReceive('chat')->andReturn($json);
         $this->app->instance(LlmClientContract::class, $llm);
         return $llm;
+    }
+
+    private function mockSearch(array $results = []): WebSearchTool
+    {
+        $mock = Mockery::mock(WebSearchTool::class);
+        $mock->shouldReceive('run')->andReturn($results);
+        return $mock;
+    }
+
+    private function handle(Nutrient $nutrient, ?WebSearchTool $search = null): void
+    {
+        (new DeduplicateNutrient($nutrient))->handle(
+            app(LlmClientContract::class),
+            $search ?? $this->mockSearch(),
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -68,7 +82,7 @@ class DeduplicateNutrientTest extends TestCase
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 95, 'reasoning' => 'Same substance.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseMissing('nutrients', ['id' => $this->imported->id]);
     }
@@ -77,7 +91,7 @@ class DeduplicateNutrientTest extends TestCase
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 99, 'reasoning' => 'Identical.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseMissing('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
     }
@@ -86,7 +100,7 @@ class DeduplicateNutrientTest extends TestCase
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 97, 'reasoning' => 'Same.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseHas('nutrient_source_mappings', [
             'nutrient_id' => $this->canonical->id,
@@ -102,17 +116,17 @@ class DeduplicateNutrientTest extends TestCase
         $ingredient = \App\Models\Ingredient::factory()->create();
         $unit       = $this->makeUnit();
         DB::table('ingredient_nutrient')->insert([
-            'ingredient_id'   => $ingredient->id,
-            'nutrient_id'     => $this->imported->id,
-            'amount'          => 5.0,
-            'amount_unit_id'  => $unit->id,
-            'created_at'      => now(),
-            'updated_at'      => now(),
+            'ingredient_id'  => $ingredient->id,
+            'nutrient_id'    => $this->imported->id,
+            'amount'         => 5.0,
+            'amount_unit_id' => $unit->id,
+            'created_at'     => now(),
+            'updated_at'     => now(),
         ]);
 
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 97, 'reasoning' => 'Same.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseHas('ingredient_nutrient', [
             'ingredient_id' => $ingredient->id,
@@ -128,7 +142,7 @@ class DeduplicateNutrientTest extends TestCase
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 97, 'reasoning' => 'Same.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseCount('nutrient_mapping_reviews', 0);
     }
@@ -141,13 +155,13 @@ class DeduplicateNutrientTest extends TestCase
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 80, 'reasoning' => 'Probably.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseHas('nutrient_mapping_reviews', [
-            'nutrient_id'           => $this->imported->id,
+            'nutrient_id'            => $this->imported->id,
             'suggested_canonical_id' => $this->canonical->id,
-            'confidence'            => 80,
-            'status'                => 'pending',
+            'confidence'             => 80,
+            'status'                 => 'pending',
         ]);
     }
 
@@ -155,17 +169,16 @@ class DeduplicateNutrientTest extends TestCase
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 70, 'reasoning' => 'Unclear form.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
-        $review = NutrientMappingReview::first();
-        $this->assertSame('Unclear form.', $review->reasoning);
+        $this->assertSame('Unclear form.', NutrientMappingReview::first()->reasoning);
     }
 
     public function test_does_not_delete_nutrient_when_review_created(): void
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 80, 'reasoning' => 'Maybe.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseHas('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
     }
@@ -178,7 +191,7 @@ class DeduplicateNutrientTest extends TestCase
     {
         $this->mockLlm(json_encode(['match' => null, 'confidence' => 100, 'reasoning' => 'Novel nutrient.']));
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseHas('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
         $this->assertDatabaseCount('nutrient_mapping_reviews', 0);
@@ -196,7 +209,7 @@ class DeduplicateNutrientTest extends TestCase
         $llm->shouldNotReceive('chat');
         $this->app->instance(LlmClientContract::class, $llm);
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseCount('nutrient_mapping_reviews', 0);
     }
@@ -204,17 +217,118 @@ class DeduplicateNutrientTest extends TestCase
     public function test_does_not_create_duplicate_review_on_rerun(): void
     {
         $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 80, 'reasoning' => 'Probably.']));
+        $this->handle($this->imported);
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
-
-        // Second run: review already exists, should not create another
         $llm = Mockery::mock(LlmClientContract::class);
         $llm->shouldNotReceive('chat');
         $this->app->instance(LlmClientContract::class, $llm);
 
-        (new DeduplicateNutrient($this->imported))->handle(app(LlmClientContract::class));
+        $this->handle($this->imported);
 
         $this->assertDatabaseCount('nutrient_mapping_reviews', 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // Web search fallback
+    // -------------------------------------------------------------------------
+
+    public function test_web_search_is_triggered_when_first_confidence_is_below_threshold(): void
+    {
+        $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 80, 'reasoning' => 'Probably.']));
+
+        $search = Mockery::mock(WebSearchTool::class);
+        $search->shouldReceive('run')->once()->andReturn([]);
+        $this->addToAssertionCount(1);
+
+        $this->handle($this->imported, $search);
+    }
+
+    public function test_web_search_is_not_triggered_when_first_confidence_meets_threshold(): void
+    {
+        $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 95, 'reasoning' => 'Same.']));
+
+        $search = Mockery::mock(WebSearchTool::class);
+        $search->shouldNotReceive('run');
+        $this->addToAssertionCount(1);
+
+        $this->handle($this->imported, $search);
+    }
+
+    public function test_auto_merges_when_second_pass_confidence_meets_threshold(): void
+    {
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')->andReturn(
+            json_encode(['match' => 'Vitamin D', 'confidence' => 70, 'reasoning' => 'Uncertain.']),
+            json_encode(['match' => 'Vitamin D', 'confidence' => 97, 'reasoning' => 'Web confirms same substance.']),
+        );
+        $this->app->instance(LlmClientContract::class, $llm);
+
+        $search = $this->mockSearch([
+            ['url' => 'https://example.com', 'title' => 'Vitamin D', 'snippet' => 'D2 and D3 are both Vitamin D.'],
+        ]);
+
+        $this->handle($this->imported, $search);
+
+        $this->assertDatabaseMissing('nutrients', ['id' => $this->imported->id]);
+        $this->assertDatabaseCount('nutrient_mapping_reviews', 0);
+    }
+
+    public function test_creates_review_when_second_pass_confidence_is_still_below_threshold(): void
+    {
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')->andReturn(
+            json_encode(['match' => 'Vitamin D', 'confidence' => 60, 'reasoning' => 'Uncertain.']),
+            json_encode(['match' => 'Vitamin D', 'confidence' => 75, 'reasoning' => 'Possibly the same.']),
+        );
+        $this->app->instance(LlmClientContract::class, $llm);
+
+        $search = $this->mockSearch([
+            ['url' => 'https://example.com', 'title' => 'Vitamin D', 'snippet' => 'Related but distinct.'],
+        ]);
+
+        $this->handle($this->imported, $search);
+
+        $this->assertDatabaseHas('nutrient_mapping_reviews', [
+            'nutrient_id'            => $this->imported->id,
+            'suggested_canonical_id' => $this->canonical->id,
+            'confidence'             => 75,
+            'status'                 => 'pending',
+        ]);
+    }
+
+    public function test_no_action_when_second_pass_also_returns_no_match(): void
+    {
+        $llm = Mockery::mock(LlmClientContract::class);
+        $llm->shouldReceive('chat')->andReturn(
+            json_encode(['match' => null, 'confidence' => 0, 'reasoning' => 'Novel nutrient.']),
+            json_encode(['match' => null, 'confidence' => 0, 'reasoning' => 'Still no match.']),
+        );
+        $this->app->instance(LlmClientContract::class, $llm);
+
+        $search = $this->mockSearch([
+            ['url' => 'https://example.com', 'title' => 'Vitamin D', 'snippet' => 'Context.'],
+        ]);
+
+        $this->handle($this->imported, $search);
+
+        $this->assertDatabaseHas('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
+        $this->assertDatabaseCount('nutrient_mapping_reviews', 0);
+    }
+
+    public function test_web_search_failure_falls_back_to_first_pass_result(): void
+    {
+        $this->mockLlm(json_encode(['match' => 'Vitamin D', 'confidence' => 80, 'reasoning' => 'Probably.']));
+
+        $search = Mockery::mock(WebSearchTool::class);
+        $search->shouldReceive('run')->andThrow(new \RuntimeException('SearXNG unavailable'));
+
+        $this->handle($this->imported, $search);
+
+        $this->assertDatabaseHas('nutrient_mapping_reviews', [
+            'nutrient_id' => $this->imported->id,
+            'confidence'  => 80,
+            'status'      => 'pending',
+        ]);
     }
 
     // -------------------------------------------------------------------------
