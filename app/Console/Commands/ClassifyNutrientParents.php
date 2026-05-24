@@ -65,7 +65,7 @@ class ClassifyNutrientParents extends Command
                             'description' => $nutrient->description,
                         ]),
                 ],
-            ]);
+            ], ['model' => config('ai.ollama.models.fast')]);
 
             $result   = json_decode($response, true) ?? [];
             $parentId = $result['parent_id'] ?? null;

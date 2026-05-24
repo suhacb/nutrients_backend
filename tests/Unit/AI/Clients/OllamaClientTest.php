@@ -171,6 +171,7 @@ class OllamaClientTest extends TestCase
     public function test_chat_passes_messages_and_options_to_request_body(): void
     {
         Http::fake([
+            "{$this->baseUrl}/api/ps"   => Http::response(['models' => []], 200),
             "{$this->baseUrl}/api/chat" => Http::response([
                 'message' => ['role' => 'assistant', 'content' => 'ok'],
             ], 200),
@@ -180,9 +181,121 @@ class OllamaClientTest extends TestCase
         $this->client->chat($messages, ['temperature' => 0.7]);
 
         Http::assertSent(function ($request) use ($messages) {
-            return $request->data()['messages'] === $messages
+            return str_ends_with($request->url(), '/api/chat')
+                && $request->data()['messages'] === $messages
                 && $request->data()['temperature'] === 0.7;
         });
+    }
+
+    public function test_chat_options_can_override_model(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/ps"   => Http::response(['models' => []], 200),
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']], ['model' => 'llama3']);
+
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/api/chat') && $r->data()['model'] === 'llama3');
+    }
+
+    // -------------------------------------------------------------------------
+    // Model switching (ensureModel)
+    // -------------------------------------------------------------------------
+
+    public function test_chat_checks_ps_before_sending(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/ps"   => Http::response(['models' => []], 200),
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/api/ps'));
+    }
+
+    public function test_chat_does_not_unload_when_correct_model_already_loaded(): void
+    {
+        $model = config('ai.ollama.model');
+
+        Http::fake([
+            "{$this->baseUrl}/api/ps"   => Http::response(['models' => [['name' => $model]]], 200),
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/api/generate'));
+    }
+
+    public function test_chat_unloads_wrong_model_before_requesting(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/ps"       => Http::response(['models' => [['name' => 'other-model:7b']]], 200),
+            "{$this->baseUrl}/api/generate" => Http::response(['response' => 'ok'], 200),
+            "{$this->baseUrl}/api/chat"     => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+
+        Http::assertSent(fn ($r) =>
+            str_ends_with($r->url(), '/api/generate')
+            && $r->data()['model'] === 'other-model:7b'
+            && $r->data()['keep_alive'] === 0
+        );
+    }
+
+    public function test_chat_proceeds_without_unloading_when_no_models_loaded(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/ps"   => Http::response(['models' => []], 200),
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/api/generate'));
+    }
+
+    public function test_chat_proceeds_when_ps_request_fails(): void
+    {
+        Http::fake([
+            "{$this->baseUrl}/api/ps"   => Http::response('Error', 500),
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $result = $this->client->chat([['role' => 'user', 'content' => 'Hello']]);
+
+        $this->assertSame('ok', $result);
+    }
+
+    public function test_chat_uses_options_model_for_ensure_check(): void
+    {
+        $smartModel = config('ai.ollama.models.smart');
+
+        Http::fake([
+            "{$this->baseUrl}/api/ps"   => Http::response(['models' => [['name' => $smartModel]]], 200),
+            "{$this->baseUrl}/api/chat" => Http::response([
+                'message' => ['role' => 'assistant', 'content' => 'ok'],
+            ], 200),
+        ]);
+
+        $this->client->chat([['role' => 'user', 'content' => 'Hello']], ['model' => $smartModel]);
+
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/api/generate'));
     }
 
     // -------------------------------------------------------------------------

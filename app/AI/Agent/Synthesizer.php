@@ -18,7 +18,7 @@ class Synthesizer
             return $this->llm->chat([
                 ['role' => 'system', 'content' => config('ai.agent.system_prompt')],
                 ['role' => 'user',   'content' => $context->getPrompt()],
-            ]);
+            ], ['model' => config('ai.ollama.models.smart')]);
         }
 
         $sources          = $context->getSources();
@@ -44,6 +44,6 @@ class Synthesizer
             ],
         ];
 
-        return $this->llm->chat($messages);
+        return $this->llm->chat($messages, ['model' => config('ai.ollama.models.smart')]);
     }
 }

@@ -29,7 +29,7 @@ class Planner
             ],
         ];
 
-        $raw  = $this->llm->chat($messages);
+        $raw  = $this->llm->chat($messages, ['model' => config('ai.ollama.models.smart')]);
         Log::debug('agent.planner.raw', ['prompt' => $context->getPrompt(), 'raw' => $raw]);
         $json = $this->extractJson($raw);
         Log::debug('agent.planner.json', ['json' => $json, 'decoded' => json_decode($json, true)]);
@@ -71,7 +71,7 @@ class Planner
             ],
         ];
 
-        $raw  = $this->llm->chat($messages);
+        $raw  = $this->llm->chat($messages, ['model' => config('ai.ollama.models.smart')]);
         Log::debug('agent.planner.fetch_raw', ['raw' => $raw]);
         $json = $this->extractJson($raw);
 

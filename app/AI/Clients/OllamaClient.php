@@ -52,8 +52,11 @@ class OllamaClient implements LlmClientContract
 
     public function chat(array $messages, array $options = []): string
     {
+        $model = $options['model'] ?? $this->model;
+        $this->ensureModel($model);
+
         $payload = array_merge([
-            'model'    => $this->model,
+            'model'    => $model,
             'messages' => $messages,
             'stream'   => false,
         ], $options);
@@ -108,6 +111,38 @@ class OllamaClient implements LlmClientContract
             ]);
         } catch (\Throwable) {
             // Best-effort — don't fail the job if unload doesn't respond.
+        }
+    }
+
+    private function loadedModels(): array
+    {
+        try {
+            $response = Http::timeout(5)->get("{$this->baseUrl}/api/ps");
+            return $response->successful()
+                ? array_column($response->json('models', []), 'name')
+                : [];
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function ensureModel(string $model): void
+    {
+        $loaded = $this->loadedModels();
+
+        if (in_array($model, $loaded)) {
+            return;
+        }
+
+        foreach ($loaded as $loadedModel) {
+            try {
+                Http::timeout(10)->post("{$this->baseUrl}/api/generate", [
+                    'model'      => $loadedModel,
+                    'keep_alive' => 0,
+                ]);
+            } catch (\Throwable) {
+                // Best-effort — don't fail if unload doesn't respond.
+            }
         }
     }
 }

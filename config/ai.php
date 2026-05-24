@@ -5,6 +5,10 @@ return [
         'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434'),
         'model'    => env('OLLAMA_MODEL', 'gemma4:e4b'),
         'timeout'  => (int) env('OLLAMA_TIMEOUT', 60),
+        'models'   => [
+            'fast'  => env('OLLAMA_MODEL_FAST', 'gemma4:e4b'),
+            'smart' => env('OLLAMA_MODEL_SMART', 'gemma4:26b'),
+        ],
     ],
 
     'agent' => [
