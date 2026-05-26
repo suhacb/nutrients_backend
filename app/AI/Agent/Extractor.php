@@ -46,7 +46,7 @@ class Extractor
             ];
 
             try {
-                $extraction = $this->llm->chat($messages, ['model' => config('ai.ollama.models.smart')]);
+                $extraction = $this->llm->chat($messages, array_merge(['model' => config('ai.ollama.models.smart')], config('ai.extraction.llm_options', [])));
                 $path       = "{$dir}/{$i}.txt";
                 Storage::put($path, $extraction);
                 $context->addExtraction(Storage::path($path), $i);

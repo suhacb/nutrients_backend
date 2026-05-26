@@ -47,7 +47,10 @@ class ClassifyNutrientParent implements ShouldQueue
                         'description' => $this->nutrient->description,
                     ]),
             ],
-        ], ['model' => config('ai.ollama.models.fast')]);
+        ], [
+            'model'   => config('ai.ollama.models.fast'),
+            'options' => ['num_ctx' => 4096, 'num_predict' => 256, 'temperature' => 0.1],
+        ]);
 
         $result     = json_decode($response, true) ?? [];
         $parentId   = $result['parent_id']   ?? null;

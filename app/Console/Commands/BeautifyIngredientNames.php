@@ -62,7 +62,10 @@ class BeautifyIngredientNames extends Command
                         'role'    => 'user',
                         'content' => json_encode($payload),
                     ],
-                ], ['model' => config('ai.ollama.models.fast')]);
+                ], [
+                    'model'   => config('ai.ollama.models.fast'),
+                    'options' => ['num_ctx' => 2048, 'num_predict' => 512, 'temperature' => 0.0],
+                ]);
             } catch (\Throwable $e) {
                 $this->warn("\nBatch failed (IDs {$batch->first()->id}–{$batch->last()->id}): {$e->getMessage()}");
                 $bar->advance($batch->count());

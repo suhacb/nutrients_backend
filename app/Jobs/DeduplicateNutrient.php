@@ -134,7 +134,10 @@ class DeduplicateNutrient implements ShouldQueue
                 'role'    => 'user',
                 'content' => $userContent,
             ],
-        ], ['model' => config('ai.ollama.models.smart')]);
+        ], [
+            'model'   => config('ai.ollama.models.smart'),
+            'options' => ['num_ctx' => 4096, 'num_predict' => 256, 'temperature' => 0.1],
+        ]);
 
         return json_decode($response, true) ?? [];
     }
