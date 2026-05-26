@@ -110,11 +110,17 @@ class BatchPersistor {
             ->unique()
             ->all();
 
-        // Look up existing nutrients via source mappings
+        // Look up existing nutrients via source mappings.
+        // All USDA source files share the same Source record, so (source_id, external_id)
+        // uniquely identifies whether a nutrient from this provider was already imported
+        // — including nutrients that were later merged into a canonical, since
+        // NutrientMergeService re-points the source mapping to the canonical before
+        // deleting the duplicate.
         $existingByExternalId = DB::table('nutrient_source_mappings')
             ->where('nutrient_source_mappings.source_id', $source->id)
             ->whereIn('nutrient_source_mappings.external_id', $allExternalIds)
             ->join('nutrients', 'nutrients.id', '=', 'nutrient_source_mappings.nutrient_id')
+            ->whereNull('nutrients.deleted_at')
             ->select('nutrient_source_mappings.external_id', 'nutrient_source_mappings.nutrient_id', 'nutrients.slug')
             ->get()
             ->keyBy('external_id');
@@ -144,7 +150,8 @@ class BatchPersistor {
             return;
         }
 
-        // Update existing nutrients
+        // Update existing nutrients (covers both re-imports and nutrients that were
+        // merged into a canonical — the mapping now points to the canonical's id)
         foreach ($existingByExternalId as $externalId => $existing) {
             if (!isset($rows[$externalId])) {
                 continue;
@@ -159,7 +166,7 @@ class BatchPersistor {
             $this->nutrientMap[$externalId] = $existing->nutrient_id;
         }
 
-        // Insert new nutrients and their source mappings
+        // Insert genuinely new nutrients and their source mappings
         $mappingRows = [];
         foreach ($rows as $externalId => $row) {
             if ($existingByExternalId->has($externalId)) {
@@ -172,7 +179,7 @@ class BatchPersistor {
                 'nutrient_id' => $nutrientId,
                 'source_id'   => $source->id,
                 'external_id' => $externalId,
-                'source_name' => $rows[$externalId]['name'],
+                'source_name' => $row['name'],
                 'created_at'  => $now,
                 'updated_at'  => $now,
             ];
