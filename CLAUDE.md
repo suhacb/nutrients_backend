@@ -24,7 +24,7 @@ composer dev
 php artisan migrate
 
 # Listen to job queues
-php artisan queue:listen --queue=ingredients,nutrients
+php artisan queue:listen --queue=ingredients,nutrients,recipes,nutrients-dedup,nutrients-classify
 ```
 
 ## Architecture
