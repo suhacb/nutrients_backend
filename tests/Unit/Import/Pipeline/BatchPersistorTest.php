@@ -15,6 +15,7 @@ use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\Source;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Tests\MakesUnit;
 use Tests\TestCase;
@@ -262,5 +263,63 @@ class BatchPersistorTest extends TestCase
 
         $this->assertNotEmpty($first);
         $this->assertEmpty($second);
+    }
+
+    public function test_restores_soft_deleted_nutrient_on_reimport(): void
+    {
+        // Simulate a nutrient that was imported, then soft-deleted.
+        // The source mapping still exists and points to the soft-deleted nutrient.
+        // Reimporting should restore it rather than create a duplicate with a broken mapping.
+        $nutrient = Nutrient::factory()->create(['name' => 'Protein', 'canonical_unit_id' => $this->unitId]);
+        DB::table('nutrient_source_mappings')->insert([
+            'nutrient_id' => $nutrient->id,
+            'source_id'   => $this->source->id,
+            'external_id' => '203',
+            'source_name' => 'Protein',
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+        $nutrient->delete(); // soft-delete
+
+        $persistor = new BatchPersistor();
+        $persistor->persist([$this->makeBatch()], $this->source);
+
+        // Original nutrient must be restored; no duplicate created.
+        $this->assertDatabaseCount('nutrients', 1);
+        $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id, 'deleted_at' => null]);
+        // Restored nutrient is not treated as new — no enrichment jobs dispatched.
+        $this->assertEmpty($persistor->flushNewNutrientIds());
+    }
+
+    public function test_resolves_to_canonical_after_merge(): void
+    {
+        // Simulate NutrientMergeService: source mapping re-pointed from imported
+        // nutrient (force-deleted) to canonical before any import of a second file.
+        $canonical = Nutrient::factory()->create([
+            'name'              => 'Protein (canonical)',
+            'canonical_unit_id' => $this->unitId,
+            'is_canonical'      => true,
+        ]);
+        DB::table('nutrient_source_mappings')->insert([
+            'nutrient_id' => $canonical->id,
+            'source_id'   => $this->source->id,
+            'external_id' => '203',
+            'source_name' => 'Protein',
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        $persistor = new BatchPersistor();
+        $batch = $this->makeBatch('321358', '203');
+        $persistor->persist([$batch], $this->source);
+
+        // No duplicate nutrient; ingredient pivot must point to the canonical.
+        $this->assertDatabaseCount('nutrients', 1);
+        $ingredient = Ingredient::where('external_id', '321358')->first();
+        $this->assertDatabaseHas('ingredient_nutrient', [
+            'ingredient_id' => $ingredient->id,
+            'nutrient_id'   => $canonical->id,
+        ]);
+        $this->assertEmpty($persistor->flushNewNutrientIds());
     }
 }

@@ -116,12 +116,13 @@ class BatchPersistor {
         // — including nutrients that were later merged into a canonical, since
         // NutrientMergeService re-points the source mapping to the canonical before
         // deleting the duplicate.
+        // Soft-deleted nutrients are included so they can be restored; the source data
+        // still contains them, so restoring is the right semantic over creating a duplicate.
         $existingByExternalId = DB::table('nutrient_source_mappings')
             ->where('nutrient_source_mappings.source_id', $source->id)
             ->whereIn('nutrient_source_mappings.external_id', $allExternalIds)
             ->join('nutrients', 'nutrients.id', '=', 'nutrient_source_mappings.nutrient_id')
-            ->whereNull('nutrients.deleted_at')
-            ->select('nutrient_source_mappings.external_id', 'nutrient_source_mappings.nutrient_id', 'nutrients.slug')
+            ->select('nutrient_source_mappings.external_id', 'nutrient_source_mappings.nutrient_id', 'nutrients.slug', 'nutrients.deleted_at')
             ->get()
             ->keyBy('external_id');
 
@@ -150,8 +151,9 @@ class BatchPersistor {
             return;
         }
 
-        // Update existing nutrients (covers both re-imports and nutrients that were
-        // merged into a canonical — the mapping now points to the canonical's id)
+        // Update existing nutrients (covers re-imports, merged canonicals, and restores
+        // soft-deleted nutrients — the source file still contains them so restoring is
+        // the correct intent rather than creating a duplicate with a broken mapping)
         foreach ($existingByExternalId as $externalId => $existing) {
             if (!isset($rows[$externalId])) {
                 continue;
@@ -161,6 +163,7 @@ class BatchPersistor {
                 'name'              => $row['name'],
                 'description'       => $row['description'],
                 'canonical_unit_id' => $row['canonical_unit_id'],
+                'deleted_at'        => null,
                 'updated_at'        => $row['updated_at'],
             ]);
             $this->nutrientMap[$externalId] = $existing->nutrient_id;
