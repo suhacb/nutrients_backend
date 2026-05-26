@@ -4215,6 +4215,12 @@
                         ],
                         "nullable": true
                     },
+                    "nutrient_id": {
+                        "description": "ID of the matched canonical nutrient, if resolved via label nutrient mappings.",
+                        "type": "integer",
+                        "example": 42,
+                        "nullable": true
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time"

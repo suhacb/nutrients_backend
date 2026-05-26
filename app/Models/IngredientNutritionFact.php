@@ -16,6 +16,7 @@ class IngredientNutritionFact extends Model
         'name',
         'amount',
         'amount_unit_id',
+        'nutrient_id',
     ];
 
     protected $casts = [
@@ -34,5 +35,10 @@ class IngredientNutritionFact extends Model
     public function ingredient(): BelongsTo
     {
         return $this->belongsTo(Ingredient::class, 'ingredient_id');
+    }
+
+    public function nutrient(): BelongsTo
+    {
+        return $this->belongsTo(Nutrient::class);
     }
 }

@@ -177,6 +177,44 @@ class IngredientsControllerTest extends TestCase
         $this->assertArrayNotHasKey('amount_unit_id', $fact);
     }
 
+    public function test_show_includes_nutrient_id_on_nutrition_facts(): void
+    {
+        $unit       = Unit::factory()->create();
+        $nutrient   = \App\Models\Nutrient::factory()->create(['is_canonical' => true]);
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $unit->id]);
+        \App\Models\IngredientNutritionFact::factory()->create([
+            'ingredient_id'  => $ingredient->id,
+            'amount_unit_id' => $unit->id,
+            'nutrient_id'    => $nutrient->id,
+        ]);
+
+        $fact = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json('nutrition_facts.0');
+
+        $this->assertArrayHasKey('nutrient_id', $fact);
+        $this->assertSame($nutrient->id, $fact['nutrient_id']);
+    }
+
+    public function test_show_includes_null_nutrient_id_when_not_mapped(): void
+    {
+        $unit       = Unit::factory()->create();
+        $ingredient = Ingredient::factory()->create(['default_amount_unit_id' => $unit->id]);
+        \App\Models\IngredientNutritionFact::factory()->create([
+            'ingredient_id'  => $ingredient->id,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $fact = $this->withHeaders($this->makeAuthRequestHeader())
+            ->getJson(route('ingredients.show', $ingredient))
+            ->assertStatus(200)
+            ->json('nutrition_facts.0');
+
+        $this->assertArrayHasKey('nutrient_id', $fact);
+        $this->assertNull($fact['nutrient_id']);
+    }
+
     public function test_show_omits_fk_fields_from_nutrient_pivot(): void
     {
         $unit       = Unit::factory()->create();

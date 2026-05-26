@@ -20,14 +20,15 @@ class IngredientNutritionFactsTableMigrationTest extends TestCase
     }
 
     protected $expectedColumns = [
-        'id' => ['type' => 'bigint unsigned', 'nullable' => false],
-        'ingredient_id' => ['type' => 'bigint unsigned', 'nullable' => false],
-        'category' => ['type' => 'varchar(255)', 'nullable' => false],
-        'name' => ['type' => 'varchar(255)', 'nullable' => false],
-        'amount' => ['type' => 'double', 'nullable' => false],
+        'id'             => ['type' => 'bigint unsigned', 'nullable' => false],
+        'ingredient_id'  => ['type' => 'bigint unsigned', 'nullable' => false],
+        'category'       => ['type' => 'varchar(255)',    'nullable' => false],
+        'name'           => ['type' => 'varchar(255)',    'nullable' => false],
+        'amount'         => ['type' => 'double',          'nullable' => false],
         'amount_unit_id' => ['type' => 'bigint unsigned', 'nullable' => false],
-        'created_at' => ['type' => 'timestamp', 'nullable' => true],
-        'updated_at' => ['type' => 'timestamp', 'nullable' => true],
+        'nutrient_id'    => ['type' => 'bigint unsigned', 'nullable' => true],
+        'created_at'     => ['type' => 'timestamp',       'nullable' => true],
+        'updated_at'     => ['type' => 'timestamp',       'nullable' => true],
     ];
 
     public function test_ingredient_nutrients_table_has_expected_columns(): void

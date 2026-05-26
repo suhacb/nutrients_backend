@@ -13,12 +13,13 @@ use Illuminate\Support\Str;
 
 class BatchPersistor {
 
-    private array $categoryMap      = [];
-    private array $brandMap         = [];
-    private array $nutrientMap      = [];
-    private array $ingredientMap    = [];
-    private array $newNutrientIds   = [];
-    private ?int  $defaultUnitId    = null;
+    private array  $categoryMap      = [];
+    private array  $brandMap         = [];
+    private array  $nutrientMap      = [];
+    private array  $ingredientMap    = [];
+    private array  $newNutrientIds   = [];
+    private ?int   $defaultUnitId    = null;
+    private ?array $labelNutrientMap = null;
 
     public function persist(array $batches, Source $source): void
     {
@@ -312,8 +313,9 @@ class BatchPersistor {
 
     private function upsertNutritionFacts(array $batches): void
     {
-        $rows = [];
-        $now  = now();
+        $labelMap = $this->loadLabelNutrientMap();
+        $rows     = [];
+        $now      = now();
 
         foreach ($batches as $batch) {
             foreach ($batch->nutritionFacts as $record) {
@@ -329,6 +331,7 @@ class BatchPersistor {
                     'name'           => $record->name,
                     'amount'         => $record->amount,
                     'amount_unit_id' => $record->amountUnitId,
+                    'nutrient_id'    => $labelMap[$record->name] ?? null,
                     'created_at'     => $now,
                     'updated_at'     => $now,
                 ];
@@ -343,9 +346,17 @@ class BatchPersistor {
             DB::table('ingredient_nutrition_facts')->upsert(
                 $chunk,
                 ['ingredient_id', 'category', 'name'],
-                ['amount', 'amount_unit_id', 'updated_at']
+                ['amount', 'amount_unit_id', 'nutrient_id', 'updated_at']
             );
         }
+    }
+
+    private function loadLabelNutrientMap(): array
+    {
+        return $this->labelNutrientMap ??= DB::table('label_nutrient_mappings')
+            ->where('status', 'approved')
+            ->pluck('nutrient_id', 'label_key')
+            ->all();
     }
 
     private function allocateSlug(string $name, string $table, array &$usedSlugs): string

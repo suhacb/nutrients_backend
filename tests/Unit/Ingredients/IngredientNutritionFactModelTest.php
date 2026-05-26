@@ -3,6 +3,7 @@
 namespace Tests\Unit\Ingredients;
 
 use Tests\TestCase;
+use App\Models\Nutrient;
 use App\Models\Unit;
 use App\Models\Ingredient;
 use App\Models\IngredientNutritionFact;
@@ -23,6 +24,7 @@ class IngredientNutritionFactModelTest extends TestCase
             'name',
             'amount',
             'amount_unit_id',
+            'nutrient_id',
         ];
 
         $this->assertEqualsCanonicalizing($expectedFillable, $fillable, 'Fillable attributes do not match expected');
@@ -80,5 +82,41 @@ class IngredientNutritionFactModelTest extends TestCase
 
         $this->assertInstanceOf(Ingredient::class, $nutrition_fact->ingredient);
         $this->assertInstanceOf(Unit::class, $nutrition_fact->unit);
+    }
+
+    public function test_belongs_to_nutrient(): void
+    {
+        $ingredient = Ingredient::factory()->create();
+        $unit       = $this->makeUnit();
+        $nutrient   = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['is_canonical' => true]));
+
+        $fact = IngredientNutritionFact::create([
+            'ingredient_id'  => $ingredient->id,
+            'category'       => 'Label Nutrients',
+            'name'           => 'protein',
+            'amount'         => 5.0,
+            'amount_unit_id' => $unit->id,
+            'nutrient_id'    => $nutrient->id,
+        ]);
+
+        $this->assertInstanceOf(Nutrient::class, $fact->nutrient);
+        $this->assertSame($nutrient->id, $fact->nutrient->id);
+    }
+
+    public function test_nutrient_id_is_nullable(): void
+    {
+        $ingredient = Ingredient::factory()->create();
+        $unit       = $this->makeUnit();
+
+        $fact = IngredientNutritionFact::create([
+            'ingredient_id'  => $ingredient->id,
+            'category'       => 'Label Nutrients',
+            'name'           => 'fat',
+            'amount'         => 7.0,
+            'amount_unit_id' => $unit->id,
+        ]);
+
+        $this->assertNull($fact->nutrient_id);
+        $this->assertNull($fact->nutrient);
     }
 }

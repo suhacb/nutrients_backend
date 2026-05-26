@@ -15,6 +15,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'name', type: 'string', example: 'Vitamin C'),
         new OA\Property(property: 'amount', type: 'number', format: 'float', nullable: true, example: 52.0),
         new OA\Property(property: 'unit', ref: '#/components/schemas/Unit', nullable: true),
+        new OA\Property(property: 'nutrient_id', type: 'integer', nullable: true, example: 42, description: 'ID of the matched canonical nutrient, if resolved via label nutrient mappings.'),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
     ]
@@ -24,13 +25,14 @@ class IngredientNutritionFactResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'         => $this->id,
-            'category'   => $this->category,
-            'name'       => $this->name,
-            'amount'     => $this->amount,
-            'unit'       => $this->whenLoaded('unit', fn () => new UnitResource($this->unit)),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'id'          => $this->id,
+            'category'    => $this->category,
+            'name'        => $this->name,
+            'amount'      => $this->amount,
+            'unit'        => $this->whenLoaded('unit', fn () => new UnitResource($this->unit)),
+            'nutrient_id' => $this->nutrient_id,
+            'created_at'  => $this->created_at,
+            'updated_at'  => $this->updated_at,
         ];
     }
 }

@@ -12,6 +12,7 @@ use App\Import\Records\NutrientRecord;
 use App\Import\Records\NutritionFactRecord;
 use App\Models\Brand;
 use App\Models\Ingredient;
+use App\Models\LabelNutrientMapping;
 use App\Models\Nutrient;
 use App\Models\Source;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -141,6 +142,85 @@ class BatchPersistorTest extends TestCase
             'amount'         => 3.0,
             'amount_unit_id' => $this->unitId,
         ]);
+    }
+
+    public function test_nutrition_fact_gets_nutrient_id_when_approved_mapping_exists(): void
+    {
+        $canonical = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['name' => 'Protein', 'is_canonical' => true]));
+        LabelNutrientMapping::create([
+            'label_key'   => 'protein',
+            'nutrient_id' => $canonical->id,
+            'confidence'  => 97,
+            'reasoning'   => 'Direct match.',
+            'status'      => 'approved',
+        ]);
+
+        (new BatchPersistor())->persist([$this->makeBatchWithNutritionFacts()], $this->source);
+
+        $ingredient = Ingredient::where('external_id', '1106281')->first();
+        $this->assertDatabaseHas('ingredient_nutrition_facts', [
+            'ingredient_id' => $ingredient->id,
+            'name'          => 'protein',
+            'nutrient_id'   => $canonical->id,
+        ]);
+    }
+
+    public function test_nutrition_fact_nutrient_id_is_null_when_no_mapping_exists(): void
+    {
+        (new BatchPersistor())->persist([$this->makeBatchWithNutritionFacts()], $this->source);
+
+        $ingredient = Ingredient::where('external_id', '1106281')->first();
+        $this->assertDatabaseHas('ingredient_nutrition_facts', [
+            'ingredient_id' => $ingredient->id,
+            'name'          => 'protein',
+            'nutrient_id'   => null,
+        ]);
+    }
+
+    public function test_nutrition_fact_nutrient_id_is_null_when_mapping_is_pending(): void
+    {
+        $canonical = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['name' => 'Protein', 'is_canonical' => true]));
+        LabelNutrientMapping::create([
+            'label_key'   => 'protein',
+            'nutrient_id' => $canonical->id,
+            'confidence'  => 80,
+            'reasoning'   => 'Uncertain.',
+            'status'      => 'pending',
+        ]);
+
+        (new BatchPersistor())->persist([$this->makeBatchWithNutritionFacts()], $this->source);
+
+        $ingredient = Ingredient::where('external_id', '1106281')->first();
+        $this->assertDatabaseHas('ingredient_nutrition_facts', [
+            'ingredient_id' => $ingredient->id,
+            'name'          => 'protein',
+            'nutrient_id'   => null,
+        ]);
+    }
+
+    public function test_reimport_updates_nutrient_id_when_mapping_gets_approved(): void
+    {
+        $canonical = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['name' => 'Protein', 'is_canonical' => true]));
+
+        // First import: no mapping yet → nutrient_id null
+        (new BatchPersistor())->persist([$this->makeBatchWithNutritionFacts()], $this->source);
+
+        $ingredient = Ingredient::where('external_id', '1106281')->first();
+        $this->assertDatabaseHas('ingredient_nutrition_facts', ['ingredient_id' => $ingredient->id, 'name' => 'protein', 'nutrient_id' => null]);
+
+        // Mapping approved between imports
+        LabelNutrientMapping::create([
+            'label_key'   => 'protein',
+            'nutrient_id' => $canonical->id,
+            'confidence'  => 97,
+            'reasoning'   => 'Match.',
+            'status'      => 'approved',
+        ]);
+
+        // Second import: mapping now resolved → nutrient_id populated
+        (new BatchPersistor())->persist([$this->makeBatchWithNutritionFacts()], $this->source);
+
+        $this->assertDatabaseHas('ingredient_nutrition_facts', ['ingredient_id' => $ingredient->id, 'name' => 'protein', 'nutrient_id' => $canonical->id]);
     }
 
     public function test_generates_slug_for_nutrients(): void
