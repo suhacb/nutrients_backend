@@ -6,7 +6,10 @@ use App\Models\Brand;
 use App\Models\DietTag;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
+use App\Models\NutrientMappingReview;
+use App\Models\NutrientSourcePivot;
 use App\Models\Recipe;
+use App\Models\Source;
 use App\Models\Unit;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -167,6 +170,36 @@ class TestDataSeeder extends Seeder
         $vegan = DietTag::where('slug', 'test-vegan')->first();
         if ($vegan) {
             $recipe->dietTags()->sync([$vegan->id]);
+        }
+
+        // Source-mapped nutrient — used to verify source-mapping chips in nutripedia.
+        $usda = Source::where('slug', 'usda-food-data-central')->first();
+        $mappedNutrient = Nutrient::updateOrCreate(
+            ['slug' => 'test-mapped-nutrient'],
+            ['name' => 'Test Mapped Nutrient', 'slug' => 'test-mapped-nutrient']
+        );
+        if ($usda) {
+            NutrientSourcePivot::firstOrCreate(
+                ['nutrient_id' => $mappedNutrient->id, 'source_id' => $usda->id],
+                ['external_id' => 'TEST-001']
+            );
+        }
+
+        // Pending mapping review — reset to pending on every reset so review e2e tests
+        // always start from a known state regardless of which action the previous test took.
+        $reviewNutrient    = Nutrient::where('slug', 'test-nutrient-01')->first();
+        $canonicalNutrient = Nutrient::where('slug', 'test-nutrient-02')->first();
+        if ($reviewNutrient && $canonicalNutrient) {
+            NutrientMappingReview::updateOrCreate(
+                ['nutrient_id' => $reviewNutrient->id, 'suggested_canonical_id' => $canonicalNutrient->id],
+                [
+                    'status'       => 'pending',
+                    'confidence'   => 85,
+                    'decision_type' => 'merge',
+                    'reasoning'    => 'High similarity score detected by automated mapping.',
+                    'resolved_at'  => null,
+                ]
+            );
         }
     }
 }
