@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class NutrientMappingReview extends Model
 {
     protected $fillable = [
-        'nutrient_id',
+        'source_nutrient_id',
         'suggested_canonical_id',
         'confidence',
         'decision_type',
@@ -19,14 +19,14 @@ class NutrientMappingReview extends Model
     ];
 
     protected $casts = [
-        'resolved_at' => 'datetime',
-        'confidence'  => 'integer',
-        'nutrient_id' => 'integer',
+        'resolved_at'        => 'datetime',
+        'confidence'         => 'integer',
+        'source_nutrient_id' => 'integer',
     ];
 
-    public function nutrient(): BelongsTo
+    public function sourceNutrient(): BelongsTo
     {
-        return $this->belongsTo(Nutrient::class);
+        return $this->belongsTo(SourceNutrient::class);
     }
 
     public function suggestedCanonical(): BelongsTo
@@ -38,7 +38,7 @@ class NutrientMappingReview extends Model
     {
         $canonical = $overrideCanonical ?? $this->suggestedCanonical;
 
-        NutrientMergeService::merge($this->nutrient, $canonical);
+        NutrientMergeService::merge($this->sourceNutrient, $canonical);
 
         $this->update([
             'suggested_canonical_id' => $canonical->id,
@@ -51,9 +51,8 @@ class NutrientMappingReview extends Model
     public function executeParent(?Nutrient $overrideCanonical = null): void
     {
         $canonical = $overrideCanonical ?? $this->suggestedCanonical;
-        $nutrient  = $this->nutrient;
 
-        Nutrient::withoutEvents(fn () => $nutrient->update(['parent_id' => $canonical->id]));
+        NutrientMergeService::promote($this->sourceNutrient, parentId: $canonical->id);
 
         $this->update([
             'suggested_canonical_id' => $canonical->id,
@@ -65,6 +64,8 @@ class NutrientMappingReview extends Model
 
     public function executeKeep(): void
     {
+        NutrientMergeService::promote($this->sourceNutrient);
+
         $this->update([
             'decision_type' => 'keep',
             'status'        => 'approved',

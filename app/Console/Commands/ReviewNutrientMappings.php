@@ -14,7 +14,7 @@ class ReviewNutrientMappings extends Command
     public function handle(): int
     {
         $reviews = NutrientMappingReview::where('status', 'pending')
-            ->with(['nutrient', 'suggestedCanonical'])
+            ->with(['sourceNutrient', 'suggestedCanonical'])
             ->get();
 
         if ($reviews->isEmpty()) {
@@ -25,7 +25,7 @@ class ReviewNutrientMappings extends Command
         foreach ($reviews as $review) {
             $this->newLine();
             $suggested = $review->suggestedCanonical?->name ?? 'none';
-            $this->line("Imported:   <comment>{$review->nutrient->name}</comment>");
+            $this->line("Imported:   <comment>{$review->sourceNutrient->name}</comment>");
             $this->line("Suggested:  <info>{$suggested}</info>");
             $this->line("Type:       {$review->decision_type}");
             $this->line("Confidence: {$review->confidence}%");
@@ -46,7 +46,7 @@ class ReviewNutrientMappings extends Command
 
     private function applyMerge(NutrientMappingReview $review): void
     {
-        $importedName  = $review->nutrient->name;
+        $importedName  = $review->sourceNutrient->name;
         $canonicalName = $review->suggestedCanonical->name;
 
         $review->executeMerge();
@@ -56,7 +56,7 @@ class ReviewNutrientMappings extends Command
 
     private function applyParent(NutrientMappingReview $review): void
     {
-        $nutrientName  = $review->nutrient->name;
+        $nutrientName  = $review->sourceNutrient->name;
         $canonicalName = $review->suggestedCanonical->name;
 
         $review->executeParent();
@@ -66,8 +66,9 @@ class ReviewNutrientMappings extends Command
 
     private function applyKeep(NutrientMappingReview $review): void
     {
+        $name = $review->sourceNutrient->name;
         $review->executeKeep();
 
-        $this->info("Kept \"{$review->nutrient->name}\" as a distinct nutrient.");
+        $this->info("Kept \"{$name}\" as a distinct nutrient.");
     }
 }

@@ -8,6 +8,7 @@ use App\Exceptions\NutrientHasChildrenException;
 use App\Jobs\SyncNutrientToSearch;
 use App\Models\IngredientNutrientPivot;
 use App\Models\NutrientTag;
+use App\Models\SourceNutrient;
 use App\Traits\GeneratesSlug;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -104,9 +105,9 @@ class Nutrient extends Model
             ->withTimestamps();
     }
 
-    public function sourceMappings(): HasMany
+    public function sourceNutrients(): HasMany
     {
-        return $this->hasMany(NutrientSourcePivot::class);
+        return $this->hasMany(SourceNutrient::class);
     }
 
     public function tags(): BelongsToMany
@@ -116,6 +117,6 @@ class Nutrient extends Model
 
     public function loadForSearch(): self
     {
-        return $this->load(['sourceMappings.source', 'canonicalUnit', 'parent', 'children', 'tags']);
+        return $this->load(['sourceNutrients.source', 'canonicalUnit', 'parent', 'children', 'tags']);
     }
 }

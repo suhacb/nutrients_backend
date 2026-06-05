@@ -6,6 +6,7 @@ use App\AI\Contracts\LlmClientContract;
 use App\AI\Tools\WebSearchTool;
 use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
+use App\Models\SourceNutrient;
 use App\Services\NutrientMergeService;
 use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
@@ -23,36 +24,36 @@ class DeduplicateNutrient implements ShouldQueue
     public int $tries = 2;
 
     public function __construct(
-        public readonly Nutrient $nutrient,
+        public readonly SourceNutrient $sourceNutrient,
     ) {
         $this->timeout = (int) (config('ai.ollama.timeout') ?? 300);
     }
 
     public function handle(LlmClientContract $llm, WebSearchTool $search): void
     {
-        if (!$this->nutrient->sourceMappings()->exists()) {
+        if ($this->sourceNutrient->isResolved()) {
             return;
         }
 
-        if (NutrientMappingReview::where('nutrient_id', $this->nutrient->id)->exists()) {
+        if (NutrientMappingReview::where('source_nutrient_id', $this->sourceNutrient->id)->exists()) {
             return;
         }
 
-        $canonicals = Nutrient::where('is_canonical', true)->pluck('name')->all();
+        $canonicals = Nutrient::pluck('name')->all();
 
         try {
             $snippets = $search->run([
-                'query' => $this->nutrient->name . ' nutrient explained',
+                'query' => $this->sourceNutrient->name . ' nutrient explained',
                 'limit' => 5,
             ]);
         } catch (\Throwable $e) {
             Log::warning('deduplicate_nutrient.search_failed', [
-                'nutrient_id'   => $this->nutrient->id,
-                'nutrient_name' => $this->nutrient->name,
-                'error'         => $e->getMessage(),
+                'source_nutrient_id'   => $this->sourceNutrient->id,
+                'source_nutrient_name' => $this->sourceNutrient->name,
+                'error'                => $e->getMessage(),
             ]);
             NutrientMappingReview::create([
-                'nutrient_id'            => $this->nutrient->id,
+                'source_nutrient_id'     => $this->sourceNutrient->id,
                 'suggested_canonical_id' => null,
                 'confidence'             => 0,
                 'decision_type'          => 'merge',
@@ -69,31 +70,48 @@ class DeduplicateNutrient implements ShouldQueue
         $reasoning  = $result['reasoning'] ?? '';
 
         if ($matchName === null) {
+            // LLM found no duplicate — this is a genuinely new substance; promote to canonical.
+            NutrientMergeService::promote($this->sourceNutrient);
+            Log::info('deduplicate_nutrient.promoted_as_new', [
+                'source_nutrient_id'   => $this->sourceNutrient->id,
+                'source_nutrient_name' => $this->sourceNutrient->name,
+            ]);
             return;
         }
 
-        $canonical = Nutrient::where('is_canonical', true)
-            ->where('name', $matchName)
-            ->first();
+        $canonical = Nutrient::where('name', $matchName)->first();
 
         if ($canonical === null) {
             Log::warning('deduplicate_nutrient.unknown_match', [
-                'nutrient_id'   => $this->nutrient->id,
-                'nutrient_name' => $this->nutrient->name,
-                'match'         => $matchName,
+                'source_nutrient_id'   => $this->sourceNutrient->id,
+                'source_nutrient_name' => $this->sourceNutrient->name,
+                'match'                => $matchName,
             ]);
+            NutrientMergeService::promote($this->sourceNutrient);
             return;
         }
 
         if ($confidence >= 95) {
             if ($action === 'parent') {
-                $this->classifyAsChild($canonical);
+                NutrientMergeService::promote($this->sourceNutrient, parentId: $canonical->id);
+                Log::info('deduplicate_nutrient.classified_as_child', [
+                    'source_nutrient_id'   => $this->sourceNutrient->id,
+                    'source_nutrient_name' => $this->sourceNutrient->name,
+                    'parent_id'            => $canonical->id,
+                    'parent_name'          => $canonical->name,
+                ]);
             } else {
-                $this->merge($canonical);
+                NutrientMergeService::merge($this->sourceNutrient, $canonical);
+                Log::info('deduplicate_nutrient.merged', [
+                    'source_nutrient_id'   => $this->sourceNutrient->id,
+                    'source_nutrient_name' => $this->sourceNutrient->name,
+                    'canonical_id'         => $canonical->id,
+                    'canonical_name'       => $canonical->name,
+                ]);
             }
         } else {
             NutrientMappingReview::create([
-                'nutrient_id'            => $this->nutrient->id,
+                'source_nutrient_id'     => $this->sourceNutrient->id,
                 'suggested_canonical_id' => $canonical->id,
                 'confidence'             => $confidence,
                 'decision_type'          => $action === 'parent' ? 'parent' : 'merge',
@@ -101,13 +119,13 @@ class DeduplicateNutrient implements ShouldQueue
                 'status'                 => 'pending',
             ]);
             Log::info('deduplicate_nutrient.review_queued', [
-                'nutrient_id'    => $this->nutrient->id,
-                'nutrient_name'  => $this->nutrient->name,
-                'canonical_id'   => $canonical->id,
-                'canonical_name' => $canonical->name,
-                'action'         => $action,
-                'confidence'     => $confidence,
-                'reasoning'      => $reasoning,
+                'source_nutrient_id'   => $this->sourceNutrient->id,
+                'source_nutrient_name' => $this->sourceNutrient->name,
+                'canonical_id'         => $canonical->id,
+                'canonical_name'       => $canonical->name,
+                'action'               => $action,
+                'confidence'           => $confidence,
+                'reasoning'            => $reasoning,
             ]);
         }
     }
@@ -115,7 +133,7 @@ class DeduplicateNutrient implements ShouldQueue
     private function classify(LlmClientContract $llm, array $canonicals, array $snippets = []): array
     {
         $userContent = "Canonical nutrients:\n" . json_encode($canonicals)
-            . "\n\nImported nutrient: " . json_encode($this->nutrient->name);
+            . "\n\nImported nutrient: " . json_encode($this->sourceNutrient->name);
 
         if (!empty($snippets)) {
             $userContent .= "\n\nAdditional context from web research:\n"
@@ -140,21 +158,5 @@ class DeduplicateNutrient implements ShouldQueue
         ]);
 
         return json_decode($response, true) ?? [];
-    }
-
-    private function classifyAsChild(Nutrient $canonical): void
-    {
-        Nutrient::withoutEvents(fn () => $this->nutrient->update(['parent_id' => $canonical->id]));
-        Log::info('deduplicate_nutrient.classified_as_child', [
-            'nutrient_id'   => $this->nutrient->id,
-            'nutrient_name' => $this->nutrient->name,
-            'parent_id'     => $canonical->id,
-            'parent_name'   => $canonical->name,
-        ]);
-    }
-
-    private function merge(Nutrient $canonical): void
-    {
-        NutrientMergeService::merge($this->nutrient, $canonical);
     }
 }

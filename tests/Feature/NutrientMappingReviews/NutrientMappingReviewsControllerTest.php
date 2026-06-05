@@ -6,6 +6,7 @@ use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
 use App\Models\Source;
+use App\Models\SourceNutrient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -17,20 +18,32 @@ class NutrientMappingReviewsControllerTest extends TestCase
 {
     use RefreshDatabase, LoginTestUser, MakesUnit;
 
+    protected Source $source;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->login();
         Queue::fake();
+        $this->source = Source::factory()->create(['slug' => 'test', 'name' => 'Test']);
+    }
+
+    private function makeSourceNutrient(array $attrs = []): SourceNutrient
+    {
+        return SourceNutrient::create(array_merge([
+            'source_id'   => $this->source->id,
+            'external_id' => (string) rand(1000, 9999),
+            'name'        => 'Test Nutrient',
+        ], $attrs));
     }
 
     private function makeReview(array $overrides = []): NutrientMappingReview
     {
-        $imported  = Nutrient::factory()->create();
-        $canonical = Nutrient::factory()->create();
+        $sourceNutrient = $this->makeSourceNutrient();
+        $canonical      = Nutrient::factory()->create(['is_canonical' => true]);
 
         return NutrientMappingReview::create(array_merge([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sourceNutrient->id,
             'suggested_canonical_id' => $canonical->id,
             'confidence'             => 87,
             'decision_type'          => 'merge',
@@ -68,13 +81,13 @@ class NutrientMappingReviewsControllerTest extends TestCase
         $this->assertEquals('approved', $response->json('data.0.status'));
     }
 
-    public function test_index_response_includes_nutrient_and_suggested_canonical(): void
+    public function test_index_response_includes_source_nutrient_and_suggested_canonical(): void
     {
-        $imported  = Nutrient::factory()->create(['name' => 'VitB12']);
-        $canonical = Nutrient::factory()->create(['name' => 'Cobalamin']);
+        $sn        = $this->makeSourceNutrient(['name' => 'Vitamin B12 (imported)']);
+        $canonical = Nutrient::factory()->create(['name' => 'Cobalamin', 'is_canonical' => true]);
 
         NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => $canonical->id,
             'confidence'             => 88,
             'decision_type'          => 'merge',
@@ -87,12 +100,12 @@ class NutrientMappingReviewsControllerTest extends TestCase
              ->assertStatus(200)
              ->json('data.0');
 
-        $this->assertEquals('VitB12',            $item['nutrient']['name']);
-        $this->assertEquals('Cobalamin',          $item['suggested_canonical']['name']);
-        $this->assertEquals(88,                   $item['confidence']);
-        $this->assertEquals('merge',              $item['decision_type']);
-        $this->assertEquals('pending',            $item['status']);
-        $this->assertEquals('They are the same.', $item['reasoning']);
+        $this->assertEquals('Vitamin B12 (imported)', $item['source_nutrient']['name']);
+        $this->assertEquals('Cobalamin',               $item['suggested_canonical']['name']);
+        $this->assertEquals(88,                        $item['confidence']);
+        $this->assertEquals('merge',                   $item['decision_type']);
+        $this->assertEquals('pending',                 $item['status']);
+        $this->assertEquals('They are the same.',      $item['reasoning']);
     }
 
     // -------------------------------------------------------------------------
@@ -136,16 +149,24 @@ class NutrientMappingReviewsControllerTest extends TestCase
              ->assertJsonFragment(['message' => 'This review has already been resolved.']);
     }
 
-    public function test_resolve_merge_repivots_ingredient_nutrient(): void
+    public function test_resolve_merge_promotes_ingredient_pivots_to_canonical(): void
     {
-        $unit       = $this->makeUnit();
-        $imported   = Nutrient::factory()->create();
-        $canonical  = Nutrient::factory()->create();
+        $unit      = $this->makeUnit();
+        $sn        = $this->makeSourceNutrient();
+        $canonical = Nutrient::factory()->create(['is_canonical' => true]);
         $ingredient = Ingredient::factory()->create();
-        $ingredient->nutrients()->attach($imported->id, ['amount' => 5.0, 'amount_unit_id' => $unit->id]);
+
+        DB::table('ingredient_source_nutrient')->insert([
+            'ingredient_id'    => $ingredient->id,
+            'source_nutrient_id' => $sn->id,
+            'amount'           => 5.0,
+            'amount_unit_id'   => $unit->id,
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
 
         $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => $canonical->id,
             'confidence'             => 88,
             'decision_type'          => 'merge',
@@ -160,29 +181,18 @@ class NutrientMappingReviewsControllerTest extends TestCase
         $this->assertDatabaseHas('ingredient_nutrient', [
             'ingredient_id' => $ingredient->id,
             'nutrient_id'   => $canonical->id,
+            'amount'        => 5.0,
         ]);
-        $this->assertDatabaseMissing('ingredient_nutrient', [
-            'ingredient_id' => $ingredient->id,
-            'nutrient_id'   => $imported->id,
-        ]);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 0);
     }
 
-    public function test_resolve_merge_repivots_source_mapping(): void
+    public function test_resolve_merge_resolves_source_nutrient(): void
     {
-        $source    = Source::factory()->create();
-        $imported  = Nutrient::factory()->create();
-        $canonical = Nutrient::factory()->create();
-
-        DB::table('nutrient_source_mappings')->insert([
-            'nutrient_id' => $imported->id,
-            'source_id'   => $source->id,
-            'external_id' => 'X001',
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
+        $sn        = $this->makeSourceNutrient();
+        $canonical = Nutrient::factory()->create(['is_canonical' => true]);
 
         $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => $canonical->id,
             'confidence'             => 88,
             'decision_type'          => 'merge',
@@ -194,31 +204,11 @@ class NutrientMappingReviewsControllerTest extends TestCase
              ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'merge'])
              ->assertStatus(200);
 
-        $this->assertDatabaseHas('nutrient_source_mappings', [
+        $this->assertDatabaseHas('source_nutrients', [
+            'id'          => $sn->id,
             'nutrient_id' => $canonical->id,
-            'external_id' => 'X001',
         ]);
-    }
-
-    public function test_resolve_merge_deletes_imported_nutrient(): void
-    {
-        $imported  = Nutrient::factory()->create();
-        $canonical = Nutrient::factory()->create();
-
-        $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
-            'suggested_canonical_id' => $canonical->id,
-            'confidence'             => 88,
-            'decision_type'          => 'merge',
-            'reasoning'              => 'Same.',
-            'status'                 => 'pending',
-        ]);
-
-        $this->withHeaders($this->makeAuthRequestHeader())
-             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'merge'])
-             ->assertStatus(200);
-
-        $this->assertDatabaseMissing('nutrients', ['id' => $imported->id]);
+        $this->assertNotNull($sn->fresh()->resolved_at);
     }
 
     public function test_resolve_merge_marks_review_approved(): void
@@ -235,6 +225,26 @@ class NutrientMappingReviewsControllerTest extends TestCase
         $this->assertNotNull($fresh->resolved_at);
     }
 
+    public function test_resolve_keep_promotes_source_nutrient_to_new_canonical(): void
+    {
+        $sn     = $this->makeSourceNutrient(['name' => 'Novel Vitamin X']);
+        $review = NutrientMappingReview::create([
+            'source_nutrient_id'     => $sn->id,
+            'suggested_canonical_id' => null,
+            'confidence'             => 0,
+            'decision_type'          => 'merge',
+            'reasoning'              => 'Search failed.',
+            'status'                 => 'pending',
+        ]);
+
+        $this->withHeaders($this->makeAuthRequestHeader())
+             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'keep'])
+             ->assertStatus(200);
+
+        $this->assertDatabaseHas('nutrients', ['name' => 'Novel Vitamin X', 'is_canonical' => true]);
+        $this->assertNotNull($sn->fresh()->nutrient_id);
+    }
+
     public function test_resolve_keep_marks_review_approved_with_keep_decision(): void
     {
         $review = $this->makeReview();
@@ -247,18 +257,6 @@ class NutrientMappingReviewsControllerTest extends TestCase
         $this->assertEquals('approved', $fresh->status);
         $this->assertEquals('keep',     $fresh->decision_type);
         $this->assertNotNull($fresh->resolved_at);
-    }
-
-    public function test_resolve_keep_does_not_delete_nutrient(): void
-    {
-        $review     = $this->makeReview();
-        $nutrientId = $review->nutrient_id;
-
-        $this->withHeaders($this->makeAuthRequestHeader())
-             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'keep'])
-             ->assertStatus(200);
-
-        $this->assertDatabaseHas('nutrients', ['id' => $nutrientId]);
     }
 
     public function test_resolve_reject_marks_review_rejected(): void
@@ -278,13 +276,13 @@ class NutrientMappingReviewsControllerTest extends TestCase
     // Parent classification
     // -------------------------------------------------------------------------
 
-    public function test_resolve_parent_sets_parent_id_on_nutrient(): void
+    public function test_resolve_parent_creates_new_canonical_as_child(): void
     {
-        $imported  = Nutrient::factory()->create();
-        $canonical = Nutrient::factory()->create(['is_canonical' => true]);
+        $sn        = $this->makeSourceNutrient(['name' => 'Phylloquinone']);
+        $canonical = Nutrient::factory()->create(['name' => 'Vitamin K', 'is_canonical' => true]);
 
         $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => $canonical->id,
             'confidence'             => 80,
             'decision_type'          => 'parent',
@@ -297,18 +295,18 @@ class NutrientMappingReviewsControllerTest extends TestCase
              ->assertStatus(200);
 
         $this->assertDatabaseHas('nutrients', [
-            'id'        => $imported->id,
+            'name'      => 'Phylloquinone',
             'parent_id' => $canonical->id,
         ]);
     }
 
-    public function test_resolve_parent_does_not_delete_nutrient(): void
+    public function test_resolve_parent_resolves_source_nutrient(): void
     {
-        $imported  = Nutrient::factory()->create();
-        $canonical = Nutrient::factory()->create(['is_canonical' => true]);
+        $sn        = $this->makeSourceNutrient(['name' => 'Phylloquinone']);
+        $canonical = Nutrient::factory()->create(['name' => 'Vitamin K', 'is_canonical' => true]);
 
         $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => $canonical->id,
             'confidence'             => 80,
             'decision_type'          => 'parent',
@@ -320,16 +318,17 @@ class NutrientMappingReviewsControllerTest extends TestCase
              ->patchJson(route('nutrient-mapping-reviews.resolve', $review), ['decision' => 'parent'])
              ->assertStatus(200);
 
-        $this->assertDatabaseHas('nutrients', ['id' => $imported->id, 'deleted_at' => null]);
+        $this->assertNotNull($sn->fresh()->nutrient_id);
+        $this->assertNotNull($sn->fresh()->resolved_at);
     }
 
     public function test_resolve_parent_marks_review_approved(): void
     {
-        $imported  = Nutrient::factory()->create();
+        $sn        = $this->makeSourceNutrient();
         $canonical = Nutrient::factory()->create(['is_canonical' => true]);
 
         $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => $canonical->id,
             'confidence'             => 80,
             'decision_type'          => 'parent',
@@ -353,15 +352,23 @@ class NutrientMappingReviewsControllerTest extends TestCase
 
     public function test_resolve_merge_with_canonical_id_override_uses_specified_canonical(): void
     {
-        $unit       = $this->makeUnit();
-        $imported   = Nutrient::factory()->create();
-        $suggested  = Nutrient::factory()->create(['is_canonical' => true]);
-        $override   = Nutrient::factory()->create(['is_canonical' => true]);
+        $unit      = $this->makeUnit();
+        $sn        = $this->makeSourceNutrient();
+        $suggested = Nutrient::factory()->create(['is_canonical' => true]);
+        $override  = Nutrient::factory()->create(['is_canonical' => true]);
         $ingredient = Ingredient::factory()->create();
-        $ingredient->nutrients()->attach($imported->id, ['amount' => 3.0, 'amount_unit_id' => $unit->id]);
+
+        DB::table('ingredient_source_nutrient')->insert([
+            'ingredient_id'    => $ingredient->id,
+            'source_nutrient_id' => $sn->id,
+            'amount'           => 3.0,
+            'amount_unit_id'   => $unit->id,
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
 
         $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => $suggested->id,
             'confidence'             => 80,
             'decision_type'          => 'merge',
@@ -379,30 +386,19 @@ class NutrientMappingReviewsControllerTest extends TestCase
         $this->assertDatabaseHas('ingredient_nutrient', [
             'ingredient_id' => $ingredient->id,
             'nutrient_id'   => $override->id,
+            'amount'        => 3.0,
         ]);
-        $this->assertDatabaseMissing('nutrients', ['id' => $imported->id]);
-    }
-
-    public function test_resolve_returns_422_when_canonical_id_is_not_a_canonical_nutrient(): void
-    {
-        $review     = $this->makeReview();
-        $nonCanonical = Nutrient::factory()->create(['is_canonical' => false]);
-
-        $this->withHeaders($this->makeAuthRequestHeader())
-             ->patchJson(route('nutrient-mapping-reviews.resolve', $review), [
-                 'decision'     => 'merge',
-                 'canonical_id' => $nonCanonical->id,
-             ])
-             ->assertStatus(422)
-             ->assertJsonFragment(['message' => 'The specified nutrient is not a canonical nutrient.']);
+        $this->assertDatabaseHas('source_nutrients', [
+            'id'          => $sn->id,
+            'nutrient_id' => $override->id,
+        ]);
     }
 
     public function test_resolve_returns_422_for_merge_when_no_suggestion_and_no_canonical_id(): void
     {
-        $imported = Nutrient::factory()->create();
-
+        $sn     = $this->makeSourceNutrient();
         $review = NutrientMappingReview::create([
-            'nutrient_id'            => $imported->id,
+            'source_nutrient_id'     => $sn->id,
             'suggested_canonical_id' => null,
             'confidence'             => 0,
             'decision_type'          => 'merge',

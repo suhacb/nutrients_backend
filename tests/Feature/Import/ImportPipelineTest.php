@@ -13,8 +13,8 @@ use App\Import\Sources\USDA\UsdaPivotTransformer;
 use App\Jobs\DeduplicateNutrient;
 use App\Jobs\SyncSourceToSearch;
 use App\Models\Ingredient;
-use App\Models\Nutrient;
 use App\Models\Source;
+use App\Models\SourceNutrient;
 use App\Models\Unit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -40,9 +40,9 @@ class ImportPipelineTest extends TestCase
             'name' => 'USDA FoodData Central',
         ]);
 
-        Unit::create(['name' => 'gram',      'abbreviation' => 'g',  'type' => 'mass']);
-        Unit::create(['name' => 'milligram', 'abbreviation' => 'mg', 'type' => 'mass']);
-        Unit::create(['name' => 'kilocalorie','abbreviation' => 'kcal','type' => 'energy']);
+        Unit::create(['name' => 'gram',       'abbreviation' => 'g',    'type' => 'mass']);
+        Unit::create(['name' => 'milligram',  'abbreviation' => 'mg',   'type' => 'mass']);
+        Unit::create(['name' => 'kilocalorie','abbreviation' => 'kcal', 'type' => 'energy']);
 
         $this->unitMap = Unit::pluck('id', 'abbreviation')->all();
     }
@@ -64,15 +64,13 @@ class ImportPipelineTest extends TestCase
         );
     }
 
-    public function test_pipeline_creates_nutrients_from_fixture(): void
+    public function test_pipeline_creates_source_nutrients_from_fixture(): void
     {
         $this->makePipeline()->run($this->fixture);
 
-        $this->assertDatabaseHas('nutrients', ['name' => 'Protein']);
-        $this->assertDatabaseHas('nutrients', ['name' => 'Total lipid (fat)']);
-        $this->assertDatabaseHas('nutrient_source_mappings', ['external_id' => '203']);
-        $this->assertDatabaseHas('nutrient_source_mappings', ['external_id' => '204']);
-        $this->assertDatabaseCount('nutrients', 2);
+        $this->assertDatabaseHas('source_nutrients', ['name' => 'Protein',           'external_id' => '203']);
+        $this->assertDatabaseHas('source_nutrients', ['name' => 'Total lipid (fat)', 'external_id' => '204']);
+        $this->assertDatabaseCount('source_nutrients', 2);
     }
 
     public function test_pipeline_creates_ingredients_from_fixture(): void
@@ -84,26 +82,26 @@ class ImportPipelineTest extends TestCase
         $this->assertDatabaseCount('ingredients', 2);
     }
 
-    public function test_pipeline_links_nutrients_to_ingredients_via_pivot(): void
+    public function test_pipeline_links_source_nutrients_to_ingredients_via_pending_pivot(): void
     {
         $this->makePipeline()->run($this->fixture);
 
         $hummus  = Ingredient::where('external_id', '321358')->first();
         $milk    = Ingredient::where('external_id', '171705')->first();
-        $protein = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
-        $fat     = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '204'))->first();
+        $protein = SourceNutrient::where('source_id', $this->source->id)->where('external_id', '203')->first();
+        $fat     = SourceNutrient::where('source_id', $this->source->id)->where('external_id', '204')->first();
 
-        $this->assertDatabaseHas('ingredient_nutrient', ['ingredient_id' => $hummus->id, 'nutrient_id' => $protein->id, 'amount' => 7.9]);
-        $this->assertDatabaseHas('ingredient_nutrient', ['ingredient_id' => $hummus->id, 'nutrient_id' => $fat->id,     'amount' => 5.5]);
-        $this->assertDatabaseHas('ingredient_nutrient', ['ingredient_id' => $milk->id,   'nutrient_id' => $protein->id, 'amount' => 3.2]);
-        $this->assertDatabaseCount('ingredient_nutrient', 3);
+        $this->assertDatabaseHas('ingredient_source_nutrient', ['ingredient_id' => $hummus->id, 'source_nutrient_id' => $protein->id, 'amount' => 7.9]);
+        $this->assertDatabaseHas('ingredient_source_nutrient', ['ingredient_id' => $hummus->id, 'source_nutrient_id' => $fat->id,     'amount' => 5.5]);
+        $this->assertDatabaseHas('ingredient_source_nutrient', ['ingredient_id' => $milk->id,   'source_nutrient_id' => $protein->id, 'amount' => 3.2]);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 3);
     }
 
-    public function test_pipeline_deduplicates_nutrients_across_food_items(): void
+    public function test_pipeline_deduplicates_source_nutrients_across_food_items(): void
     {
         $this->makePipeline()->run($this->fixture);
 
-        $this->assertDatabaseCount('nutrients', 2);
+        $this->assertDatabaseCount('source_nutrients', 2);
     }
 
     public function test_pipeline_is_idempotent(): void
@@ -111,9 +109,9 @@ class ImportPipelineTest extends TestCase
         $this->makePipeline()->run($this->fixture);
         $this->makePipeline()->run($this->fixture);
 
-        $this->assertDatabaseCount('nutrients', 2);
+        $this->assertDatabaseCount('source_nutrients', 2);
         $this->assertDatabaseCount('ingredients', 2);
-        $this->assertDatabaseCount('ingredient_nutrient', 3);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 3);
     }
 
     public function test_pipeline_dispatches_sync_jobs(): void
@@ -123,7 +121,7 @@ class ImportPipelineTest extends TestCase
         Bus::assertDispatched(SyncSourceToSearch::class);
     }
 
-    public function test_pipeline_dispatches_deduplicate_batch_for_new_nutrients(): void
+    public function test_pipeline_dispatches_deduplicate_batch_for_new_source_nutrients(): void
     {
         $this->makePipeline()->run($this->fixture);
 
@@ -132,14 +130,12 @@ class ImportPipelineTest extends TestCase
         });
     }
 
-    public function test_pipeline_does_not_dispatch_deduplicate_for_existing_nutrients(): void
+    public function test_pipeline_does_not_dispatch_deduplicate_for_existing_source_nutrients(): void
     {
-        // First run creates nutrients
         $this->makePipeline()->run($this->fixture);
 
-        Bus::fake(); // reset batch assertions
+        Bus::fake();
 
-        // Second run: nutrients already exist, no new ones inserted
         $this->makePipeline()->run($this->fixture);
 
         Bus::assertNothingBatched();
@@ -187,7 +183,7 @@ class ImportPipelineTest extends TestCase
         unlink($fixture);
 
         $this->assertDatabaseCount('ingredients', 0);
-        $this->assertDatabaseCount('nutrients', 0);
+        $this->assertDatabaseCount('source_nutrients', 0);
     }
 
     public function test_pipeline_processes_in_batches(): void
@@ -195,6 +191,6 @@ class ImportPipelineTest extends TestCase
         $this->makePipeline(batchSize: 1)->run($this->fixture);
 
         $this->assertDatabaseCount('ingredients', 2);
-        $this->assertDatabaseCount('nutrients', 2);
+        $this->assertDatabaseCount('source_nutrients', 2);
     }
 }

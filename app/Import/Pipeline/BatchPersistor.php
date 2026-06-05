@@ -5,7 +5,6 @@ namespace App\Import\Pipeline;
 use App\Models\Brand;
 use App\Models\Ingredient;
 use App\Models\IngredientCategory;
-use App\Models\Nutrient;
 use App\Models\Source;
 use App\Models\Unit;
 use Illuminate\Support\Facades\DB;
@@ -13,30 +12,31 @@ use Illuminate\Support\Str;
 
 class BatchPersistor {
 
-    private array  $categoryMap      = [];
-    private array  $brandMap         = [];
-    private array  $nutrientMap      = [];
-    private array  $ingredientMap    = [];
-    private array  $newNutrientIds   = [];
-    private ?int   $defaultUnitId    = null;
-    private ?array $labelNutrientMap = null;
+    private array  $categoryMap             = [];
+    private array  $brandMap                = [];
+    private array  $resolvedNutrientMap     = []; // externalId → canonical nutrient_id (already resolved)
+    private array  $sourceNutrientMap       = []; // externalId → source_nutrient_id (all, resolved or not)
+    private array  $ingredientMap           = [];
+    private array  $newSourceNutrientIds    = [];
+    private ?int   $defaultUnitId           = null;
+    private ?array $labelNutrientMap        = null;
 
     public function persist(array $batches, Source $source): void
     {
         DB::transaction(function () use ($batches, $source) {
             $this->upsertCategories($batches);
             $this->upsertBrands($batches);
-            $this->upsertNutrients($batches, $source);
+            $this->upsertSourceNutrients($batches, $source);
             $this->upsertIngredients($batches, $source);
             $this->upsertPivots($batches);
             $this->upsertNutritionFacts($batches);
         });
     }
 
-    public function flushNewNutrientIds(): array
+    public function flushNewSourceNutrientIds(): array
     {
-        $ids = $this->newNutrientIds;
-        $this->newNutrientIds = [];
+        $ids = $this->newSourceNutrientIds;
+        $this->newSourceNutrientIds = [];
         return $ids;
     }
 
@@ -100,31 +100,21 @@ class BatchPersistor {
             ->all();
     }
 
-    private function upsertNutrients(array $batches, Source $source): void
+    private function upsertSourceNutrients(array $batches, Source $source): void
     {
-        $rows      = [];
-        $usedSlugs = [];
-        $now       = now();
+        $rows = [];
+        $now  = now();
 
         $allExternalIds = collect($batches)
             ->flatMap(fn($b) => collect($b->nutrients)->pluck('externalId'))
             ->unique()
             ->all();
 
-        // Look up existing nutrients via source mappings.
-        // All USDA source files share the same Source record, so (source_id, external_id)
-        // uniquely identifies whether a nutrient from this provider was already imported
-        // — including nutrients that were later merged into a canonical, since
-        // NutrientMergeService re-points the source mapping to the canonical before
-        // deleting the duplicate.
-        // Soft-deleted nutrients are included so they can be restored; the source data
-        // still contains them, so restoring is the right semantic over creating a duplicate.
-        $existingByExternalId = DB::table('nutrient_source_mappings')
-            ->where('nutrient_source_mappings.source_id', $source->id)
-            ->whereIn('nutrient_source_mappings.external_id', $allExternalIds)
-            ->join('nutrients', 'nutrients.id', '=', 'nutrient_source_mappings.nutrient_id')
-            ->select('nutrient_source_mappings.external_id', 'nutrient_source_mappings.nutrient_id', 'nutrients.slug', 'nutrients.deleted_at')
-            ->get()
+        // Load existing source_nutrients for this source, joining nutrients to check resolution.
+        $existingByExternalId = DB::table('source_nutrients')
+            ->where('source_id', $source->id)
+            ->whereIn('external_id', $allExternalIds)
+            ->get(['id', 'external_id', 'nutrient_id'])
             ->keyBy('external_id');
 
         foreach ($batches as $batch) {
@@ -133,17 +123,10 @@ class BatchPersistor {
                     continue;
                 }
 
-                $existing = $existingByExternalId->get($record->externalId);
-                $slug = $existing?->slug
-                    ?? $this->allocateSlug($record->name, 'nutrients', $usedSlugs);
-
                 $rows[$record->externalId] = [
                     'name'              => $record->name,
                     'description'       => $record->description,
                     'canonical_unit_id' => $record->canonicalUnitId,
-                    'slug'              => $slug,
-                    'created_at'        => $now,
-                    'updated_at'        => $now,
                 ];
             }
         }
@@ -152,45 +135,39 @@ class BatchPersistor {
             return;
         }
 
-        // Update existing nutrients (covers re-imports, merged canonicals, and restores
-        // soft-deleted nutrients — the source file still contains them so restoring is
-        // the correct intent rather than creating a duplicate with a broken mapping)
+        // Update existing source_nutrients (keep name/description current with source).
         foreach ($existingByExternalId as $externalId => $existing) {
             if (!isset($rows[$externalId])) {
                 continue;
             }
-            $row = $rows[$externalId];
-            DB::table('nutrients')->where('id', $existing->nutrient_id)->update([
-                'name'              => $row['name'],
-                'description'       => $row['description'],
-                'canonical_unit_id' => $row['canonical_unit_id'],
-                'deleted_at'        => null,
-                'updated_at'        => $row['updated_at'],
-            ]);
-            $this->nutrientMap[$externalId] = $existing->nutrient_id;
+
+            DB::table('source_nutrients')->where('id', $existing->id)->update(array_merge(
+                $rows[$externalId],
+                ['updated_at' => $now]
+            ));
+
+            $this->sourceNutrientMap[$externalId] = $existing->id;
+
+            if ($existing->nutrient_id !== null) {
+                $this->resolvedNutrientMap[$externalId] = $existing->nutrient_id;
+            }
         }
 
-        // Insert genuinely new nutrients and their source mappings
-        $mappingRows = [];
+        // Insert genuinely new source_nutrients.
         foreach ($rows as $externalId => $row) {
             if ($existingByExternalId->has($externalId)) {
                 continue;
             }
-            $nutrientId = DB::table('nutrients')->insertGetId($row);
-            $this->nutrientMap[$externalId]  = $nutrientId;
-            $this->newNutrientIds[]          = $nutrientId;
-            $mappingRows[] = [
-                'nutrient_id' => $nutrientId,
+
+            $id = DB::table('source_nutrients')->insertGetId(array_merge($row, [
                 'source_id'   => $source->id,
                 'external_id' => $externalId,
-                'source_name' => $row['name'],
                 'created_at'  => $now,
                 'updated_at'  => $now,
-            ];
-        }
+            ]));
 
-        if (!empty($mappingRows)) {
-            DB::table('nutrient_source_mappings')->insertOrIgnore($mappingRows);
+            $this->sourceNutrientMap[$externalId] = $id;
+            $this->newSourceNutrientIds[]          = $id;
         }
     }
 
@@ -224,17 +201,17 @@ class BatchPersistor {
             $brandSlug = $batch->brand ? Str::slug($batch->brand->name) : null;
 
             $rows[$record->externalId] = [
-                'external_id'           => $record->externalId,
-                'source'                => $source->name,
-                'class'                 => $record->class,
-                'name'                  => $record->name,
-                'description'           => $record->description,
-                'default_amount'        => $record->defaultAmount ?? 100,
-                'default_amount_unit_id'=> $record->defaultAmountUnitId ?? $this->resolveDefaultUnit(),
-                'brand_id'              => $brandSlug ? ($this->brandMap[$brandSlug] ?? null) : null,
-                'slug'                  => $slug,
-                'created_at'            => $now,
-                'updated_at'            => $now,
+                'external_id'            => $record->externalId,
+                'source'                 => $source->name,
+                'class'                  => $record->class,
+                'name'                   => $record->name,
+                'description'            => $record->description,
+                'default_amount'         => $record->defaultAmount ?? 100,
+                'default_amount_unit_id' => $record->defaultAmountUnitId ?? $this->resolveDefaultUnit(),
+                'brand_id'               => $brandSlug ? ($this->brandMap[$brandSlug] ?? null) : null,
+                'slug'                   => $slug,
+                'created_at'             => $now,
+                'updated_at'             => $now,
             ];
 
             if (isset($this->categoryMap[$batch->category->name])) {
@@ -268,44 +245,60 @@ class BatchPersistor {
         }
 
         if (!empty($pivotRows)) {
-            DB::table('ingredient_ingredient_category')
-                ->insertOrIgnore($pivotRows);
+            DB::table('ingredient_ingredient_category')->insertOrIgnore($pivotRows);
         }
     }
 
     private function upsertPivots(array $batches): void
     {
-        $rows = [];
-        $now  = now();
+        $resolvedRows = [];
+        $pendingRows  = [];
+        $now          = now();
 
         foreach ($batches as $batch) {
             foreach ($batch->ingredientNutrients as $record) {
-                $ingredientId = $this->ingredientMap[$record->ingredientExternalId] ?? null;
-                $nutrientId   = $this->nutrientMap[$record->nutrientExternalId] ?? null;
+                $ingredientId     = $this->ingredientMap[$record->ingredientExternalId] ?? null;
+                $canonicalId      = $this->resolvedNutrientMap[$record->nutrientExternalId] ?? null;
+                $sourceNutrientId = $this->sourceNutrientMap[$record->nutrientExternalId] ?? null;
 
-                if (!$ingredientId || !$nutrientId) {
+                if (!$ingredientId) {
                     continue;
                 }
 
-                $rows[] = [
-                    'ingredient_id'  => $ingredientId,
-                    'nutrient_id'    => $nutrientId,
-                    'amount'         => $record->amount,
-                    'amount_unit_id' => $record->amountUnitId,
-                    'created_at'     => $now,
-                    'updated_at'     => $now,
-                ];
+                if ($canonicalId) {
+                    $resolvedRows[] = [
+                        'ingredient_id'  => $ingredientId,
+                        'nutrient_id'    => $canonicalId,
+                        'amount'         => $record->amount,
+                        'amount_unit_id' => $record->amountUnitId,
+                        'created_at'     => $now,
+                        'updated_at'     => $now,
+                    ];
+                } elseif ($sourceNutrientId) {
+                    $pendingRows[] = [
+                        'ingredient_id'    => $ingredientId,
+                        'source_nutrient_id' => $sourceNutrientId,
+                        'amount'           => $record->amount,
+                        'amount_unit_id'   => $record->amountUnitId,
+                        'created_at'       => $now,
+                        'updated_at'       => $now,
+                    ];
+                }
             }
         }
 
-        if (empty($rows)) {
-            return;
-        }
-
-        foreach (array_chunk($rows, 50) as $chunk) {
+        foreach (array_chunk($resolvedRows, 50) as $chunk) {
             DB::table('ingredient_nutrient')->upsert(
                 $chunk,
                 ['ingredient_id', 'nutrient_id', 'amount_unit_id'],
+                ['amount', 'updated_at']
+            );
+        }
+
+        foreach (array_chunk($pendingRows, 50) as $chunk) {
+            DB::table('ingredient_source_nutrient')->upsert(
+                $chunk,
+                ['ingredient_id', 'source_nutrient_id', 'amount_unit_id'],
                 ['amount', 'updated_at']
             );
         }

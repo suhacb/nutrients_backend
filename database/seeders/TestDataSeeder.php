@@ -7,7 +7,7 @@ use App\Models\DietTag;
 use App\Models\Ingredient;
 use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
-use App\Models\NutrientSourcePivot;
+use App\Models\SourceNutrient;
 use App\Models\Recipe;
 use App\Models\Source;
 use App\Models\Unit;
@@ -179,25 +179,32 @@ class TestDataSeeder extends Seeder
             ['name' => 'Test Mapped Nutrient', 'slug' => 'test-mapped-nutrient']
         );
         if ($usda) {
-            NutrientSourcePivot::firstOrCreate(
-                ['nutrient_id' => $mappedNutrient->id, 'source_id' => $usda->id],
-                ['external_id' => 'TEST-001']
+            SourceNutrient::firstOrCreate(
+                ['source_id' => $usda->id, 'external_id' => 'TEST-001'],
+                ['name' => $mappedNutrient->name, 'nutrient_id' => $mappedNutrient->id, 'resolved_at' => now()]
             );
         }
 
         // Pending mapping review — reset to pending on every reset so review e2e tests
         // always start from a known state regardless of which action the previous test took.
-        $reviewNutrient    = Nutrient::where('slug', 'test-nutrient-01')->first();
         $canonicalNutrient = Nutrient::where('slug', 'test-nutrient-02')->first();
-        if ($reviewNutrient && $canonicalNutrient) {
+        $testSource = Source::firstOrCreate(
+            ['slug' => 'test-source'],
+            ['name' => 'Test Source'],
+        );
+        $reviewSourceNutrient = SourceNutrient::firstOrCreate(
+            ['source_id' => $testSource->id, 'external_id' => 'TEST-REVIEW-001'],
+            ['name' => 'Test Review Nutrient'],
+        );
+        if ($canonicalNutrient) {
             NutrientMappingReview::updateOrCreate(
-                ['nutrient_id' => $reviewNutrient->id, 'suggested_canonical_id' => $canonicalNutrient->id],
+                ['source_nutrient_id' => $reviewSourceNutrient->id, 'suggested_canonical_id' => $canonicalNutrient->id],
                 [
-                    'status'       => 'pending',
-                    'confidence'   => 85,
+                    'status'        => 'pending',
+                    'confidence'    => 85,
                     'decision_type' => 'merge',
-                    'reasoning'    => 'High similarity score detected by automated mapping.',
-                    'resolved_at'  => null,
+                    'reasoning'     => 'High similarity score detected by automated mapping.',
+                    'resolved_at'   => null,
                 ]
             );
         }

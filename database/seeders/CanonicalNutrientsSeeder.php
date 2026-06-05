@@ -141,7 +141,7 @@ class CanonicalNutrientsSeeder extends Seeder
         $unitId = $this->units[$unitAbbr]->id ?? null;
 
         $nutrient = Nutrient::where('name', $name)
-            ->whereDoesntHave('sourceMappings')
+            ->whereDoesntHave('sourceNutrients')
             ->first();
 
         if ($nutrient) {
@@ -171,7 +171,7 @@ class CanonicalNutrientsSeeder extends Seeder
     private function updateCategory(string $name, bool $isLabelStandard, ?int $displayOrder): void
     {
         Nutrient::where('name', $name)
-            ->whereDoesntHave('sourceMappings')
+            ->whereDoesntHave('sourceNutrients')
             ->update([
                 'is_label_standard' => $isLabelStandard,
                 'display_order'     => $displayOrder,
@@ -182,7 +182,7 @@ class CanonicalNutrientsSeeder extends Seeder
     private function findParent(string $name): Nutrient
     {
         return Nutrient::where('name', $name)
-            ->whereDoesntHave('sourceMappings')
+            ->whereDoesntHave('sourceNutrients')
             ->firstOrFail();
     }
 }

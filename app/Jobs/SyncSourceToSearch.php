@@ -26,7 +26,7 @@ class SyncSourceToSearch implements ShouldQueue
                 );
             });
 
-        Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('source_id', $this->source->id))
+        Nutrient::whereHas('sourceNutrients', fn ($q) => $q->where('source_id', $this->source->id))
             ->chunk(500, function ($nutrients) {
                 $nutrients->each(fn(Nutrient $nutrient) =>
                     SyncNutrientToSearch::dispatch($nutrient, 'update')->onQueue('nutrients')

@@ -30,7 +30,7 @@ class MapLabelNutrients extends Command
             return self::SUCCESS;
         }
 
-        $canonicals = Nutrient::where('is_canonical', true)->get(['id', 'name']);
+        $canonicals = Nutrient::get(['id', 'name']);
 
         if ($canonicals->isEmpty()) {
             $this->info('No canonical nutrients found. Run the canonical nutrients seeder first.');

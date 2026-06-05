@@ -233,7 +233,7 @@ class NutrientModelTest extends TestCase
         $fresh = Nutrient::find($nutrient->id);
         $fresh->loadForSearch();
 
-        $this->assertTrue($fresh->relationLoaded('sourceMappings'));
+        $this->assertTrue($fresh->relationLoaded('sourceNutrients'));
         $this->assertTrue($fresh->relationLoaded('canonicalUnit'));
         $this->assertTrue($fresh->relationLoaded('parent'));
         $this->assertTrue($fresh->relationLoaded('children'));

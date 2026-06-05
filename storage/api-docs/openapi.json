@@ -4379,10 +4379,10 @@
                         "type": "string",
                         "example": "synced"
                     },
-                    "source_mappings": {
+                    "source_nutrients": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/NutrientSourcePivot"
+                            "$ref": "#/components/schemas/SourceNutrient"
                         }
                     },
                     "canonical_unit": {
@@ -4424,27 +4424,6 @@
                     "deleted_at": {
                         "type": "string",
                         "format": "date-time",
-                        "nullable": true
-                    }
-                },
-                "type": "object"
-            },
-            "NutrientSourcePivot": {
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "example": 1
-                    },
-                    "external_id": {
-                        "type": "string",
-                        "example": "1004"
-                    },
-                    "source": {
-                        "oneOf": [
-                            {
-                                "$ref": "#/components/schemas/Source"
-                            }
-                        ],
                         "nullable": true
                     }
                 },
@@ -4625,6 +4604,31 @@
                     "deleted_at": {
                         "type": "string",
                         "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SourceNutrient": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "external_id": {
+                        "type": "string",
+                        "example": "1004"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Total lipid (fat)"
+                    },
+                    "source": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Source"
+                            }
+                        ],
                         "nullable": true
                     }
                 },

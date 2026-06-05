@@ -3,7 +3,7 @@
 namespace Tests\Feature\Seeders;
 
 use App\Models\Nutrient;
-use App\Models\NutrientSourcePivot;
+use App\Models\SourceNutrient;
 use App\Models\Source;
 use Database\Seeders\CanonicalNutrientsSeeder;
 use Database\Seeders\DatabaseSeeder;
@@ -85,7 +85,7 @@ class CanonicalNutrientsSeederTest extends TestCase
         foreach ($names as $name) {
             $this->assertEquals(
                 0,
-                $this->canonical($name)->sourceMappings()->count(),
+                $this->canonical($name)->sourceNutrients()->count(),
                 "Expected {$name} to have no source mappings"
             );
         }
@@ -93,11 +93,11 @@ class CanonicalNutrientsSeederTest extends TestCase
 
     public function test_is_idempotent(): void
     {
-        $countBefore = Nutrient::whereDoesntHave('sourceMappings')->count();
+        $countBefore = Nutrient::whereDoesntHave('sourceNutrients')->count();
 
         $this->seed(CanonicalNutrientsSeeder::class);
 
-        $this->assertEquals($countBefore, Nutrient::whereDoesntHave('sourceMappings')->count());
+        $this->assertEquals($countBefore, Nutrient::whereDoesntHave('sourceNutrients')->count());
         $this->assertEquals(0.3, $this->canonical('Vitamin A')->iu_to_canonical_factor);
         $this->assertEquals(10,  $this->canonical('Energy')->display_order);
     }
@@ -107,10 +107,12 @@ class CanonicalNutrientsSeederTest extends TestCase
         $source = Source::factory()->create();
 
         $usda = Nutrient::factory()->create(['name' => 'Protein']);
-        NutrientSourcePivot::create([
-            'nutrient_id' => $usda->id,
+        SourceNutrient::create([
             'source_id'   => $source->id,
             'external_id' => '1003',
+            'name'        => 'Protein',
+            'nutrient_id' => $usda->id,
+            'resolved_at' => now(),
         ]);
 
         $originalParentId = $usda->parent_id;
@@ -125,7 +127,7 @@ class CanonicalNutrientsSeederTest extends TestCase
     private function canonical(string $name): Nutrient
     {
         return Nutrient::where('name', $name)
-            ->whereDoesntHave('sourceMappings')
+            ->whereDoesntHave('sourceNutrients')
             ->firstOrFail();
     }
 

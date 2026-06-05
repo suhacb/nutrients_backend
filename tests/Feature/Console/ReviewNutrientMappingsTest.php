@@ -4,8 +4,8 @@ namespace Tests\Feature\Console;
 
 use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
-use App\Models\NutrientSourcePivot;
 use App\Models\Source;
+use App\Models\SourceNutrient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -16,7 +16,7 @@ class ReviewNutrientMappingsTest extends TestCase
 
     private Source $source;
     private Nutrient $canonical;
-    private Nutrient $imported;
+    private SourceNutrient $sourceNutrient;
 
     protected function setUp(): void
     {
@@ -26,23 +26,20 @@ class ReviewNutrientMappingsTest extends TestCase
         $this->source = Source::factory()->create(['slug' => 'usda', 'name' => 'USDA']);
 
         $this->canonical = Nutrient::withoutEvents(
-            fn () => Nutrient::factory()->create(['name' => 'Vitamin D'])
+            fn () => Nutrient::factory()->create(['name' => 'Vitamin D', 'is_canonical' => true])
         );
 
-        $this->imported = Nutrient::withoutEvents(
-            fn () => Nutrient::factory()->create(['name' => 'Vitamin D (D2+D3)'])
-        );
-        NutrientSourcePivot::create([
-            'nutrient_id' => $this->imported->id,
+        $this->sourceNutrient = SourceNutrient::create([
             'source_id'   => $this->source->id,
             'external_id' => '1114',
+            'name'        => 'Vitamin D (D2+D3)',
         ]);
     }
 
     private function pendingReview(array $attrs = []): NutrientMappingReview
     {
         return NutrientMappingReview::create(array_merge([
-            'nutrient_id'            => $this->imported->id,
+            'source_nutrient_id'     => $this->sourceNutrient->id,
             'suggested_canonical_id' => $this->canonical->id,
             'confidence'             => 80,
             'decision_type'          => 'merge',
@@ -101,7 +98,7 @@ class ReviewNutrientMappingsTest extends TestCase
     // Approve merge
     // -------------------------------------------------------------------------
 
-    public function test_merge_repivots_source_mapping_to_canonical(): void
+    public function test_merge_resolves_source_nutrient_to_canonical(): void
     {
         $this->pendingReview();
 
@@ -109,21 +106,11 @@ class ReviewNutrientMappingsTest extends TestCase
             ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'm')
             ->assertSuccessful();
 
-        $this->assertDatabaseHas('nutrient_source_mappings', [
+        $this->assertDatabaseHas('source_nutrients', [
+            'id'          => $this->sourceNutrient->id,
             'nutrient_id' => $this->canonical->id,
-            'external_id' => '1114',
         ]);
-    }
-
-    public function test_merge_deletes_imported_nutrient(): void
-    {
-        $this->pendingReview();
-
-        $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'm')
-            ->assertSuccessful();
-
-        $this->assertDatabaseMissing('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
+        $this->assertNotNull($this->sourceNutrient->fresh()->resolved_at);
     }
 
     public function test_merge_marks_review_as_approved(): void
@@ -142,15 +129,30 @@ class ReviewNutrientMappingsTest extends TestCase
     // Approve parent
     // -------------------------------------------------------------------------
 
-    public function test_parent_sets_parent_id_on_imported_nutrient(): void
+    public function test_parent_creates_new_canonical_as_child(): void
     {
-        $review = $this->pendingReview(['decision_type' => 'parent']);
+        $this->pendingReview(['decision_type' => 'parent']);
 
         $this->artisan('nutrients:review-mappings')
             ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'p')
             ->assertSuccessful();
 
-        $this->assertSame($this->canonical->id, $this->imported->fresh()->parent_id);
+        $this->assertDatabaseHas('nutrients', [
+            'name'      => 'Vitamin D (D2+D3)',
+            'parent_id' => $this->canonical->id,
+        ]);
+    }
+
+    public function test_parent_resolves_source_nutrient(): void
+    {
+        $this->pendingReview(['decision_type' => 'parent']);
+
+        $this->artisan('nutrients:review-mappings')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'p')
+            ->assertSuccessful();
+
+        $this->assertNotNull($this->sourceNutrient->fresh()->nutrient_id);
+        $this->assertNotNull($this->sourceNutrient->fresh()->resolved_at);
     }
 
     public function test_parent_marks_review_approved_with_parent_decision(): void
@@ -167,22 +169,11 @@ class ReviewNutrientMappingsTest extends TestCase
         $this->assertNotNull($review->resolved_at);
     }
 
-    public function test_parent_does_not_delete_imported_nutrient(): void
-    {
-        $this->pendingReview(['decision_type' => 'parent']);
-
-        $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'p')
-            ->assertSuccessful();
-
-        $this->assertDatabaseHas('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
-    }
-
     // -------------------------------------------------------------------------
     // Keep (distinct nutrient)
     // -------------------------------------------------------------------------
 
-    public function test_keep_does_not_delete_imported_nutrient(): void
+    public function test_keep_promotes_source_nutrient_to_new_canonical(): void
     {
         $this->pendingReview();
 
@@ -190,7 +181,8 @@ class ReviewNutrientMappingsTest extends TestCase
             ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'k')
             ->assertSuccessful();
 
-        $this->assertDatabaseHas('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('nutrients', ['name' => 'Vitamin D (D2+D3)', 'is_canonical' => true]);
+        $this->assertNotNull($this->sourceNutrient->fresh()->nutrient_id);
     }
 
     public function test_keep_marks_review_approved_with_keep_decision(): void
@@ -228,18 +220,16 @@ class ReviewNutrientMappingsTest extends TestCase
 
     public function test_processes_all_pending_reviews(): void
     {
-        $extra = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['name' => 'Boron']));
-        NutrientSourcePivot::create([
-            'nutrient_id' => $extra->id,
+        $sn2 = SourceNutrient::create([
             'source_id'   => $this->source->id,
             'external_id' => '2049',
+            'name'        => 'Boron',
         ]);
-
-        $canonical2 = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['name' => 'Trace Minerals']));
+        $canonical2 = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['name' => 'Trace Minerals', 'is_canonical' => true]));
 
         $this->pendingReview();
         NutrientMappingReview::create([
-            'nutrient_id'            => $extra->id,
+            'source_nutrient_id'     => $sn2->id,
             'suggested_canonical_id' => $canonical2->id,
             'confidence'             => 75,
             'decision_type'          => 'merge',

@@ -59,10 +59,10 @@ class ImportFromSourceCommandTest extends TestCase
 
         $this->assertDatabaseHas('ingredients', ['external_id' => '321358', 'name' => 'Hummus, commercial']);
         $this->assertDatabaseHas('ingredients', ['external_id' => '171705', 'name' => 'Whole Milk']);
-        $this->assertDatabaseHas('nutrients',              ['name' => 'Protein']);
-        $this->assertDatabaseHas('nutrient_source_mappings', ['external_id' => '203']);
+        $this->assertDatabaseHas('source_nutrients', ['name' => 'Protein',           'external_id' => '203']);
+        $this->assertDatabaseHas('source_nutrients', ['name' => 'Total lipid (fat)', 'external_id' => '204']);
         $this->assertDatabaseCount('ingredients', 2);
-        $this->assertDatabaseCount('nutrients', 2);
+        $this->assertDatabaseCount('source_nutrients', 2);
     }
 
     public function test_command_creates_database_backup_before_importing(): void
@@ -85,8 +85,8 @@ class ImportFromSourceCommandTest extends TestCase
         $this->artisanImport()->assertExitCode(0);
 
         $this->assertDatabaseCount('ingredients', 2);
-        $this->assertDatabaseCount('nutrients', 2);
-        $this->assertDatabaseCount('ingredient_nutrient', 3);
+        $this->assertDatabaseCount('source_nutrients', 2);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 3);
     }
 
     public function test_command_fails_when_file_not_found(): void

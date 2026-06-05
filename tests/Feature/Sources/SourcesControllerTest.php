@@ -392,10 +392,10 @@ class SourcesControllerTest extends TestCase
         Queue::fake();
         $source  = Source::factory()->create();
         $nutrient = Nutrient::factory()->create();
-        \App\Models\NutrientSourcePivot::create([
-            'nutrient_id' => $nutrient->id,
+        \App\Models\SourceNutrient::create([
             'source_id'   => $source->id,
             'external_id' => '1001',
+            'name'        => $nutrient->name,
         ]);
 
         $this->withHeaders($this->makeAuthRequestHeader())

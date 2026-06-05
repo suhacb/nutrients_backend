@@ -27,7 +27,7 @@ class ClassifyNutrientParent implements ShouldQueue
 
     public function handle(LlmClientContract $llm): void
     {
-        $hierarchy = Nutrient::whereDoesntHave('sourceMappings')
+        $hierarchy = Nutrient::whereDoesntHave('sourceNutrients')
             ->get(['id', 'name'])
             ->map(fn ($n) => ['id' => $n->id, 'name' => $n->name])
             ->values()

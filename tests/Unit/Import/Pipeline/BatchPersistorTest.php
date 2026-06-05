@@ -15,6 +15,7 @@ use App\Models\Ingredient;
 use App\Models\LabelNutrientMapping;
 use App\Models\Nutrient;
 use App\Models\Source;
+use App\Models\SourceNutrient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -83,15 +84,14 @@ class BatchPersistorTest extends TestCase
         $this->assertDatabaseHas('ingredient_categories', ['name' => 'Legumes and Legume Products']);
     }
 
-    public function test_persists_nutrients_with_source_mapping(): void
+    public function test_persists_source_nutrients(): void
     {
         (new BatchPersistor())->persist([$this->makeBatch()], $this->source);
 
-        $this->assertDatabaseHas('nutrients', ['name' => 'Protein']);
-        $this->assertDatabaseHas('nutrient_source_mappings', [
+        $this->assertDatabaseHas('source_nutrients', [
             'source_id'   => $this->source->id,
             'external_id' => '203',
-            'source_name' => 'Protein',
+            'name'        => 'Protein',
         ]);
     }
 
@@ -114,19 +114,45 @@ class BatchPersistorTest extends TestCase
         $this->assertSame('Legumes and Legume Products', $ingredient->categories->first()->name);
     }
 
-    public function test_persists_pivot_records(): void
+    public function test_persists_pivot_to_ingredient_source_nutrient_when_unresolved(): void
     {
         (new BatchPersistor())->persist([$this->makeBatch()], $this->source);
 
-        $ingredient = Ingredient::where('external_id', '321358')->first();
-        $nutrient   = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
+        $ingredient   = Ingredient::where('external_id', '321358')->first();
+        $sourceNutrient = SourceNutrient::where('source_id', $this->source->id)
+            ->where('external_id', '203')->first();
 
+        $this->assertDatabaseHas('ingredient_source_nutrient', [
+            'ingredient_id'    => $ingredient->id,
+            'source_nutrient_id' => $sourceNutrient->id,
+            'amount'           => 7.9,
+            'amount_unit_id'   => $this->unitId,
+        ]);
+        $this->assertDatabaseCount('ingredient_nutrient', 0);
+    }
+
+    public function test_writes_to_ingredient_nutrient_when_source_nutrient_is_resolved(): void
+    {
+        $canonical = Nutrient::withoutEvents(fn () => Nutrient::factory()->create([
+            'name' => 'Protein (canonical)', 'is_canonical' => true,
+        ]));
+        SourceNutrient::create([
+            'source_id'   => $this->source->id,
+            'external_id' => '203',
+            'name'        => 'Protein',
+            'nutrient_id' => $canonical->id,
+            'resolved_at' => now(),
+        ]);
+
+        (new BatchPersistor())->persist([$this->makeBatch('321358', '203')], $this->source);
+
+        $ingredient = Ingredient::where('external_id', '321358')->first();
         $this->assertDatabaseHas('ingredient_nutrient', [
             'ingredient_id' => $ingredient->id,
-            'nutrient_id'   => $nutrient->id,
+            'nutrient_id'   => $canonical->id,
             'amount'        => 7.9,
-            'amount_unit_id'=> $this->unitId,
         ]);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 0);
     }
 
     public function test_persists_nutrition_facts(): void
@@ -202,13 +228,11 @@ class BatchPersistorTest extends TestCase
     {
         $canonical = Nutrient::withoutEvents(fn () => Nutrient::factory()->create(['name' => 'Protein', 'is_canonical' => true]));
 
-        // First import: no mapping yet → nutrient_id null
         (new BatchPersistor())->persist([$this->makeBatchWithNutritionFacts()], $this->source);
 
         $ingredient = Ingredient::where('external_id', '1106281')->first();
         $this->assertDatabaseHas('ingredient_nutrition_facts', ['ingredient_id' => $ingredient->id, 'name' => 'protein', 'nutrient_id' => null]);
 
-        // Mapping approved between imports
         LabelNutrientMapping::create([
             'label_key'   => 'protein',
             'nutrient_id' => $canonical->id,
@@ -217,18 +241,9 @@ class BatchPersistorTest extends TestCase
             'status'      => 'approved',
         ]);
 
-        // Second import: mapping now resolved → nutrient_id populated
         (new BatchPersistor())->persist([$this->makeBatchWithNutritionFacts()], $this->source);
 
         $this->assertDatabaseHas('ingredient_nutrition_facts', ['ingredient_id' => $ingredient->id, 'name' => 'protein', 'nutrient_id' => $canonical->id]);
-    }
-
-    public function test_generates_slug_for_nutrients(): void
-    {
-        (new BatchPersistor())->persist([$this->makeBatch()], $this->source);
-
-        $nutrient = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
-        $this->assertNotNull($nutrient->slug);
     }
 
     public function test_generates_slug_for_ingredients(): void
@@ -251,7 +266,7 @@ class BatchPersistorTest extends TestCase
 
         (new BatchPersistor())->persist([$batch], $this->source);
 
-        $this->assertDatabaseCount('ingredient_nutrient', 0);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 0);
     }
 
     public function test_is_idempotent(): void
@@ -260,20 +275,21 @@ class BatchPersistorTest extends TestCase
         $persistor->persist([$this->makeBatch()], $this->source);
         $persistor->persist([$this->makeBatch()], $this->source);
 
-        $this->assertDatabaseCount('nutrients', 1);
+        $this->assertDatabaseCount('source_nutrients', 1);
         $this->assertDatabaseCount('ingredients', 1);
-        $this->assertDatabaseCount('ingredient_nutrient', 1);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 1);
     }
 
-    public function test_deduplicates_nutrients_across_batches(): void
+    public function test_deduplicates_source_nutrients_across_batches(): void
     {
         $batch1 = $this->makeBatch('321358', '203');
         $batch2 = $this->makeBatch('171705', '203', 'Dairy and Egg Products');
 
         (new BatchPersistor())->persist([$batch1, $batch2], $this->source);
 
-        $this->assertDatabaseCount('nutrients', 1);
+        $this->assertDatabaseCount('source_nutrients', 1);
         $this->assertDatabaseCount('ingredients', 2);
+        $this->assertDatabaseCount('ingredient_source_nutrient', 2);
     }
 
     public function test_persists_brand_and_links_to_ingredient(): void
@@ -310,27 +326,27 @@ class BatchPersistorTest extends TestCase
         $this->assertEquals($ingredient1->brand_id, $ingredient2->brand_id);
     }
 
-    public function test_flush_new_nutrient_ids_returns_inserted_ids(): void
+    public function test_flush_new_source_nutrient_ids_returns_inserted_ids(): void
     {
         $persistor = new BatchPersistor();
         $persistor->persist([$this->makeBatch()], $this->source);
 
-        $ids = $persistor->flushNewNutrientIds();
+        $ids = $persistor->flushNewSourceNutrientIds();
 
         $this->assertCount(1, $ids);
-        $nutrient = Nutrient::whereHas('sourceMappings', fn ($q) => $q->where('external_id', '203'))->first();
-        $this->assertContains($nutrient->id, $ids);
+        $sn = SourceNutrient::where('source_id', $this->source->id)->where('external_id', '203')->first();
+        $this->assertContains($sn->id, $ids);
     }
 
-    public function test_flush_new_nutrient_ids_is_empty_for_existing_nutrients(): void
+    public function test_flush_new_source_nutrient_ids_is_empty_for_existing_source_nutrients(): void
     {
         $persistor = new BatchPersistor();
         $persistor->persist([$this->makeBatch()], $this->source);
-        $persistor->flushNewNutrientIds(); // consume first run
+        $persistor->flushNewSourceNutrientIds(); // consume first run
 
         $persistor->persist([$this->makeBatch()], $this->source);
 
-        $this->assertEmpty($persistor->flushNewNutrientIds());
+        $this->assertEmpty($persistor->flushNewSourceNutrientIds());
     }
 
     public function test_flush_clears_ids_on_each_call(): void
@@ -338,68 +354,32 @@ class BatchPersistorTest extends TestCase
         $persistor = new BatchPersistor();
         $persistor->persist([$this->makeBatch()], $this->source);
 
-        $first  = $persistor->flushNewNutrientIds();
-        $second = $persistor->flushNewNutrientIds();
+        $first  = $persistor->flushNewSourceNutrientIds();
+        $second = $persistor->flushNewSourceNutrientIds();
 
         $this->assertNotEmpty($first);
         $this->assertEmpty($second);
     }
 
-    public function test_restores_soft_deleted_nutrient_on_reimport(): void
+    public function test_updates_existing_source_nutrient_on_reimport(): void
     {
-        // Simulate a nutrient that was imported, then soft-deleted.
-        // The source mapping still exists and points to the soft-deleted nutrient.
-        // Reimporting should restore it rather than create a duplicate with a broken mapping.
-        $nutrient = Nutrient::factory()->create(['name' => 'Protein', 'canonical_unit_id' => $this->unitId]);
-        DB::table('nutrient_source_mappings')->insert([
-            'nutrient_id' => $nutrient->id,
-            'source_id'   => $this->source->id,
-            'external_id' => '203',
-            'source_name' => 'Protein',
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
-        $nutrient->delete(); // soft-delete
-
         $persistor = new BatchPersistor();
         $persistor->persist([$this->makeBatch()], $this->source);
 
-        // Original nutrient must be restored; no duplicate created.
-        $this->assertDatabaseCount('nutrients', 1);
-        $this->assertDatabaseHas('nutrients', ['id' => $nutrient->id, 'deleted_at' => null]);
-        // Restored nutrient is not treated as new — no enrichment jobs dispatched.
-        $this->assertEmpty($persistor->flushNewNutrientIds());
-    }
+        $sn = SourceNutrient::where('source_id', $this->source->id)->where('external_id', '203')->first();
+        $this->assertSame('Protein', $sn->name);
 
-    public function test_resolves_to_canonical_after_merge(): void
-    {
-        // Simulate NutrientMergeService: source mapping re-pointed from imported
-        // nutrient (force-deleted) to canonical before any import of a second file.
-        $canonical = Nutrient::factory()->create([
-            'name'              => 'Protein (canonical)',
-            'canonical_unit_id' => $this->unitId,
-            'is_canonical'      => true,
-        ]);
-        DB::table('nutrient_source_mappings')->insert([
-            'nutrient_id' => $canonical->id,
-            'source_id'   => $this->source->id,
-            'external_id' => '203',
-            'source_name' => 'Protein',
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
-
-        $persistor = new BatchPersistor();
-        $batch = $this->makeBatch('321358', '203');
+        // Simulate a source file updating the nutrient name.
+        $batch = new ImportBatch(
+            ingredient:          new IngredientRecord('321358', 'Hummus, commercial', null, 'Foundation', null, null),
+            category:            new IngredientCategoryRecord('Legumes and Legume Products'),
+            nutrients:           [new NutrientRecord('203', 'Protein (updated)', null, $this->unitId)],
+            ingredientNutrients: [new IngredientNutrientRecord('321358', '203', 7.9, $this->unitId)],
+            nutritionFacts:      [],
+        );
         $persistor->persist([$batch], $this->source);
 
-        // No duplicate nutrient; ingredient pivot must point to the canonical.
-        $this->assertDatabaseCount('nutrients', 1);
-        $ingredient = Ingredient::where('external_id', '321358')->first();
-        $this->assertDatabaseHas('ingredient_nutrient', [
-            'ingredient_id' => $ingredient->id,
-            'nutrient_id'   => $canonical->id,
-        ]);
-        $this->assertEmpty($persistor->flushNewNutrientIds());
+        $this->assertDatabaseCount('source_nutrients', 1);
+        $this->assertSame('Protein (updated)', $sn->fresh()->name);
     }
 }

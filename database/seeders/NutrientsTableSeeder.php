@@ -63,7 +63,7 @@ class NutrientsTableSeeder extends Seeder
     {
         // Canonical hierarchy nutrients have no source mappings.
         $nutrient = Nutrient::where('name', $name)
-            ->whereDoesntHave('sourceMappings')
+            ->whereDoesntHave('sourceNutrients')
             ->first();
 
         if ($nutrient) {

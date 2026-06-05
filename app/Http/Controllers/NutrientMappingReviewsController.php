@@ -45,7 +45,7 @@ class NutrientMappingReviewsController extends Controller
     {
         $status  = $request->query('status', 'pending');
         $reviews = NutrientMappingReview::where('status', $status)
-            ->with(['nutrient', 'suggestedCanonical'])
+            ->with(['sourceNutrient', 'suggestedCanonical'])
             ->get();
 
         return response()->json(['data' => NutrientMappingReviewResource::collection($reviews)], 200);
@@ -88,9 +88,9 @@ class NutrientMappingReviewsController extends Controller
 
         if (in_array($decision, ['merge', 'parent'])) {
             if ($request->filled('canonical_id')) {
-                $canonical = Nutrient::where('is_canonical', true)->find($request->integer('canonical_id'));
+                $canonical = Nutrient::find($request->integer('canonical_id'));
                 if (!$canonical) {
-                    return response()->json(['message' => 'The specified nutrient is not a canonical nutrient.'], 422);
+                    return response()->json(['message' => 'The specified nutrient was not found.'], 422);
                 }
             } elseif (!$nutrientMappingReview->suggested_canonical_id) {
                 return response()->json(['message' => 'This review has no suggested canonical. Provide canonical_id.'], 422);
@@ -104,7 +104,7 @@ class NutrientMappingReviewsController extends Controller
             'reject' => $nutrientMappingReview->executeReject(),
         };
 
-        $nutrientMappingReview->load(['nutrient', 'suggestedCanonical']);
+        $nutrientMappingReview->load(['sourceNutrient', 'suggestedCanonical']);
 
         return response()->json(new NutrientMappingReviewResource($nutrientMappingReview), 200);
     }

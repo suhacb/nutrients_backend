@@ -4,7 +4,7 @@ namespace Tests\Feature\Console;
 
 use App\AI\Contracts\LlmClientContract;
 use App\Models\Nutrient;
-use App\Models\NutrientSourcePivot;
+use App\Models\SourceNutrient;
 use App\Models\Source;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -35,10 +35,12 @@ class ClassifyNutrientParentsTest extends TestCase
     private function nutrient(array $attrs = []): Nutrient
     {
         $nutrient = Nutrient::withoutEvents(fn () => Nutrient::factory()->create($attrs));
-        NutrientSourcePivot::create([
-            'nutrient_id' => $nutrient->id,
+        SourceNutrient::create([
             'source_id'   => $this->externalSource->id,
             'external_id' => (string) $nutrient->id,
+            'name'        => $nutrient->name,
+            'nutrient_id' => $nutrient->id,
+            'resolved_at' => now(),
         ]);
         return $nutrient;
     }
@@ -205,10 +207,12 @@ class ClassifyNutrientParentsTest extends TestCase
     {
         Nutrient::withoutEvents(function () {
             $n = Nutrient::factory()->create(['parent_id' => null]);
-            NutrientSourcePivot::create([
-                'nutrient_id' => $n->id,
+            SourceNutrient::create([
                 'source_id'   => $this->externalSource->id,
                 'external_id' => (string) $n->id,
+                'name'        => $n->name,
+                'nutrient_id' => $n->id,
+                'resolved_at' => now(),
             ]);
             $n->delete();
         });

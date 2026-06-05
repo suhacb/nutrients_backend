@@ -5,7 +5,7 @@ namespace Tests\Unit\Jobs;
 use App\AI\Contracts\LlmClientContract;
 use App\Jobs\ClassifyNutrientParent;
 use App\Models\Nutrient;
-use App\Models\NutrientSourcePivot;
+use App\Models\SourceNutrient;
 use App\Models\Source;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -36,10 +36,12 @@ class ClassifyNutrientParentTest extends TestCase
         $this->nutrient = Nutrient::withoutEvents(
             fn () => Nutrient::factory()->create(['name' => 'Boron', 'parent_id' => null])
         );
-        NutrientSourcePivot::create([
-            'nutrient_id' => $this->nutrient->id,
+        SourceNutrient::create([
             'source_id'   => $this->source->id,
             'external_id' => '2049',
+            'name'        => 'Boron',
+            'nutrient_id' => $this->nutrient->id,
+            'resolved_at' => now(),
         ]);
     }
 

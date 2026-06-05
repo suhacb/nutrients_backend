@@ -9,6 +9,7 @@ use App\Jobs\GenerateNutrientDescription;
 use App\Jobs\SyncNutrientToSearch;
 use App\Jobs\SyncSourceToSearch;
 use App\Models\Nutrient;
+use App\Models\SourceNutrient;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 
@@ -47,26 +48,40 @@ class ImportPipeline {
 
         SyncSourceToSearch::dispatch($source)->onQueue('ingredients');
 
-        $newIds = $this->persistor->flushNewNutrientIds();
+        $newIds = $this->persistor->flushNewSourceNutrientIds();
 
         if (!empty($newIds)) {
             $this->dispatchEnrichmentChain($newIds);
         }
     }
 
-    private function dispatchEnrichmentChain(array $nutrientIds): void
+    private function dispatchEnrichmentChain(array $sourceNutrientIds): void
     {
-        $nutrients    = Nutrient::whereIn('id', $nutrientIds)->get();
-        $dedupJobs    = $nutrients->map(fn ($n) => new DeduplicateNutrient($n))->all();
-        $classifyJobs = $nutrients->map(fn ($n) => new ClassifyNutrientParent($n))->all();
+        $sourceNutrients = SourceNutrient::whereIn('id', $sourceNutrientIds)->get();
+        $dedupJobs       = $sourceNutrients->map(fn ($sn) => new DeduplicateNutrient($sn))->all();
 
         Bus::batch($dedupJobs)
             ->onQueue('nutrients-dedup')
-            ->then(function () use ($classifyJobs, $nutrientIds) {
+            ->then(function () use ($sourceNutrientIds) {
+                // After dedup, collect the canonical nutrient IDs resolved from these source nutrients.
+                $canonicalIds = SourceNutrient::whereIn('id', $sourceNutrientIds)
+                    ->whereNotNull('nutrient_id')
+                    ->pluck('nutrient_id')
+                    ->unique()
+                    ->all();
+
+                if (empty($canonicalIds)) {
+                    return;
+                }
+
+                $classifyJobs = Nutrient::whereIn('id', $canonicalIds)->get()
+                    ->map(fn ($n) => new ClassifyNutrientParent($n))
+                    ->all();
+
                 Bus::batch($classifyJobs)
                     ->onQueue('nutrients-classify')
-                    ->then(function () use ($nutrientIds) {
-                        foreach (Nutrient::whereIn('id', $nutrientIds)->get() as $nutrient) {
+                    ->then(function () use ($canonicalIds) {
+                        foreach (Nutrient::whereIn('id', $canonicalIds)->get() as $nutrient) {
                             GenerateNutrientDescription::dispatch($nutrient)->onQueue('nutrients');
                             SyncNutrientToSearch::dispatch($nutrient, 'insert')->onQueue('nutrients');
                         }

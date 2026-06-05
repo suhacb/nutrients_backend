@@ -24,7 +24,7 @@ class ClassifyNutrientParents extends Command
             $query->whereIn('id', $ids);
         } else {
             $query->whereNull('parent_id')
-                ->whereHas('sourceMappings');
+                ->whereHas('sourceNutrients');
         }
 
         $nutrients = $query->get(['id', 'name', 'slug', 'description']);
@@ -38,7 +38,7 @@ class ClassifyNutrientParents extends Command
         $classified = 0;
 
         // Only system-source hierarchy nodes are valid parents — keeps prompts small.
-        $hierarchy = Nutrient::whereDoesntHave('sourceMappings')
+        $hierarchy = Nutrient::whereDoesntHave('sourceNutrients')
             ->get(['id', 'name'])
             ->map(fn ($n) => ['id' => $n->id, 'name' => $n->name])
             ->values()
