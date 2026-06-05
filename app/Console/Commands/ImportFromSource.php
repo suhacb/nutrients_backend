@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\DumpsDatabase;
+use App\Console\Concerns\RebuildsZincIndices;
 use App\Import\Contracts\ImportSourceContract;
 use App\Import\Pipeline\BatchPersistor;
 use App\Import\Pipeline\ImportPipeline;
@@ -14,11 +16,12 @@ use App\Import\Sources\USDA\UsdaPivotTransformer;
 use App\Models\Unit;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class ImportFromSource extends Command
 {
+    use DumpsDatabase, RebuildsZincIndices;
+
     protected $signature = 'app:import-from-source
                             {source            : Source name (supported: usda)}
                             {file              : Absolute or storage-relative path to the import file}
@@ -109,77 +112,5 @@ class ImportFromSource extends Command
         }
 
         return Storage::disk('local')->path($path);
-    }
-
-    private function rebuildZincIndices(): bool
-    {
-        $baseUri  = config('zinc.base_url');
-        $user     = config('zinc.username');
-        $password = config('zinc.password');
-
-        foreach (config('zinc.indices') as $key => $name) {
-            $this->line("  Deleting index: {$name}");
-            Http::withBasicAuth($user, $password)->delete("{$baseUri}/api/index/{$name}");
-
-            $this->line("  Creating index: {$name}");
-            $create = Http::withBasicAuth($user, $password)->put("{$baseUri}/api/index", array_merge(
-                ['name' => $name],
-                config("zinc.index_definitions.{$key}", [])
-            ));
-
-            if (!$create->successful()) {
-                $this->error("Failed to create Zinc index '{$name}': {$create->body()}");
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function dumpDatabase(string $path): bool
-    {
-        try {
-            $conn   = config('database.default');
-            $config = config("database.connections.{$conn}");
-
-            $host   = $config['host']     ?? '127.0.0.1';
-            $port   = $config['port']     ?? 3306;
-            $dbname = $config['database'] ?? '';
-            $user   = $config['username'] ?? '';
-            $pass   = $config['password'] ?? '';
-
-            $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
-            $pdo = new \PDO($dsn, $user, $pass);
-            $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-
-            $tables = $pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
-
-            $fh = fopen($path, 'w');
-            if ($fh === false) {
-                throw new \RuntimeException("Could not open backup file for writing: {$path}");
-            }
-
-            fwrite($fh, "-- Backup: {$dbname} | " . now()->toIso8601String() . "\n\nSET FOREIGN_KEY_CHECKS=0;\n\n");
-
-            foreach ($tables as $table) {
-                $row = $pdo->query("SHOW CREATE TABLE `{$table}`")->fetch(\PDO::FETCH_NUM);
-                fwrite($fh, "DROP TABLE IF EXISTS `{$table}`;\n{$row[1]};\n\n");
-
-                $stmt = $pdo->query("SELECT * FROM `{$table}`");
-                while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-                    $cols   = implode(', ', array_map(fn($c) => "`{$c}`", array_keys($row)));
-                    $values = implode(', ', array_map(fn($v) => $v === null ? 'NULL' : $pdo->quote((string) $v), $row));
-                    fwrite($fh, "INSERT INTO `{$table}` ({$cols}) VALUES ({$values});\n");
-                }
-
-                fwrite($fh, "\n");
-            }
-
-            fwrite($fh, "SET FOREIGN_KEY_CHECKS=1;\n");
-            fclose($fh);
-            return true;
-        } catch (\Throwable $e) {
-            return false;
-        }
     }
 }

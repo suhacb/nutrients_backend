@@ -31,7 +31,7 @@ class NutrientMappingReviewsController extends Controller
                             new OA\Property(property: 'decision_type',       type: 'string'),
                             new OA\Property(property: 'reasoning',           type: 'string'),
                             new OA\Property(property: 'resolved_at',         type: 'string', nullable: true),
-                            new OA\Property(property: 'nutrient',            type: 'object', nullable: true),
+                            new OA\Property(property: 'source_nutrient',     type: 'object', nullable: true),
                             new OA\Property(property: 'suggested_canonical', type: 'object', nullable: true),
                         ],
                         type: 'object'

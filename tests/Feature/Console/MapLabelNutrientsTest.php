@@ -57,7 +57,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'Protein', 'confidence' => 97, 'reasoning' => 'Direct match.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseHas('label_nutrient_mappings', [
             'label_key'   => 'protein',
@@ -73,7 +73,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'Total Fat', 'confidence' => 95, 'reasoning' => 'Same.']));
 
-        $this->artisan('app:map-label-nutrients --key=fat')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=fat')->assertSuccessful();
 
         $this->assertDatabaseHas('label_nutrient_mappings', [
             'label_key' => 'fat',
@@ -91,7 +91,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'Protein', 'confidence' => 80, 'reasoning' => 'Probably.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseHas('label_nutrient_mappings', [
             'label_key'   => 'protein',
@@ -107,7 +107,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'Protein', 'confidence' => 97, 'reasoning' => 'Exact name match.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertSame('Exact name match.', LabelNutrientMapping::first()->reasoning);
     }
@@ -122,7 +122,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => null, 'confidence' => 0, 'reasoning' => 'Unknown.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseCount('label_nutrient_mappings', 0);
     }
@@ -133,7 +133,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'NonExistentNutrient', 'confidence' => 97, 'reasoning' => 'Oops.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseCount('label_nutrient_mappings', 0);
     }
@@ -155,7 +155,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->llmNeverCalled();
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseCount('label_nutrient_mappings', 1);
     }
@@ -173,7 +173,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->llmNeverCalled();
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseCount('label_nutrient_mappings', 1);
     }
@@ -189,7 +189,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'Protein', 'confidence' => 97, 'reasoning' => 'Direct.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseHas('label_nutrient_mappings', ['label_key' => 'protein']);
         $this->assertDatabaseMissing('label_nutrient_mappings', ['label_key' => 'fat']);
@@ -199,7 +199,7 @@ class MapLabelNutrientsTest extends TestCase
     {
         $this->llmNeverCalled();
 
-        $this->artisan('app:map-label-nutrients --key=unknownLabelKey')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=unknownLabelKey')->assertSuccessful();
 
         $this->assertDatabaseCount('label_nutrient_mappings', 0);
     }
@@ -214,7 +214,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'Protein', 'confidence' => 97, 'reasoning' => 'Match.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein --dry-run')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein --dry-run')->assertSuccessful();
 
         $this->assertDatabaseCount('label_nutrient_mappings', 0);
     }
@@ -225,7 +225,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm(json_encode(['match' => 'Protein', 'confidence' => 97, 'reasoning' => 'Match.']));
 
-        $this->artisan('app:map-label-nutrients --key=protein --dry-run')
+        $this->artisan('nutrients:map-label-keys --key=protein --dry-run')
             ->expectsOutputToContain('protein')
             ->expectsOutputToContain('Protein')
             ->assertSuccessful();
@@ -239,7 +239,7 @@ class MapLabelNutrientsTest extends TestCase
     {
         $this->llmNeverCalled();
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
     }
 
     // -------------------------------------------------------------------------
@@ -252,7 +252,7 @@ class MapLabelNutrientsTest extends TestCase
 
         $this->mockLlm('not-valid-json');
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
 
         $this->assertDatabaseCount('label_nutrient_mappings', 0);
     }
@@ -273,6 +273,6 @@ class MapLabelNutrientsTest extends TestCase
         $this->app->instance(LlmClientContract::class, $llm);
         $this->addToAssertionCount(1);
 
-        $this->artisan('app:map-label-nutrients --key=protein')->assertSuccessful();
+        $this->artisan('nutrients:map-label-keys --key=protein')->assertSuccessful();
     }
 }

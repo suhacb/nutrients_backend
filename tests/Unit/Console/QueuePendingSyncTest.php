@@ -154,6 +154,17 @@ class QueuePendingSyncTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_soft_deleted_ingredient_with_pending_sync_status_is_not_queued(): void
+    {
+        $ingredient = Ingredient::withoutEvents(fn() => Ingredient::factory()->create());
+        Ingredient::withoutEvents(fn() => $ingredient->delete());
+
+        $this->artisan('app:queue-pending-sync', ['--model' => 'ingredients'])
+            ->assertExitCode(0);
+
+        Queue::assertNotPushed(SyncIngredientToSearch::class);
+    }
+
     public function test_fails_for_invalid_model_option(): void
     {
         $this->artisan('app:queue-pending-sync', ['--model' => 'invalid'])

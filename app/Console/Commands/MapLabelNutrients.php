@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 class MapLabelNutrients extends Command
 {
-    protected $signature = 'app:map-label-nutrients
+    protected $signature = 'nutrients:map-label-keys
                             {--dry-run : Show proposed mappings without persisting}
                             {--key=*   : Only process specific label keys}';
 

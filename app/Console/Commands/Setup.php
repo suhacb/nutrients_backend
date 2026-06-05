@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\RebuildsZincIndices;
 use App\Import\Pipeline\BatchPersistor;
 use App\Import\Pipeline\ImportPipeline;
 use App\Import\Sources\USDA\UsdaBrandTransformer;
@@ -13,11 +14,12 @@ use App\Import\Sources\USDA\UsdaPivotTransformer;
 use App\Models\Unit;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class Setup extends Command
 {
+    use RebuildsZincIndices;
+
     protected $signature = 'app:setup
                             {directory?        : Directory containing the USDA import files (defaults to storage/app/private)}
                             {--force           : Required when APP_ENV is not local}
@@ -31,10 +33,6 @@ class Setup extends Command
     ];
 
     protected $description = 'Fresh install: migrate, seed, rebuild Zinc indices, and import USDA data. DESTRUCTIVE — local dev only.';
-
-    private string $zincBaseUri;
-    private string $zincUser;
-    private string $zincPassword;
 
     public function handle(BatchPersistor $persistor): int
     {
@@ -54,10 +52,6 @@ class Setup extends Command
             }
             $files[] = $path;
         }
-
-        $this->zincBaseUri  = config('zinc.base_url');
-        $this->zincUser     = config('zinc.username');
-        $this->zincPassword = config('zinc.password');
 
         if (!$this->step('Refreshing database',     fn() => $this->refreshDatabase())) return self::FAILURE;
         if (!$this->step('Seeding database',        fn() => $this->seedDatabase()))    return self::FAILURE;
@@ -85,34 +79,6 @@ class Setup extends Command
     {
         Artisan::call('app:queue-pending-sync', ['--model' => 'nutrients'], $this->output);
         return true;
-    }
-
-    private function rebuildZincIndices(): bool
-    {
-        foreach (config('zinc.indices') as $key => $name) {
-            $this->line("  Deleting index: {$name}");
-            Http::withBasicAuth($this->zincUser, $this->zincPassword)
-                ->delete("{$this->zincBaseUri}/api/index/{$name}");
-
-            $this->line("  Creating index: {$name}");
-            $response = Http::withBasicAuth($this->zincUser, $this->zincPassword)
-                ->put("{$this->zincBaseUri}/api/index", $this->indexPayload($key, $name));
-
-            if (!$response->successful()) {
-                $this->error("Failed to create Zinc index '{$name}': {$response->body()}");
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function indexPayload(string $key, string $name): array
-    {
-        return array_merge(
-            ['name' => $name],
-            config("zinc.index_definitions.{$key}")
-        );
     }
 
     private function runImport(array $files, int $batchSize, BatchPersistor $persistor): bool

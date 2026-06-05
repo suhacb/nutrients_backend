@@ -59,7 +59,7 @@ class QueuePendingSync extends Command
     private function queueIngredients(array $statuses): int
     {
         $count = 0;
-        Ingredient::whereIn('sync_status', $statuses)->orWhereNull('sync_status')
+        Ingredient::where(fn ($q) => $q->whereIn('sync_status', $statuses)->orWhereNull('sync_status'))
             ->each(function (Ingredient $ingredient) use (&$count) {
                 SyncIngredientToSearch::dispatch($ingredient, 'insert')->onQueue('ingredients');
                 $count++;
@@ -70,7 +70,7 @@ class QueuePendingSync extends Command
     private function queueNutrients(array $statuses): int
     {
         $count = 0;
-        Nutrient::whereIn('sync_status', $statuses)->orWhereNull('sync_status')
+        Nutrient::where(fn ($q) => $q->whereIn('sync_status', $statuses)->orWhereNull('sync_status'))
             ->each(function (Nutrient $nutrient) use (&$count) {
                 SyncNutrientToSearch::dispatch($nutrient, 'insert')->onQueue('nutrients');
                 $count++;
