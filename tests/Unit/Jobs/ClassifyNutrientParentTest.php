@@ -128,9 +128,16 @@ class ClassifyNutrientParentTest extends TestCase
     // Queue configuration
     // -------------------------------------------------------------------------
 
-    public function test_timeout_is_60_seconds(): void
+    public function test_timeout_reads_from_config(): void
     {
-        $this->assertSame(60, (new ClassifyNutrientParent($this->nutrient))->timeout);
+        config(['ai.ollama.timeout' => 600]);
+        $this->assertSame(600, (new ClassifyNutrientParent($this->nutrient))->timeout);
+    }
+
+    public function test_timeout_defaults_to_300(): void
+    {
+        config(['ai.ollama.timeout' => null]);
+        $this->assertSame(300, (new ClassifyNutrientParent($this->nutrient))->timeout);
     }
 
     public function test_tries_is_two(): void

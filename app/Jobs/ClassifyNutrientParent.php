@@ -16,12 +16,14 @@ class ClassifyNutrientParent implements ShouldQueue
 {
     use Dispatchable, Queueable, InteractsWithQueue, SerializesModels, Batchable;
 
-    public int $timeout = 60;
-    public int $tries   = 2;
+    public int $timeout;
+    public int $tries = 2;
 
     public function __construct(
         public readonly Nutrient $nutrient,
-    ) {}
+    ) {
+        $this->timeout = (int) (config('ai.ollama.timeout') ?? 300);
+    }
 
     public function handle(LlmClientContract $llm): void
     {

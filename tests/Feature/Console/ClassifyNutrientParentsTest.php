@@ -51,11 +51,15 @@ class ClassifyNutrientParentsTest extends TestCase
         return $nutrient;
     }
 
-    /** Mock the LLM to return {"parent_id": $parentId} for every chat() call. */
-    private function mockLlm(int $parentId): void
+    /** Mock the LLM to return a confident classification for every chat() call. */
+    private function mockLlm(int $parentId, int $confidence = 90): void
     {
         $llm = Mockery::mock(LlmClientContract::class);
-        $llm->shouldReceive('chat')->andReturn(json_encode(['parent_id' => $parentId]));
+        $llm->shouldReceive('chat')->andReturn(json_encode([
+            'parent_id'  => $parentId,
+            'confidence' => $confidence,
+            'reasoning'  => 'test',
+        ]));
         $this->app->instance(LlmClientContract::class, $llm);
     }
 
@@ -97,6 +101,34 @@ class ClassifyNutrientParentsTest extends TestCase
         $this->app->instance(LlmClientContract::class, $llm);
 
         $this->artisan('nutrients:classify-parents')->assertSuccessful();
+    }
+
+    // -------------------------------------------------------------------------
+    // Confidence threshold
+    // -------------------------------------------------------------------------
+
+    public function test_skips_assignment_when_confidence_is_below_80(): void
+    {
+        $parent = $this->hierarchyNutrient();
+        $child  = $this->nutrient();
+
+        $this->mockLlm($parent->id, 79);
+
+        $this->artisan('nutrients:classify-parents')->assertSuccessful();
+
+        $this->assertNull($child->fresh()->parent_id);
+    }
+
+    public function test_assigns_parent_at_exactly_80_confidence(): void
+    {
+        $parent = $this->hierarchyNutrient();
+        $child  = $this->nutrient();
+
+        $this->mockLlm($parent->id, 80);
+
+        $this->artisan('nutrients:classify-parents')->assertSuccessful();
+
+        $this->assertSame($parent->id, $child->fresh()->parent_id);
     }
 
     // -------------------------------------------------------------------------

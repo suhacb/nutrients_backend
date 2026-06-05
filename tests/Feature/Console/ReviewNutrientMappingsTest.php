@@ -73,7 +73,7 @@ class ReviewNutrientMappingsTest extends TestCase
         $this->artisan('nutrients:review-mappings')
             ->expectsOutputToContain('Vitamin D (D2+D3)')
             ->expectsOutputToContain('Vitamin D')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 's')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 's')
             ->assertSuccessful();
     }
 
@@ -83,7 +83,7 @@ class ReviewNutrientMappingsTest extends TestCase
 
         $this->artisan('nutrients:review-mappings')
             ->expectsOutputToContain('82')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 's')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 's')
             ->assertSuccessful();
     }
 
@@ -93,7 +93,7 @@ class ReviewNutrientMappingsTest extends TestCase
 
         $this->artisan('nutrients:review-mappings')
             ->expectsOutputToContain('Both refer to the same compound.')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 's')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 's')
             ->assertSuccessful();
     }
 
@@ -106,7 +106,7 @@ class ReviewNutrientMappingsTest extends TestCase
         $this->pendingReview();
 
         $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 'm')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'm')
             ->assertSuccessful();
 
         $this->assertDatabaseHas('nutrient_source_mappings', [
@@ -120,7 +120,7 @@ class ReviewNutrientMappingsTest extends TestCase
         $this->pendingReview();
 
         $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 'm')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'm')
             ->assertSuccessful();
 
         $this->assertDatabaseMissing('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
@@ -131,11 +131,51 @@ class ReviewNutrientMappingsTest extends TestCase
         $review = $this->pendingReview();
 
         $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 'm')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'm')
             ->assertSuccessful();
 
         $this->assertSame('approved', $review->fresh()->status);
         $this->assertNotNull($review->fresh()->resolved_at);
+    }
+
+    // -------------------------------------------------------------------------
+    // Approve parent
+    // -------------------------------------------------------------------------
+
+    public function test_parent_sets_parent_id_on_imported_nutrient(): void
+    {
+        $review = $this->pendingReview(['decision_type' => 'parent']);
+
+        $this->artisan('nutrients:review-mappings')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'p')
+            ->assertSuccessful();
+
+        $this->assertSame($this->canonical->id, $this->imported->fresh()->parent_id);
+    }
+
+    public function test_parent_marks_review_approved_with_parent_decision(): void
+    {
+        $review = $this->pendingReview(['decision_type' => 'parent']);
+
+        $this->artisan('nutrients:review-mappings')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'p')
+            ->assertSuccessful();
+
+        $review->refresh();
+        $this->assertSame('approved', $review->status);
+        $this->assertSame('parent', $review->decision_type);
+        $this->assertNotNull($review->resolved_at);
+    }
+
+    public function test_parent_does_not_delete_imported_nutrient(): void
+    {
+        $this->pendingReview(['decision_type' => 'parent']);
+
+        $this->artisan('nutrients:review-mappings')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'p')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
     }
 
     // -------------------------------------------------------------------------
@@ -147,7 +187,7 @@ class ReviewNutrientMappingsTest extends TestCase
         $this->pendingReview();
 
         $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 'k')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'k')
             ->assertSuccessful();
 
         $this->assertDatabaseHas('nutrients', ['id' => $this->imported->id, 'deleted_at' => null]);
@@ -158,7 +198,7 @@ class ReviewNutrientMappingsTest extends TestCase
         $review = $this->pendingReview();
 
         $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 'k')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 'k')
             ->assertSuccessful();
 
         $review->refresh();
@@ -176,7 +216,7 @@ class ReviewNutrientMappingsTest extends TestCase
         $review = $this->pendingReview();
 
         $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 's')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 's')
             ->assertSuccessful();
 
         $this->assertSame('pending', $review->fresh()->status);
@@ -208,8 +248,8 @@ class ReviewNutrientMappingsTest extends TestCase
         ]);
 
         $this->artisan('nutrients:review-mappings')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 's')
-            ->expectsQuestion('Action? [m]erge / [k]eep / [s]kip', 's')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 's')
+            ->expectsQuestion('Action? [m]erge / [p]arent / [k]eep / [s]kip', 's')
             ->assertSuccessful();
     }
 

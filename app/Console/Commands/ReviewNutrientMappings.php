@@ -2,10 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\IngredientNutrientPivot;
-use App\Models\Nutrient;
 use App\Models\NutrientMappingReview;
-use App\Models\NutrientSourcePivot;
 use Illuminate\Console\Command;
 
 class ReviewNutrientMappings extends Command
@@ -27,15 +24,18 @@ class ReviewNutrientMappings extends Command
 
         foreach ($reviews as $review) {
             $this->newLine();
+            $suggested = $review->suggestedCanonical?->name ?? 'none';
             $this->line("Imported:   <comment>{$review->nutrient->name}</comment>");
-            $this->line("Suggested:  <info>{$review->suggestedCanonical->name}</info>");
+            $this->line("Suggested:  <info>{$suggested}</info>");
+            $this->line("Type:       {$review->decision_type}");
             $this->line("Confidence: {$review->confidence}%");
             $this->line("Reasoning:  {$review->reasoning}");
 
-            $action = $this->ask('Action? [m]erge / [k]eep / [s]kip');
+            $action = $this->ask('Action? [m]erge / [p]arent / [k]eep / [s]kip');
 
             match ($action) {
                 'm' => $this->applyMerge($review),
+                'p' => $this->applyParent($review),
                 'k' => $this->applyKeep($review),
                 default => null,
             };
@@ -46,32 +46,27 @@ class ReviewNutrientMappings extends Command
 
     private function applyMerge(NutrientMappingReview $review): void
     {
-        $imported  = $review->nutrient;
-        $canonical = $review->suggestedCanonical;
+        $importedName  = $review->nutrient->name;
+        $canonicalName = $review->suggestedCanonical->name;
 
-        IngredientNutrientPivot::where('nutrient_id', $imported->id)
-            ->update(['nutrient_id' => $canonical->id]);
+        $review->executeMerge();
 
-        NutrientSourcePivot::where('nutrient_id', $imported->id)
-            ->update(['nutrient_id' => $canonical->id]);
+        $this->info("Merged \"{$importedName}\" -> \"{$canonicalName}\".");
+    }
 
-        Nutrient::withoutEvents(fn () => $imported->forceDelete());
+    private function applyParent(NutrientMappingReview $review): void
+    {
+        $nutrientName  = $review->nutrient->name;
+        $canonicalName = $review->suggestedCanonical->name;
 
-        $review->update([
-            'status'      => 'approved',
-            'resolved_at' => now(),
-        ]);
+        $review->executeParent();
 
-        $this->info("Merged \"{$imported->name}\" -> \"{$canonical->name}\".");
+        $this->info("Set \"{$canonicalName}\" as parent of \"{$nutrientName}\".");
     }
 
     private function applyKeep(NutrientMappingReview $review): void
     {
-        $review->update([
-            'decision_type' => 'keep',
-            'status'        => 'approved',
-            'resolved_at'   => now(),
-        ]);
+        $review->executeKeep();
 
         $this->info("Kept \"{$review->nutrient->name}\" as a distinct nutrient.");
     }

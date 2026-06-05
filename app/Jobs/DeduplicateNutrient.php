@@ -25,7 +25,7 @@ class DeduplicateNutrient implements ShouldQueue
     public function __construct(
         public readonly Nutrient $nutrient,
     ) {
-        $this->timeout = (int) config('ai.ollama.timeout', 300);
+        $this->timeout = (int) (config('ai.ollama.timeout') ?? 300);
     }
 
     public function handle(LlmClientContract $llm, WebSearchTool $search): void

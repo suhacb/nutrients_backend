@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\AI\Contracts\LlmClientContract;
 use App\Models\Nutrient;
-use App\Models\Source;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -18,8 +17,6 @@ class ClassifyNutrientParents extends Command
 
     public function handle(LlmClientContract $llm): int
     {
-        $systemSourceId = Source::where('slug', 'system')->value('id');
-
         $query = Nutrient::query();
 
         $ids = array_filter(array_map('intval', $this->option('id')));
@@ -53,7 +50,7 @@ class ClassifyNutrientParents extends Command
             $response = $llm->chat([
                 [
                     'role'    => 'system',
-                    'content' => 'You are a nutrition data classification assistant. Given a list of possible parent nutrients and a nutrient to classify, assign the nutrient to its most appropriate parent. Output ONLY a valid JSON object with a single key "parent_id" containing the chosen parent\'s ID. No explanation, no markdown, no code fences.',
+                    'content' => 'You are a nutrition data classification assistant. Given a list of possible parent nutrients and a nutrient to classify, assign the nutrient to its most appropriate parent. Output ONLY valid JSON with three keys: "parent_id" (integer: the chosen parent\'s ID from the list), "confidence" (integer 0–100), "reasoning" (string). No markdown, no code fences.',
                 ],
                 [
                     'role'    => 'user',
@@ -67,22 +64,36 @@ class ClassifyNutrientParents extends Command
                 ],
             ], ['model' => config('ai.ollama.models.fast')]);
 
-            $result   = json_decode($response, true) ?? [];
-            $parentId = $result['parent_id'] ?? null;
+            $result     = json_decode($response, true) ?? [];
+            $parentId   = $result['parent_id']   ?? null;
+            $confidence = (int) ($result['confidence'] ?? 0);
 
             if (!in_array($parentId, $validIds)) {
+                Log::info('classify_parent.invalid_or_missing', [
+                    'nutrient_id' => $nutrient->id,
+                    'parent_id'   => $parentId,
+                ]);
+                continue;
+            }
+
+            if ($confidence < 80) {
+                Log::info('classify_parent.low_confidence', [
+                    'nutrient_id' => $nutrient->id,
+                    'confidence'  => $confidence,
+                ]);
                 continue;
             }
 
             if ($isDryRun) {
                 $parentName = collect($hierarchy)->firstWhere('id', $parentId)['name'] ?? "#{$parentId}";
                 $this->comment($nutrient->name);
-                $this->comment("  -> {$parentName}");
+                $this->comment("  -> {$parentName} (confidence: {$confidence}%)");
             } else {
                 Nutrient::withoutEvents(fn () => $nutrient->update(['parent_id' => $parentId]));
                 Log::info('classify_parent.assigned', [
                     'nutrient_id' => $nutrient->id,
                     'parent_id'   => $parentId,
+                    'confidence'  => $confidence,
                 ]);
             }
 
