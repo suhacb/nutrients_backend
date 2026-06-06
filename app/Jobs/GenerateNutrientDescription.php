@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\AI\AgentOrchestrator;
 use App\Models\Nutrient;
+use Illuminate\Bus\Batchable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Log;
 
 class GenerateNutrientDescription implements ShouldQueue
 {
-    use Dispatchable, Queueable, InteractsWithQueue, SerializesModels;
+    use Dispatchable, Batchable, Queueable, InteractsWithQueue, SerializesModels;
 
     public int $timeout = 600;
     public int $tries   = 1;

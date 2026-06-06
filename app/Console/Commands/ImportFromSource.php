@@ -24,7 +24,7 @@ class ImportFromSource extends Command
 
     protected $signature = 'app:import-from-source
                             {source            : Source name (supported: usda)}
-                            {file              : Absolute or storage-relative path to the import file}
+                            {files*            : One or more file paths to import (absolute or storage-relative)}
                             {--backup=         : Path where a pre-import database dump will be saved}
                             {--rebuild-zinc    : Drop and recreate all Zinc indices before importing}
                             {--batchSize=100   : Number of records per processing batch}';
@@ -34,19 +34,29 @@ class ImportFromSource extends Command
     public function handle(BatchPersistor $persistor): int
     {
         $sourceName = $this->argument('source');
-        $file       = $this->resolveFilePath($this->argument('file'));
+        $rawFiles   = $this->argument('files');
         $backup     = $this->option('backup');
         $batchSize  = (int) $this->option('batchSize');
-
-        if (!file_exists($file)) {
-            $this->error("File not found: {$file}");
-            return self::FAILURE;
-        }
 
         try {
             $importSource = $this->resolveSource($sourceName);
         } catch (\InvalidArgumentException $e) {
             $this->error($e->getMessage());
+            return self::FAILURE;
+        }
+
+        $files = [];
+        foreach ($rawFiles as $raw) {
+            $path = $this->resolveFilePath($raw);
+            if (!file_exists($path)) {
+                $this->error("File not found: {$path}");
+                return self::FAILURE;
+            }
+            $files[] = $path;
+        }
+
+        if (empty($files)) {
+            $this->error('No files specified.');
             return self::FAILURE;
         }
 
@@ -72,9 +82,14 @@ class ImportFromSource extends Command
 
         try {
             $pipeline = new ImportPipeline($importSource, $persistor, $batchSize);
-            $this->info("Starting import (source={$sourceName}, batchSize={$batchSize}): {$file}");
-            $pipeline->run($file);
-            $this->info('Import completed successfully.');
+
+            foreach ($files as $file) {
+                $this->info("Importing (source={$sourceName}, batchSize={$batchSize}): " . basename($file));
+                $pipeline->run($file);
+                $this->info('  Done: ' . basename($file));
+            }
+
+            $this->info('All imports completed. Enrichment jobs dispatched — monitor queue workers for progress.');
             return self::SUCCESS;
         } catch (\RuntimeException $e) {
             $this->error('Import failed: ' . $e->getMessage());

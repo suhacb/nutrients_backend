@@ -46,6 +46,7 @@ class ImportPipeline {
             $this->persistor->persist($batch, $source);
         }
 
+        // Index all ingredients for this source immediately (raw names — beautify separately).
         SyncSourceToSearch::dispatch($source)->onQueue('ingredients');
 
         $newIds = $this->persistor->flushNewSourceNutrientIds();
@@ -57,13 +58,15 @@ class ImportPipeline {
 
     private function dispatchEnrichmentChain(array $sourceNutrientIds): void
     {
-        $sourceNutrients = SourceNutrient::whereIn('id', $sourceNutrientIds)->get();
-        $dedupJobs       = $sourceNutrients->map(fn ($sn) => new DeduplicateNutrient($sn))->all();
+        $dedupJobs = SourceNutrient::whereIn('id', $sourceNutrientIds)
+            ->get()
+            ->map(fn ($sn) => new DeduplicateNutrient($sn))
+            ->all();
 
         Bus::batch($dedupJobs)
             ->onQueue('nutrients-dedup')
             ->then(function () use ($sourceNutrientIds) {
-                // After dedup, collect the canonical nutrient IDs resolved from these source nutrients.
+                // Collect canonical IDs resolved from these source nutrients.
                 $canonicalIds = SourceNutrient::whereIn('id', $sourceNutrientIds)
                     ->whereNotNull('nutrient_id')
                     ->pluck('nutrient_id')
@@ -74,18 +77,47 @@ class ImportPipeline {
                     return;
                 }
 
-                $classifyJobs = Nutrient::whereIn('id', $canonicalIds)->get()
+                // Only classify canonicals that don't have a parent assigned yet.
+                $classifyJobs = Nutrient::whereIn('id', $canonicalIds)
+                    ->whereNull('parent_id')
+                    ->get()
                     ->map(fn ($n) => new ClassifyNutrientParent($n))
                     ->all();
 
+                // After classification (or immediately if nothing to classify), generate
+                // descriptions for canonicals that don't have one, then sync them all.
+                $dispatchDescriptionsAndSync = static function () use ($canonicalIds): void {
+                    $descJobs = Nutrient::whereIn('id', $canonicalIds)
+                        ->whereNull('description')
+                        ->get()
+                        ->map(fn ($n) => new GenerateNutrientDescription($n))
+                        ->all();
+
+                    $syncAll = static function () use ($canonicalIds): void {
+                        Nutrient::whereIn('id', $canonicalIds)->each(
+                            fn ($nutrient) => SyncNutrientToSearch::dispatch($nutrient, 'insert')->onQueue('nutrients')
+                        );
+                    };
+
+                    if (empty($descJobs)) {
+                        $syncAll();
+                        return;
+                    }
+
+                    Bus::batch($descJobs)
+                        ->onQueue('nutrients')
+                        ->then($syncAll)
+                        ->dispatch();
+                };
+
+                if (empty($classifyJobs)) {
+                    $dispatchDescriptionsAndSync();
+                    return;
+                }
+
                 Bus::batch($classifyJobs)
                     ->onQueue('nutrients-classify')
-                    ->then(function () use ($canonicalIds) {
-                        foreach (Nutrient::whereIn('id', $canonicalIds)->get() as $nutrient) {
-                            GenerateNutrientDescription::dispatch($nutrient)->onQueue('nutrients');
-                            SyncNutrientToSearch::dispatch($nutrient, 'insert')->onQueue('nutrients');
-                        }
-                    })
+                    ->then($dispatchDescriptionsAndSync)
                     ->dispatch();
             })
             ->dispatch();

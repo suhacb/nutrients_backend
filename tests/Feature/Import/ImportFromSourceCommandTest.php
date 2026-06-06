@@ -48,7 +48,7 @@ class ImportFromSourceCommandTest extends TestCase
     {
         return $this->artisan('app:import-from-source', array_merge([
             'source'   => 'usda',
-            'file'     => $this->fixture,
+            'files'    => [$this->fixture],
             '--backup' => $this->backupPath,
         ], $overrides));
     }
@@ -91,7 +91,7 @@ class ImportFromSourceCommandTest extends TestCase
 
     public function test_command_fails_when_file_not_found(): void
     {
-        $this->artisanImport(['file' => '/nonexistent/file.json'])
+        $this->artisanImport(['files' => ['/nonexistent/file.json']])
             ->assertExitCode(1);
 
         $this->assertFileDoesNotExist($this->backupPath);
