@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'qdrant' => [
+        'base_url' => env('QDRANT_BASE_URL', ''),
+    ],
+
 ];
